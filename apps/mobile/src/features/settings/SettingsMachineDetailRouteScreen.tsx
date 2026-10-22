@@ -363,7 +363,7 @@ function MachineDetail({ machineId }: { readonly machineId: MachineId }) {
                           {provider.versionAdvisory?.status === "behind_latest" &&
                           !provider.versionAdvisory.canUpdate ? (
                             <Text className="text-sm text-foreground-muted">
-                              Update this provider on the machine's machine.
+                              Update this provider on the machine.
                             </Text>
                           ) : null}
                         </View>
