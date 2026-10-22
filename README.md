@@ -21,3 +21,11 @@ The iOS and Android app for Vekrel; derived from T3 Code (MIT, see NOTICE).
   - app-builder-lib@26.16.1
   Every other entry is kept, including all Expo and React Native patches. The unreferenced upstream files `patches/expo-modules-core@57.0.14.patch` and `patches/expo-notifications@57.0.15.patch` are copied as-is.
 - Native builds (`expo prebuild`, Xcode, Gradle) were not run.
+
+## Needs Vekrel-owned accounts
+Still upstream values; replace before a real build or release:
+- `relyingParty: "clerk.t3.codes"` (Clerk) in `apps/mobile/app.config.ts`
+- Expo `updates.url` and EAS project id (`u.expo.dev/d763fcb8-...`)
+- Apple development team pin in `app.config.ts`
+- `https://t3.codes` marketing/legal URL (`legal-document-url.ts`)
+- `VEKREL_CLERK_PUBLISHABLE_KEY`, `VEKREL_CLERK_JWT_TEMPLATE`, `VEKREL_RELAY_URL` EAS environment values
