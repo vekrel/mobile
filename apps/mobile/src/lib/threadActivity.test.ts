@@ -1017,7 +1017,7 @@ describe("retained v2 feed presentation", () => {
           {
             ...base(id, "2026-06-20T00:00:02.000Z", index),
             type: "dynamic_tool",
-            toolName: "t3-code.delegate_task",
+            toolName: "vekrel.delegate_task",
             input: { task: "Identical task" },
             output,
             ...overrides,
@@ -1461,7 +1461,7 @@ describe("streamed feed updates", () => {
   const delegation: OrchestrationV2TurnItem = {
     ...item("delegation", 3, runs[0]),
     type: "dynamic_tool",
-    toolName: "t3-code.delegate_task",
+    toolName: "vekrel.delegate_task",
     input: { task: "Check" },
     output: { taskId: "child" },
   };
