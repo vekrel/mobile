@@ -1,19 +1,19 @@
 import { useAtomValue } from "@effect/atom-react";
-import type { EnvironmentShellStatus } from "@vekrel/client-runtime/state/shell";
-import type { EnvironmentId, MessageId } from "@vekrel/contracts";
+import type { MachineShellStatus } from "@vekrel/client-runtime/state/shell";
+import type { MachineId, MessageId } from "@vekrel/contracts";
 import { Atom } from "effect/reactivity";
 
 import { appAtomRegistry } from "./atom-registry";
-import { environmentShell } from "./shell";
+import { machineShell } from "./shell";
 import { threadOutboxManager } from "./thread-outbox";
 
 const threadOutboxShellStatusesAtom = Atom.make(
-  (get): ReadonlyMap<EnvironmentId, EnvironmentShellStatus> => {
-    const statuses = new Map<EnvironmentId, EnvironmentShellStatus>();
+  (get): ReadonlyMap<MachineId, MachineShellStatus> => {
+    const statuses = new Map<MachineId, MachineShellStatus>();
     for (const queue of Object.values(get(threadOutboxManager.queuedMessagesByThreadKeyAtom))) {
-      const environmentId = queue[0]?.environmentId;
-      if (environmentId !== undefined && !statuses.has(environmentId)) {
-        statuses.set(environmentId, get(environmentShell.stateValueAtom(environmentId)).status);
+      const machineId = queue[0]?.machineId;
+      if (machineId !== undefined && !statuses.has(machineId)) {
+        statuses.set(machineId, get(machineShell.stateValueAtom(machineId)).status);
       }
     }
     return statuses;

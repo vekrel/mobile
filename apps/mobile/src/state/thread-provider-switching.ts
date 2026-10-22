@@ -1,9 +1,9 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import { threadSupportsProviderHandoff } from "@vekrel/client-runtime/state/thread-workflows";
 import type { OrchestrationV2ThreadProjection } from "@vekrel/contracts";
 
 type ThreadStartMarkers = Pick<
-  EnvironmentThreadShell,
+  MachineThreadShell,
   "latestRun" | "latestUserMessageAt" | "runtime"
 >;
 

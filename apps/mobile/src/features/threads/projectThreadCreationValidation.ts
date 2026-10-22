@@ -1,10 +1,10 @@
-import { EnvironmentId, ProjectId } from "@vekrel/contracts";
+import { MachineId, ProjectId } from "@vekrel/contracts";
 import * as Schema from "effect/Schema";
 
 export class ProjectThreadTaskRequiredError extends Schema.TaggedError<ProjectThreadTaskRequiredError>()(
   "ProjectThreadTaskRequiredError",
   {
-    environmentId: EnvironmentId,
+    machineId: MachineId,
     projectId: ProjectId,
     environmentMode: Schema.Literals(["local", "worktree"]),
   },
@@ -17,7 +17,7 @@ export class ProjectThreadTaskRequiredError extends Schema.TaggedError<ProjectTh
 export class ProjectThreadBaseBranchRequiredError extends Schema.TaggedError<ProjectThreadBaseBranchRequiredError>()(
   "ProjectThreadBaseBranchRequiredError",
   {
-    environmentId: EnvironmentId,
+    machineId: MachineId,
     projectId: ProjectId,
   },
 ) {
@@ -44,7 +44,7 @@ export function resolveProjectThreadCreationBranch(input: {
 }
 
 export function validateProjectThreadCreation(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly projectId: ProjectId;
   readonly environmentMode: "local" | "worktree";
   readonly branch: string | null;
@@ -52,14 +52,14 @@ export function validateProjectThreadCreation(input: {
 }): ProjectThreadCreationValidationError | null {
   if (input.initialMessageText.trim().length === 0) {
     return new ProjectThreadTaskRequiredError({
-      environmentId: input.environmentId,
+      machineId: input.machineId,
       projectId: input.projectId,
       environmentMode: input.environmentMode,
     });
   }
   if (input.environmentMode === "worktree" && !input.branch) {
     return new ProjectThreadBaseBranchRequiredError({
-      environmentId: input.environmentId,
+      machineId: input.machineId,
       projectId: input.projectId,
     });
   }

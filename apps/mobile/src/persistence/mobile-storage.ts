@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import * as Arr from "effect/Array";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -59,7 +59,7 @@ export interface AgentAwarenessRegistrationRecord {
 }
 
 export interface RecentThreadShortcut {
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly threadId: string;
   readonly title: string;
 }
@@ -78,7 +78,7 @@ export class MobileStorage extends Context.Service<
       MobileSecureStorage.MobileSecureStorageError | MobileStorageEncodeError
     >;
     readonly clearSavedConnection: (
-      environmentId: EnvironmentId,
+      machineId: MachineId,
     ) => Effect.Effect<
       void,
       MobileSecureStorage.MobileSecureStorageError | MobileStorageEncodeError
@@ -156,7 +156,7 @@ export const make = Effect.fn("MobileStorage.make")(function* () {
         parsed?.connections ?? [],
         Arr.filter(
           (connection) =>
-            !!connection.environmentId &&
+            !!connection.machineId &&
             (!!connection.bearerToken?.trim() || isRelayManagedConnection(connection)),
         ),
       ),
@@ -168,11 +168,11 @@ export const make = Effect.fn("MobileStorage.make")(function* () {
   ) {
     const current = yield* loadSavedConnections;
     const stableConnection = toStableSavedRemoteConnection(connection);
-    const next = current.some((entry) => entry.environmentId === connection.environmentId)
+    const next = current.some((entry) => entry.machineId === connection.machineId)
       ? pipe(
           current,
           Arr.map((entry) =>
-            entry.environmentId === connection.environmentId ? stableConnection : entry,
+            entry.machineId === connection.machineId ? stableConnection : entry,
           ),
         )
       : pipe(current, Arr.append(stableConnection));
@@ -180,12 +180,12 @@ export const make = Effect.fn("MobileStorage.make")(function* () {
   });
 
   const clearSavedConnection = Effect.fn("MobileStorage.clearSavedConnection")(function* (
-    environmentId: EnvironmentId,
+    machineId: MachineId,
   ) {
     const current = yield* loadSavedConnections;
     const next = pipe(
       current,
-      Arr.filter((entry) => entry.environmentId !== environmentId),
+      Arr.filter((entry) => entry.machineId !== machineId),
     );
     yield* writeJson(CONNECTIONS_KEY, { connections: next });
   });
@@ -235,8 +235,8 @@ export const make = Effect.fn("MobileStorage.make")(function* () {
         parsed?.threads ?? [],
         Arr.filter(
           (thread) =>
-            typeof thread?.environmentId === "string" &&
-            thread.environmentId.length > 0 &&
+            typeof thread?.machineId === "string" &&
+            thread.machineId.length > 0 &&
             typeof thread.threadId === "string" &&
             thread.threadId.length > 0 &&
             typeof thread.title === "string",

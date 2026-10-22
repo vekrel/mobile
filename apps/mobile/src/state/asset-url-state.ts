@@ -1,4 +1,4 @@
-import type { EnvironmentConnectionPhase } from "@vekrel/client-runtime/connection";
+import type { MachineConnectionPhase } from "@vekrel/client-runtime/connection";
 import type { AssetUrlState as SharedAssetUrlState } from "@vekrel/client-runtime/state/assets";
 
 export type AssetUrlFailureReason = "disconnected" | "failed" | "missing-file-access";
@@ -9,7 +9,7 @@ export type AssetUrlState =
   | Extract<SharedAssetUrlState, { readonly _tag: "Success" }>;
 
 export function deriveAssetUrlState(input: {
-  readonly connectionPhase: EnvironmentConnectionPhase;
+  readonly connectionPhase: MachineConnectionPhase;
   readonly shared: SharedAssetUrlState;
 }): AssetUrlState {
   if (
@@ -26,7 +26,7 @@ export function deriveAssetUrlState(input: {
   switch (input.connectionPhase) {
     // "available" is the idle, not yet dialled state. A pending query there is
     // still on its way, but the query atom fails at once while idle, so a
-    // failure means the environment is not connected rather than the file is
+    // failure means the machine is not connected rather than the file is
     // missing.
     case "available":
       return input.shared._tag === "Failure"

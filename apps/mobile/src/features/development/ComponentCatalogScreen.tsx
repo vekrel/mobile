@@ -33,7 +33,7 @@ const CHOICES = [
   { value: "activity", label: "Activity" },
 ];
 
-/** Development-only, real controls with local state and no environment commands. */
+/** Development-only, real controls with local state and no machine commands. */
 export function ComponentCatalogScreen() {
   const navigation = useNavigation();
   const appearance = useAppearancePreferences();

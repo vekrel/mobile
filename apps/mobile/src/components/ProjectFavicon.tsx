@@ -3,7 +3,7 @@ import { AppText } from "./ui/AppText";
 import { Image } from "expo-image";
 import { memo, useLayoutEffect, useMemo, useState } from "react";
 import { View } from "react-native";
-import type { EnvironmentId, ProjectIconOverride } from "@vekrel/contracts";
+import type { MachineId, ProjectIconOverride } from "@vekrel/contracts";
 import {
   getProjectFaviconCacheKey,
   getProjectFaviconResourceKey,
@@ -30,7 +30,7 @@ import {
 const EMPTY_FAVICON_URL = Atom.make<string | null>(null);
 
 export const ProjectFavicon = memo(function ProjectFavicon(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly open?: boolean;
   readonly size?: number;
   readonly projectTitle: string;
@@ -44,7 +44,7 @@ export const ProjectFavicon = memo(function ProjectFavicon(props: {
     props.workspaceRoot == null || glyph !== null
       ? EMPTY_FAVICON_URL
       : projectFaviconUrlAtom({
-          environmentId: props.environmentId,
+          machineId: props.machineId,
           cwd: props.workspaceRoot,
           faviconPath: props.faviconPath,
         }),
@@ -60,17 +60,17 @@ export const ProjectFavicon = memo(function ProjectFavicon(props: {
       renderableFaviconUrl && props.workspaceRoot
         ? renderableFaviconUrl.startsWith("data:")
           ? getProjectFaviconResourceKey(
-              props.environmentId,
+              props.machineId,
               props.workspaceRoot,
               props.faviconPath,
             )
           : getProjectFaviconCacheKey(
-              props.environmentId,
+              props.machineId,
               props.workspaceRoot,
               renderableFaviconUrl,
             )
         : null,
-    [renderableFaviconUrl, props.environmentId, props.workspaceRoot, props.faviconPath],
+    [renderableFaviconUrl, props.machineId, props.workspaceRoot, props.faviconPath],
   );
 
   if (glyph !== null) {

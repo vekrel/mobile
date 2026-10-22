@@ -1,6 +1,6 @@
 import {
   presentThreadShell,
-  type EnvironmentThreadShell,
+  type MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import type { LocalThreadMessage } from "../lib/threadActivity";
 import { DEFAULT_PROVIDER_INTERACTION_MODE, DEFAULT_RUNTIME_MODE } from "@vekrel/contracts";
@@ -35,7 +35,7 @@ export function resolvePendingThreadCreation(input: {
   const creation = input.pending ?? input.previous;
   if (
     creation === null ||
-    scopedThreadKey(creation.message.environmentId, creation.message.threadId) !== input.threadKey
+    scopedThreadKey(creation.message.machineId, creation.message.threadId) !== input.threadKey
   ) {
     return null;
   }
@@ -71,7 +71,7 @@ export const pendingThreadCreationOutcomesAtom = Atom.make<
 >({}).pipe(Atom.keepAlive, Atom.withLabel("mobile:pending-thread-creation:outcomes"));
 
 export function recordPendingThreadCreationOutcome(outcome: PendingThreadCreationOutcome): void {
-  const key = scopedThreadKey(outcome.message.environmentId, outcome.message.threadId);
+  const key = scopedThreadKey(outcome.message.machineId, outcome.message.threadId);
   appAtomRegistry.set(pendingThreadCreationOutcomesAtom, {
     ...appAtomRegistry.get(pendingThreadCreationOutcomesAtom),
     [key]: outcome,
@@ -118,13 +118,13 @@ export function pendingThreadCreationMessage(message: QueuedThreadMessage): Loca
 
 export function pendingThreadCreationShell(
   message: QueuedThreadMessage,
-): EnvironmentThreadShell | null {
+): MachineThreadShell | null {
   const creation = message.creation;
   if (!creation || !message.modelSelection) {
     return null;
   }
   const timestamp = DateTime.makeUnsafe(message.createdAt);
-  return presentThreadShell(message.environmentId, {
+  return presentThreadShell(message.machineId, {
     id: message.threadId,
     projectId: creation.projectId,
     title: deriveThreadTitleFromPrompt(message.text),

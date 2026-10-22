@@ -1,7 +1,7 @@
 import { beforeEach, vi } from "vite-plus/test";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { ManagedRelay } from "@vekrel/client-runtime/relay";
 import * as Layer from "effect/Layer";
 import { HttpClient } from "effect/http";
@@ -9,9 +9,9 @@ import { HttpClient } from "effect/http";
 import type { SavedRemoteConnection } from "../../lib/connection";
 import * as MobileStorage from "../../persistence/mobile-storage";
 import {
-  CloudEnvironmentLinkError,
-  linkEnvironmentToCloudWithPreference,
-} from "../cloud/linkEnvironment";
+  CloudMachineLinkError,
+  linkMachineToCloudWithPreference,
+} from "../cloud/linkMachine";
 import { setLiveActivityUpdatesEnabled } from "./liveActivityPreferences";
 import { updateAgentAwarenessRegistrationPreferences } from "./remoteRegistration";
 
@@ -31,9 +31,9 @@ vi.mock("expo-constants", () => ({
 
 vi.mock("expo-device", () => ({}));
 
-vi.mock("../cloud/linkEnvironment", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../cloud/linkEnvironment")>()),
-  linkEnvironmentToCloudWithPreference: vi.fn(() => Effect.void),
+vi.mock("../cloud/linkMachine", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../cloud/linkMachine")>()),
+  linkMachineToCloudWithPreference: vi.fn(() => Effect.void),
 }));
 
 vi.mock("./remoteRegistration", () => ({
@@ -41,8 +41,8 @@ vi.mock("./remoteRegistration", () => ({
 }));
 
 const connection: SavedRemoteConnection = {
-  environmentId: "env-1" as EnvironmentId,
-  environmentLabel: "Desktop",
+  machineId: "env-1" as MachineId,
+  machineLabel: "Desktop",
   pairingUrl: "https://desktop.example.test/",
   displayUrl: "https://desktop.example.test/",
   httpBaseUrl: "https://desktop.example.test/",
@@ -78,9 +78,9 @@ describe("liveActivityPreferences", () => {
     vi.clearAllMocks();
   });
 
-  it.effect("restores relay preferences when an environment update fails", () => {
-    vi.mocked(linkEnvironmentToCloudWithPreference).mockImplementationOnce(() =>
-      Effect.fail(new CloudEnvironmentLinkError({ message: "environment update failed" })),
+  it.effect("restores relay preferences when a machine update fails", () => {
+    vi.mocked(linkMachineToCloudWithPreference).mockImplementationOnce(() =>
+      Effect.fail(new CloudMachineLinkError({ message: "machine update failed" })),
     );
 
     return Effect.gen(function* () {
@@ -90,7 +90,7 @@ describe("liveActivityPreferences", () => {
           previousEnabled: true,
           clerkToken: "clerk-token",
           connections: [connection],
-          canConfigureEnvironment: () => true,
+          canConfigureMachine: () => true,
         }),
       );
 
@@ -101,12 +101,12 @@ describe("liveActivityPreferences", () => {
       expect(updateAgentAwarenessRegistrationPreferences).toHaveBeenNthCalledWith(2, {
         liveActivitiesEnabled: true,
       });
-      expect(linkEnvironmentToCloudWithPreference).toHaveBeenNthCalledWith(1, {
+      expect(linkMachineToCloudWithPreference).toHaveBeenNthCalledWith(1, {
         clerkToken: "clerk-token",
         connection,
         liveActivitiesEnabled: false,
       });
-      expect(linkEnvironmentToCloudWithPreference).toHaveBeenNthCalledWith(2, {
+      expect(linkMachineToCloudWithPreference).toHaveBeenNthCalledWith(2, {
         clerkToken: "clerk-token",
         connection,
         liveActivitiesEnabled: true,
@@ -114,10 +114,10 @@ describe("liveActivityPreferences", () => {
     }).pipe(Effect.provide(layerTest));
   });
 
-  it.effect("only re-links environments with relay access when enabling updates", () => {
+  it.effect("only re-links machines with relay access when enabling updates", () => {
     const readOnlyConnection: SavedRemoteConnection = {
       ...connection,
-      environmentId: "read-only" as EnvironmentId,
+      machineId: "read-only" as MachineId,
     };
 
     return Effect.gen(function* () {
@@ -126,13 +126,13 @@ describe("liveActivityPreferences", () => {
         previousEnabled: false,
         clerkToken: "clerk-token",
         connections: [readOnlyConnection, connection],
-        canConfigureEnvironment: (environmentId) => environmentId === connection.environmentId,
+        canConfigureMachine: (machineId) => machineId === connection.machineId,
       });
 
       expect(updateAgentAwarenessRegistrationPreferences).toHaveBeenCalledWith({
         liveActivitiesEnabled: true,
       });
-      expect(linkEnvironmentToCloudWithPreference).toHaveBeenCalledExactlyOnceWith({
+      expect(linkMachineToCloudWithPreference).toHaveBeenCalledExactlyOnceWith({
         clerkToken: "clerk-token",
         connection,
         liveActivitiesEnabled: true,
@@ -141,10 +141,10 @@ describe("liveActivityPreferences", () => {
   });
 
   it.effect("checks current relay access after updating the device registration", () => {
-    let canConfigureEnvironment = true;
+    let canConfigureMachine = true;
     vi.mocked(updateAgentAwarenessRegistrationPreferences).mockImplementationOnce(() =>
       Effect.sync(() => {
-        canConfigureEnvironment = false;
+        canConfigureMachine = false;
       }),
     );
 
@@ -154,10 +154,10 @@ describe("liveActivityPreferences", () => {
         previousEnabled: true,
         clerkToken: "clerk-token",
         connections: [connection],
-        canConfigureEnvironment: () => canConfigureEnvironment,
+        canConfigureMachine: () => canConfigureMachine,
       });
 
-      expect(linkEnvironmentToCloudWithPreference).not.toHaveBeenCalled();
+      expect(linkMachineToCloudWithPreference).not.toHaveBeenCalled();
       expect(updateAgentAwarenessRegistrationPreferences).toHaveBeenCalledTimes(1);
     }).pipe(Effect.provide(layerTest));
   });

@@ -32,7 +32,7 @@ export type AgentActivityPhase =
   | "stale";
 
 export interface AgentActivityRowProps {
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly threadId: string;
   readonly projectTitle: string;
   readonly threadTitle: string;

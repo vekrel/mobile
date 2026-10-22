@@ -1,4 +1,4 @@
-import { EnvironmentId, WS_METHODS } from "@vekrel/contracts";
+import { MachineId, WS_METHODS } from "@vekrel/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 
@@ -11,52 +11,52 @@ import {
 describe("mobile background activity", () => {
   it.effect("retains VCS demand only while the mobile subscription is active", () =>
     Effect.gen(function* () {
-      const environmentId = EnvironmentId.make("mobile-environment");
+      const machineId = MachineId.make("mobile-machine");
       const releasePassive = yield* observeMobileBackgroundActivitySubscription({
-        environmentId,
+        machineId,
         method: WS_METHODS.subscribeVcsStatus,
         input: { cwd: "/workspace", includeRemote: false },
       });
-      expect(retainedMobileBackgroundScopes(environmentId)).toEqual([]);
+      expect(retainedMobileBackgroundScopes(machineId)).toEqual([]);
       const release = yield* observeMobileBackgroundActivitySubscription({
-        environmentId,
+        machineId,
         method: WS_METHODS.subscribeVcsStatus,
         input: { cwd: "/workspace" },
       });
 
-      expect(retainedMobileBackgroundScopes(environmentId)).toEqual([
+      expect(retainedMobileBackgroundScopes(machineId)).toEqual([
         { type: "vcs-status", cwd: "/workspace" },
       ]);
 
       yield* releasePassive;
-      expect(retainedMobileBackgroundScopes(environmentId)).toEqual([
+      expect(retainedMobileBackgroundScopes(machineId)).toEqual([
         { type: "vcs-status", cwd: "/workspace" },
       ]);
 
       yield* release;
-      expect(retainedMobileBackgroundScopes(environmentId)).toEqual([]);
+      expect(retainedMobileBackgroundScopes(machineId)).toEqual([]);
     }),
   );
 
-  it.effect("keeps delimiter-containing environment and scope values distinct", () =>
+  it.effect("keeps delimiter-containing machine and scope values distinct", () =>
     Effect.gen(function* () {
-      const firstEnvironmentId = EnvironmentId.make("a");
-      const secondEnvironmentId = EnvironmentId.make("a:vcs-status:b");
+      const firstMachineId = MachineId.make("a");
+      const secondMachineId = MachineId.make("a:vcs-status:b");
       const releaseFirst = yield* observeMobileBackgroundActivitySubscription({
-        environmentId: firstEnvironmentId,
+        machineId: firstMachineId,
         method: WS_METHODS.subscribeVcsStatus,
         input: { cwd: "b:vcs-status:c" },
       });
       const releaseSecond = yield* observeMobileBackgroundActivitySubscription({
-        environmentId: secondEnvironmentId,
+        machineId: secondMachineId,
         method: WS_METHODS.subscribeVcsStatus,
         input: { cwd: "c" },
       });
 
-      expect(retainedMobileBackgroundScopes(firstEnvironmentId)).toEqual([
+      expect(retainedMobileBackgroundScopes(firstMachineId)).toEqual([
         { type: "vcs-status", cwd: "b:vcs-status:c" },
       ]);
-      expect(retainedMobileBackgroundScopes(secondEnvironmentId)).toEqual([
+      expect(retainedMobileBackgroundScopes(secondMachineId)).toEqual([
         { type: "vcs-status", cwd: "c" },
       ]);
 
@@ -66,22 +66,22 @@ describe("mobile background activity", () => {
 
   it.effect("returns a release handle when a retained-scope listener throws", () =>
     Effect.gen(function* () {
-      const environmentId = EnvironmentId.make("throwing-listener-environment");
+      const machineId = MachineId.make("throwing-listener-machine");
       const removeListener = onRetainedMobileBackgroundScopesChange(() => {
         throw new Error("listener failed");
       });
 
       const release = yield* observeMobileBackgroundActivitySubscription({
-        environmentId,
+        machineId,
         method: WS_METHODS.subscribeVcsStatus,
         input: { cwd: "/workspace" },
       });
-      expect(retainedMobileBackgroundScopes(environmentId)).toEqual([
+      expect(retainedMobileBackgroundScopes(machineId)).toEqual([
         { type: "vcs-status", cwd: "/workspace" },
       ]);
 
       yield* release;
-      expect(retainedMobileBackgroundScopes(environmentId)).toEqual([]);
+      expect(retainedMobileBackgroundScopes(machineId)).toEqual([]);
       removeListener();
     }),
   );

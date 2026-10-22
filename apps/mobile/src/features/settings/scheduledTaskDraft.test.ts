@@ -101,14 +101,14 @@ describe("scheduleFromDraft", () => {
 describe("scheduled task model defaults", () => {
   const instanceId = ProviderInstanceId.make("codex");
   const projectId = ProjectId.make("project");
-  const environmentSelection = {
+  const machineSelection = {
     instanceId,
-    model: "environment-model",
+    model: "machine-model",
     options: [{ id: "reasoning", value: "high" }],
   };
   const projectSelection = { instanceId, model: "project-model" };
   const config = {
-    settings: { ...DEFAULT_SERVER_SETTINGS, defaultModelSelection: environmentSelection },
+    settings: { ...DEFAULT_SERVER_SETTINGS, defaultModelSelection: machineSelection },
     providers: [
       {
         instanceId,
@@ -127,7 +127,7 @@ describe("scheduled task model defaults", () => {
             isCustom: false,
             capabilities: null,
           },
-          { slug: "environment-model", name: "Environment", isCustom: false, capabilities: null },
+          { slug: "machine-model", name: "Machine", isCustom: false, capabilities: null },
           { slug: "project-model", name: "Project", isCustom: false, capabilities: null },
         ],
       },
@@ -158,7 +158,7 @@ describe("scheduled task model defaults", () => {
       resolve({ ...config, settings: { ...config.settings, defaultModelSelection: null } }, null),
     ).toEqual({ instanceId, model: "catalog-default" });
   });
-  it("falls back to the environment default when the project provider is unavailable", () => {
+  it("falls back to the machine default when the project provider is unavailable", () => {
     expect(
       resolve(config, {
         id: projectId,
@@ -167,7 +167,7 @@ describe("scheduled task model defaults", () => {
           model: "missing",
         },
       }),
-    ).toEqual(environmentSelection);
+    ).toEqual(machineSelection);
   });
   it("does not choose an implicit model on a disabled provider", () => {
     expect(

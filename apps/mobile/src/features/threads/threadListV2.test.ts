@@ -11,11 +11,11 @@ import {
   type PendingThreadOrder,
   type ThreadMoveAvailability,
 } from "./threadOrder";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import { resolveSnoozePresets } from "@vekrel/client-runtime/state/thread-settled";
 import {
   CommandId,
-  EnvironmentId,
+  MachineId,
   MessageId,
   OrchestrationV2ThreadShell,
   ProjectId,
@@ -41,14 +41,14 @@ import {
   type ThreadListV2ListItem,
 } from "./threadListV2";
 
-const environmentId = EnvironmentId.make("environment-1");
+const machineId = MachineId.make("machine-1");
 const decodeThreadShell = Schema.decodeUnknownSync(OrchestrationV2ThreadShell);
 
 function makeThread(
-  input: Partial<EnvironmentThreadShell> & Pick<EnvironmentThreadShell, "id" | "title">,
-): EnvironmentThreadShell {
+  input: Partial<MachineThreadShell> & Pick<MachineThreadShell, "id" | "title">,
+): MachineThreadShell {
   return makeThreadShellFixture({
-    environmentId,
+    machineId,
     ...input,
   });
 }
@@ -81,7 +81,7 @@ describe("resolveThreadListV2Status", () => {
       activeRunId: RunId.make("run-wait"),
       latestRunId: RunId.make("run-wait"),
     });
-    const present = (shell: unknown) => presentThreadShell(environmentId, decodeThreadShell(shell));
+    const present = (shell: unknown) => presentThreadShell(machineId, decodeThreadShell(shell));
 
     expect(resolveThreadListV2Status(present(raw))).toBe("working");
     const blocked = present({ ...raw, blockedOnThreadWait: true });
@@ -106,7 +106,7 @@ describe("resolveThreadListV2Status", () => {
     "presents an unseen completion with a $kind roster as $status",
     ({ kind, status }) => {
       const thread = presentThreadShell(
-        environmentId,
+        machineId,
         makeRawThreadShell({
           latestRunId: RunId.make("run-background-completion"),
           status: "completed",
@@ -132,12 +132,12 @@ describe("queued messages keep a settled thread active", () => {
       settledOverride: "settled",
     }),
   ];
-  const queuedThreadKeys = new Set([`${environmentId}:settled-queued`]);
+  const queuedThreadKeys = new Set([`${machineId}:settled-queued`]);
 
   it("lists the thread in the active block instead of the settled shelf", () => {
     const layout = buildThreadListV2Items({
       threads,
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
       queuedThreadKeys,
@@ -229,7 +229,7 @@ describe("buildThreadListV2Items", () => {
           snoozedAt: "2026-06-01T12:00:00.000Z",
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
     });
@@ -250,7 +250,7 @@ describe("buildThreadListV2Items", () => {
           settledAt: "2026-06-01T12:00:00.000Z",
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
     });
@@ -272,7 +272,7 @@ describe("buildThreadListV2Items", () => {
           snoozedAt: "2026-06-01T11:00:00.000Z",
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
     };
 
@@ -309,7 +309,7 @@ describe("buildThreadListV2Items", () => {
           snoozedAt: "2026-06-01T12:00:00.000Z",
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
       snoozedShelfExpanded: true,
@@ -342,10 +342,10 @@ describe("buildThreadListV2Items", () => {
           snoozedAt: "2026-06-01T12:00:00.000Z",
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
-      selectedThreadKey: `${environmentId}:open`,
+      selectedThreadKey: `${machineId}:open`,
     });
 
     expect(layout.items.map((item) => item.thread.id)).toEqual(["open"]);
@@ -353,7 +353,7 @@ describe("buildThreadListV2Items", () => {
     expect(layout.snoozedCount).toBe(2);
   });
 
-  it("keeps snoozed threads visible on environments without the snooze capability", () => {
+  it("keeps snoozed threads visible on machines without the snooze capability", () => {
     const layout = buildThreadListV2Items({
       threads: [
         makeThread({
@@ -363,9 +363,9 @@ describe("buildThreadListV2Items", () => {
           snoozedAt: "2026-06-01T12:00:00.000Z",
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
-      snoozeEnvironmentIds: new Set(),
+      snoozeMachineIds: new Set(),
       now: NOW,
     });
 
@@ -390,7 +390,7 @@ describe("buildThreadListV2Items", () => {
           settledAt: NOW,
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
     });
@@ -417,7 +417,7 @@ describe("buildThreadListV2Items", () => {
           settledAt: NOW,
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "login",
       now: NOW,
     });
@@ -428,23 +428,23 @@ describe("buildThreadListV2Items", () => {
     ]);
   });
 
-  it("scopes the flat list to every environment member of a logical project", () => {
-    const remoteEnvironmentId = EnvironmentId.make("environment-remote");
+  it("scopes the flat list to every machine member of a logical project", () => {
+    const remoteMachineId = MachineId.make("machine-remote");
     const projectId = ProjectId.make("project-1");
     const { items } = buildThreadListV2Items({
       threads: [
         makeThread({ id: ThreadId.make("local"), projectId, title: "Local" }),
         makeThread({
-          environmentId: remoteEnvironmentId,
+          machineId: remoteMachineId,
           id: ThreadId.make("remote"),
           projectId,
           title: "Remote",
         }),
       ],
-      environmentId: null,
+      machineId: null,
       projectRefs: [
-        { environmentId, projectId },
-        { environmentId: remoteEnvironmentId, projectId },
+        { machineId, projectId },
+        { machineId: remoteMachineId, projectId },
       ],
       searchQuery: "",
       now: NOW,
@@ -479,7 +479,7 @@ describe("buildThreadListV2Items settled paging", () => {
 
     const layout = buildThreadListV2Items({
       threads,
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       settledLimit: 2,
       now: NOW,
@@ -496,13 +496,13 @@ describe("buildThreadListV2Items settled paging", () => {
 });
 
 describe("buildThreadListV2Items settled sort reuse", () => {
-  const otherEnvironmentId = EnvironmentId.make("environment-2");
+  const otherMachineId = MachineId.make("machine-2");
 
   function makeSettled(
     id: string,
     settledAt: string,
-    overrides: Partial<EnvironmentThreadShell> = {},
-  ): EnvironmentThreadShell {
+    overrides: Partial<MachineThreadShell> = {},
+  ): MachineThreadShell {
     return makeThread({
       id: ThreadId.make(id),
       title: id,
@@ -513,17 +513,17 @@ describe("buildThreadListV2Items settled sort reuse", () => {
   }
 
   function settledOrder(
-    threads: ReadonlyArray<EnvironmentThreadShell>,
-    scope: EnvironmentId | null = null,
+    threads: ReadonlyArray<MachineThreadShell>,
+    scope: MachineId | null = null,
   ) {
     return buildThreadListV2Items({
       threads,
-      environmentId: scope,
+      machineId: scope,
       searchQuery: "",
       now: NOW,
     })
       .items.filter((item) => item.variant === "slim")
-      .map((item) => `${item.thread.environmentId}:${item.thread.id}`);
+      .map((item) => `${item.thread.machineId}:${item.thread.id}`);
   }
 
   const older = makeSettled("older", "2026-06-01T01:00:00.000Z");
@@ -532,42 +532,42 @@ describe("buildThreadListV2Items settled sort reuse", () => {
 
   it("re-sorts when a settled row is replaced, added, or removed", () => {
     expect(settledOrder([older, newer])).toEqual([
-      `${environmentId}:newer`,
-      `${environmentId}:older`,
+      `${machineId}:newer`,
+      `${machineId}:older`,
     ]);
     const resettledOlder = makeSettled("older", "2026-06-01T04:00:00.000Z");
     expect(settledOrder([resettledOlder, newer])).toEqual([
-      `${environmentId}:older`,
-      `${environmentId}:newer`,
+      `${machineId}:older`,
+      `${machineId}:newer`,
     ]);
     expect(settledOrder([resettledOlder, newer, middle])).toEqual([
-      `${environmentId}:older`,
-      `${environmentId}:newer`,
-      `${environmentId}:middle`,
+      `${machineId}:older`,
+      `${machineId}:newer`,
+      `${machineId}:middle`,
     ]);
     expect(settledOrder([newer, middle])).toEqual([
-      `${environmentId}:newer`,
-      `${environmentId}:middle`,
+      `${machineId}:newer`,
+      `${machineId}:middle`,
     ]);
   });
 
-  it("recomputes when builds alternate between environments", () => {
+  it("recomputes when builds alternate between machines", () => {
     const remoteOlder = makeSettled("remote-older", "2026-06-01T01:30:00.000Z", {
-      environmentId: otherEnvironmentId,
+      machineId: otherMachineId,
     });
     const remoteNewer = makeSettled("remote-newer", "2026-06-01T05:00:00.000Z", {
-      environmentId: otherEnvironmentId,
+      machineId: otherMachineId,
     });
     const threads = [older, newer, remoteOlder, remoteNewer];
 
     for (let round = 0; round < 2; round += 1) {
-      expect(settledOrder(threads, environmentId)).toEqual([
-        `${environmentId}:newer`,
-        `${environmentId}:older`,
+      expect(settledOrder(threads, machineId)).toEqual([
+        `${machineId}:newer`,
+        `${machineId}:older`,
       ]);
-      expect(settledOrder(threads, otherEnvironmentId)).toEqual([
-        `${otherEnvironmentId}:remote-newer`,
-        `${otherEnvironmentId}:remote-older`,
+      expect(settledOrder(threads, otherMachineId)).toEqual([
+        `${otherMachineId}:remote-newer`,
+        `${otherMachineId}:remote-older`,
       ]);
     }
   });
@@ -583,7 +583,7 @@ function makePendingTask(id: string): PendingNewTask {
   return {
     kind: "pending",
     key: `pending-task:${id}`,
-    environmentId,
+    machineId,
     projectId: creation.projectId,
     projectTitle: undefined,
     projectCwd: undefined,
@@ -591,7 +591,7 @@ function makePendingTask(id: string): PendingNewTask {
     title: id,
     createdAt: NOW,
     message: {
-      environmentId,
+      machineId,
       threadId: ThreadId.make(`thread-${id}`),
       messageId: MessageId.make(id),
       commandId: CommandId.make(`command-${id}`),
@@ -615,7 +615,7 @@ describe("buildThreadListV2ListItems", () => {
         settledAt: NOW,
       }),
     ],
-    environmentId: null,
+    machineId: null,
     searchQuery: "",
     now: NOW,
   });
@@ -627,7 +627,7 @@ describe("buildThreadListV2ListItems", () => {
         {
           kind: "draft",
           key: "draft-task:new-task:unsent",
-          environmentId,
+          machineId,
           projectId: ProjectId.make("project-1"),
           projectTitle: undefined,
           projectCwd: undefined,
@@ -638,7 +638,7 @@ describe("buildThreadListV2ListItems", () => {
           draft: {
             text: "unsent",
             attachments: [],
-            project: { environmentId, projectId: ProjectId.make("project-1"), createdAt: NOW },
+            project: { machineId, projectId: ProjectId.make("project-1"), createdAt: NOW },
           },
         },
         makePendingTask("queued-1"),
@@ -686,7 +686,7 @@ describe("buildThreadListV2ListItems", () => {
           settledAt: NOW,
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
     });
@@ -724,7 +724,7 @@ describe("pending mobile thread moves", () => {
       }),
     );
     const ordered = getThreadListV2OrderedSection({ threads: rows, section, now: NOW });
-    const orderedIds = ordered.map((row) => `${row.environmentId}:${row.id}`);
+    const orderedIds = ordered.map((row) => `${row.machineId}:${row.id}`);
     const movedId = orderedIds[2]!;
     const assignments = planPinnedMove({
       orderedIds,
@@ -739,9 +739,9 @@ describe("pending mobile thread moves", () => {
       direction: "up",
       assignments,
     });
-    const update = (current: EnvironmentThreadShell[], assignment: (typeof assignments)[number]) =>
+    const update = (current: MachineThreadShell[], assignment: (typeof assignments)[number]) =>
       current.map((row) =>
-        `${row.environmentId}:${row.id}` === assignment.id
+        `${row.machineId}:${row.id}` === assignment.id
           ? {
               ...row,
               [section === "pinned" ? "pinOrderKey" : "activeOrderKey"]: assignment.orderKey,
@@ -752,14 +752,14 @@ describe("pending mobile thread moves", () => {
   }
 
   function layout(
-    rows: EnvironmentThreadShell[],
+    rows: MachineThreadShell[],
     pendingOrder: PendingThreadOrder | null,
     searchQuery = "",
   ) {
     return buildThreadListV2Items({
       threads: rows,
       pendingOrder,
-      environmentId: null,
+      machineId: null,
       searchQuery,
       now: NOW,
     }).items.map((item) => item.thread.id);
@@ -841,13 +841,13 @@ describe("pending mobile thread moves", () => {
 });
 
 describe("mobile move availability", () => {
-  const oldEnvironment = EnvironmentId.make("older-server");
+  const oldMachine = MachineId.make("older-server");
   function rows(section: "active" | "pinned", keys: readonly (string | null)[]) {
     return keys.map((key, index) =>
       makeThread({
         id: ThreadId.make(`move-${index}`),
         title: `Move ${index}`,
-        environmentId: index === 1 ? oldEnvironment : environmentId,
+        machineId: index === 1 ? oldMachine : machineId,
         activeOrderKey: section === "active" ? key : null,
         pinOrderKey: section === "pinned" ? key : null,
         pinnedAt: section === "pinned" ? NOW : null,
@@ -862,15 +862,15 @@ describe("mobile move availability", () => {
       const plan = createThreadMovePlanner({
         ordered,
         section,
-        reorderableEnvironmentIds: new Set([environmentId]),
+        reorderableMachineIds: new Set([machineId]),
       });
-      const assignments = plan(`${environmentId}:move-0`, "down");
+      const assignments = plan(`${machineId}:move-0`, "down");
       expect(assignments).toHaveLength(1);
-      expect(assignments![0]!.id).toBe(`${environmentId}:move-0`);
+      expect(assignments![0]!.id).toBe(`${machineId}:move-0`);
       expect(assignments![0]!.orderKey > "dd").toBe(true);
       expect(assignments![0]!.orderKey < "ff").toBe(true);
-      expect(plan(`${oldEnvironment}:move-1`, "up")).toBeNull();
-      expect(plan(`${environmentId}:move-0`, "up")).toBeNull();
+      expect(plan(`${oldMachine}:move-1`, "up")).toBeNull();
+      expect(plan(`${machineId}:move-0`, "up")).toBeNull();
     },
   );
 
@@ -881,16 +881,16 @@ describe("mobile move availability", () => {
       const plan = createThreadMovePlanner({
         ordered,
         section,
-        reorderableEnvironmentIds: new Set([environmentId]),
+        reorderableMachineIds: new Set([machineId]),
       });
-      expect(plan(`${environmentId}:move-0`, "down")).toBeNull();
-      expect(plan(`${environmentId}:move-2`, "up")).toBeNull();
+      expect(plan(`${machineId}:move-0`, "down")).toBeNull();
+      expect(plan(`${machineId}:move-2`, "up")).toBeNull();
       const supported = createThreadMovePlanner({
         ordered,
         section,
-        reorderableEnvironmentIds: new Set([environmentId, oldEnvironment]),
+        reorderableMachineIds: new Set([machineId, oldMachine]),
       });
-      expect(supported(`${environmentId}:move-0`, "down")).toHaveLength(3);
+      expect(supported(`${machineId}:move-0`, "down")).toHaveLength(3);
     },
   );
 
@@ -898,8 +898,8 @@ describe("mobile move availability", () => {
     "reserves snoozed %s keys when moving visible rows",
     (section) => {
       const ordered = rows(section, ["bb", "dd", "ff"]);
-      const input = { ordered, section, reorderableEnvironmentIds: new Set([environmentId]) };
-      const collision = createThreadMovePlanner(input)(`${environmentId}:move-0`, "down")![0]!
+      const input = { ordered, section, reorderableMachineIds: new Set([machineId]) };
+      const collision = createThreadMovePlanner(input)(`${machineId}:move-0`, "down")![0]!
         .orderKey;
       const hidden = {
         ...ordered[0]!,
@@ -910,7 +910,7 @@ describe("mobile move availability", () => {
         activeOrderKey: section === "active" ? collision : null,
       };
       const assignments = createThreadMovePlanner({ ...input, allThreads: [...ordered, hidden] })(
-        `${environmentId}:move-0`,
+        `${machineId}:move-0`,
         "down",
       );
       expect(assignments).toHaveLength(1);
@@ -946,12 +946,12 @@ describe("thread drag destinations", () => {
           pinnedAt: section === "pinned" ? NOW : null,
         }),
       );
-      const ids = ordered.map((row) => `${row.environmentId}:${row.id}`);
+      const ids = ordered.map((row) => `${row.machineId}:${row.id}`);
       const direction = { targetId: ids[0]!, placement: "before" as const };
       const assignments = createThreadMovePlanner({
         ordered,
         section,
-        reorderableEnvironmentIds: new Set([environmentId]),
+        reorderableMachineIds: new Set([machineId]),
       })(ids[3]!, direction)!;
       const pending = createPendingThreadOrder({
         section,
@@ -964,12 +964,12 @@ describe("thread drag destinations", () => {
       const confirmed = ordered.map((row) => ({
         ...row,
         [section === "pinned" ? "pinOrderKey" : "activeOrderKey"]: assignments.find(
-          (a) => a.id === `${row.environmentId}:${row.id}`,
+          (a) => a.id === `${row.machineId}:${row.id}`,
         )!.orderKey,
       }));
       expect(
         getThreadListV2OrderedSection({ threads: confirmed, section, now: NOW }).map(
-          (row) => `${row.environmentId}:${row.id}`,
+          (row) => `${row.machineId}:${row.id}`,
         ),
       ).toEqual(pending.orderedIds);
       expect(
@@ -979,41 +979,41 @@ describe("thread drag destinations", () => {
   );
 
   it("refuses a drop that would need to rewrite an old server's keyless row", () => {
-    const old = EnvironmentId.make("old-server");
-    const ordered = [environmentId, old, environmentId].map((env, index) =>
+    const old = MachineId.make("old-server");
+    const ordered = [machineId, old, machineId].map((env, index) =>
       makeThread({
         id: ThreadId.make(String(index)),
         title: String(index),
-        environmentId: env,
+        machineId: env,
       }),
     );
     expect(
       createThreadMovePlanner({
         ordered,
         section: "active",
-        reorderableEnvironmentIds: new Set([environmentId]),
-      })(`${environmentId}:2`, { targetId: `${environmentId}:0`, placement: "before" }),
+        reorderableMachineIds: new Set([machineId]),
+      })(`${machineId}:2`, { targetId: `${machineId}:0`, placement: "before" }),
     ).toBeNull();
   });
 });
 
 it("allows a long drop past an old server even when both adjacent moves fail", () => {
-  const old = EnvironmentId.make("old-server");
+  const old = MachineId.make("old-server");
   const ordered = [
     makeThread({ id: ThreadId.make("a"), title: "a" }),
-    makeThread({ id: ThreadId.make("b"), title: "b", environmentId: old }),
+    makeThread({ id: ThreadId.make("b"), title: "b", machineId: old }),
     makeThread({ id: ThreadId.make("c"), title: "c", activeOrderKey: "h" }),
     makeThread({ id: ThreadId.make("d"), title: "d", activeOrderKey: "p" }),
   ];
   const planner = createThreadMovePlanner({
     ordered,
     section: "active",
-    reorderableEnvironmentIds: new Set([environmentId]),
+    reorderableMachineIds: new Set([machineId]),
   });
-  const movedId = `${environmentId}:a`;
+  const movedId = `${machineId}:a`;
   expect(planner(movedId, "up")).toBeNull();
   expect(planner(movedId, "down")).toBeNull();
-  const assignments = planner(movedId, { targetId: `${environmentId}:d`, placement: "after" });
+  const assignments = planner(movedId, { targetId: `${machineId}:d`, placement: "after" });
   expect(assignments).toHaveLength(1);
   expect(assignments![0]!.id).toBe(movedId);
   expect(assignments![0]!.orderKey > "p").toBe(true);
@@ -1022,14 +1022,14 @@ it("allows a long drop past an old server even when both adjacent moves fail", (
 describe("cross-section thread drops", () => {
   it.each(["pinned", "active"] as const)("inserts into an empty %s section", (section) => {
     const thread = makeThread({ id: ThreadId.make("source"), title: "source" });
-    const id = `${thread.environmentId}:${thread.id}`;
+    const id = `${thread.machineId}:${thread.id}`;
     const destination = { section, targetId: null, placement: "before" as const };
     expect(threadOrderAfterMove([], id, destination)).toEqual([id]);
     const plan = createThreadMovePlanner({
       ordered: [],
       allThreads: [thread],
       section,
-      reorderableEnvironmentIds: new Set([environmentId]),
+      reorderableMachineIds: new Set([machineId]),
     })(id, destination);
     expect(plan).toHaveLength(1);
     expect(plan![0]!.id).toBe(id);
@@ -1038,23 +1038,23 @@ describe("cross-section thread drops", () => {
     const a = makeThread({ id: ThreadId.make("a"), title: "a", pinOrderKey: "h" });
     const b = makeThread({ id: ThreadId.make("b"), title: "b", pinOrderKey: "z" });
     const source = makeThread({ id: ThreadId.make("source"), title: "source" });
-    const id = `${environmentId}:source`;
+    const id = `${machineId}:source`;
     const destination = {
       section: "pinned" as const,
-      targetId: `${environmentId}:b`,
+      targetId: `${machineId}:b`,
       placement: "before" as const,
     };
     const plan = createThreadMovePlanner({
       ordered: [a, b],
       allThreads: [a, b, source],
       section: "pinned",
-      reorderableEnvironmentIds: new Set([environmentId]),
+      reorderableMachineIds: new Set([machineId]),
     })(id, destination);
     expect(plan).toHaveLength(1);
     expect(plan![0]!.orderKey > "h" && plan![0]!.orderKey < "z").toBe(true);
     expect(
-      threadOrderAfterMove([`${environmentId}:a`, `${environmentId}:b`], id, destination),
-    ).toEqual([`${environmentId}:a`, id, `${environmentId}:b`]);
+      threadOrderAfterMove([`${machineId}:a`, `${machineId}:b`], id, destination),
+    ).toEqual([`${machineId}:a`, id, `${machineId}:b`]);
   });
   it("rejects removed targets and unsupported incoming sources", () => {
     expect(
@@ -1070,8 +1070,8 @@ describe("cross-section thread drops", () => {
         ordered: [],
         allThreads: [source],
         section: "active",
-        reorderableEnvironmentIds: new Set(),
-      })(`${environmentId}:source`, { section: "active", targetId: null, placement: "before" }),
+        reorderableMachineIds: new Set(),
+      })(`${machineId}:source`, { section: "active", targetId: null, placement: "before" }),
     ).toBeNull();
   });
   it("clears pinning, settlement and snooze when returning a parked thread to Active", () => {
@@ -1112,12 +1112,12 @@ it("excludes subagents from navigation, search and ordering while retaining user
   });
   const threads = [root, child, fork];
   expect(
-    buildThreadListV2Items({ threads, environmentId: null, searchQuery: "", now: NOW }).items.map(
+    buildThreadListV2Items({ threads, machineId: null, searchQuery: "", now: NOW }).items.map(
       (item) => item.thread.id,
     ),
   ).toEqual([fork.id, root.id]);
   expect(
-    buildThreadListV2Items({ threads, environmentId: null, searchQuery: "Child", now: NOW }).items,
+    buildThreadListV2Items({ threads, machineId: null, searchQuery: "Child", now: NOW }).items,
   ).toEqual([]);
   expect(
     getThreadListV2OrderedSection({ threads, section: "active", now: NOW }).map(
@@ -1131,11 +1131,11 @@ const isoAt = (ms: number) => new Date(ms).toISOString();
 const MINUTE_MS = 60_000;
 
 function buildTickList(
-  threads: ReadonlyArray<EnvironmentThreadShell>,
+  threads: ReadonlyArray<MachineThreadShell>,
   clockMs: number,
   pendingTasks: ReadonlyArray<PendingNewTask>,
   options?: {
-    readonly snoozeEnvironmentIds?: ReadonlySet<EnvironmentId>;
+    readonly snoozeMachineIds?: ReadonlySet<MachineId>;
     readonly queuedThreadKeys?: ReadonlySet<string>;
     readonly moveAvailability?: ReadonlyMap<string, ThreadMoveAvailability>;
     readonly shelfPreferencesLoading?: boolean;
@@ -1144,7 +1144,7 @@ function buildTickList(
   const now = isoAt(clockMs);
   const layout = buildThreadListV2Items({
     threads,
-    environmentId: null,
+    machineId: null,
     searchQuery: "",
     now,
     snoozedShelfExpanded: true,
@@ -1158,8 +1158,8 @@ function buildTickList(
     settledCount: layout.settledCount,
     settledShelfHeaderIndex: layout.settledShelfHeaderIndex,
     snoozeLabelNow: now,
-    ...(options?.snoozeEnvironmentIds
-      ? { snoozeEnvironmentIds: options.snoozeEnvironmentIds }
+    ...(options?.snoozeMachineIds
+      ? { snoozeMachineIds: options.snoozeMachineIds }
       : {}),
     ...(options?.queuedThreadKeys ? { queuedThreadKeys: options.queuedThreadKeys } : {}),
     ...(options?.moveAvailability ? { moveAvailability: options.moveAvailability } : {}),
@@ -1183,7 +1183,7 @@ describe("threadListV2ListItemsAreEqual", () => {
   });
   const layout = buildThreadListV2Items({
     threads: [thread],
-    environmentId: null,
+    machineId: null,
     searchQuery: "",
     now: NOW,
   });
@@ -1215,7 +1215,7 @@ describe("threadListV2ListItemsAreEqual", () => {
           snoozedUntil: isoAt(BASE_MS + 61 * MINUTE_MS),
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
       snoozedShelfExpanded: true,
@@ -1233,7 +1233,7 @@ describe("threadListV2ListItemsAreEqual", () => {
       snoozeLabelNow: isoAt(BASE_MS + MINUTE_MS),
     });
     const rows = (items: ThreadListV2ListItem[]) => {
-      const row = items.find((item) => item.key === `v2-thread:${environmentId}:wake`);
+      const row = items.find((item) => item.key === `v2-thread:${machineId}:wake`);
       expect(row?.type).toBe("v2-thread");
       if (row?.type !== "v2-thread") throw new Error("missing snoozed row");
       return row;
@@ -1249,7 +1249,7 @@ describe("threadListV2ListItemsAreEqual", () => {
     const bare = buildThreadListV2ListItems({
       items: buildThreadListV2Items({
         threads: [threadA, threadB],
-        environmentId: null,
+        machineId: null,
         searchQuery: "",
         now: NOW,
       }).items,
@@ -1265,7 +1265,7 @@ describe("threadListV2ListItemsAreEqual", () => {
     const withSettled = buildThreadListV2ListItems({
       items: buildThreadListV2Items({
         threads: [threadA, settledB],
-        environmentId: null,
+        machineId: null,
         searchQuery: "",
         now: NOW,
       }).items,
@@ -1356,10 +1356,10 @@ describe("thread list Woke marker", () => {
     const layout = (now: string) =>
       buildThreadListV2Items({
         threads: [waking],
-        environmentId: null,
+        machineId: null,
         searchQuery: "",
         now,
-        snoozeEnvironmentIds: new Set<EnvironmentId>(),
+        snoozeMachineIds: new Set<MachineId>(),
       });
     const list = (now: string) =>
       buildThreadListV2ListItems({
@@ -1388,22 +1388,22 @@ describe("buildThreadListV2ListItems row-state stamps", () => {
     settledOverride: "settled",
     settledAt: isoAt(BASE_MS - 3 * 24 * 60 * MINUTE_MS),
   });
-  const allEnvironments = new Set<EnvironmentId>([environmentId]);
+  const allMachines = new Set<MachineId>([machineId]);
 
   it("stamps queued outbox messages onto the matching row and notices removal", () => {
     const queued = buildTickList([readyThread, settledThread], BASE_MS, [], {
-      queuedThreadKeys: new Set([`${environmentId}:stamp-ready`]),
-      snoozeEnvironmentIds: allEnvironments,
+      queuedThreadKeys: new Set([`${machineId}:stamp-ready`]),
+      snoozeMachineIds: allMachines,
     });
     const plain = buildTickList([readyThread, settledThread], BASE_MS, [], {
       queuedThreadKeys: new Set<string>(),
-      snoozeEnvironmentIds: allEnvironments,
+      snoozeMachineIds: allMachines,
     });
     const byKey = (items: ThreadListV2ListItem[]) => itemsByThreadKey(items);
-    const readyQueued = byKey(queued).get(`v2-thread:${environmentId}:stamp-ready`)!;
-    const readyPlain = byKey(plain).get(`v2-thread:${environmentId}:stamp-ready`)!;
-    const settledQueued = byKey(queued).get(`v2-thread:${environmentId}:stamp-settled`)!;
-    const settledPlain = byKey(plain).get(`v2-thread:${environmentId}:stamp-settled`)!;
+    const readyQueued = byKey(queued).get(`v2-thread:${machineId}:stamp-ready`)!;
+    const readyPlain = byKey(plain).get(`v2-thread:${machineId}:stamp-ready`)!;
+    const settledQueued = byKey(queued).get(`v2-thread:${machineId}:stamp-settled`)!;
+    const settledPlain = byKey(plain).get(`v2-thread:${machineId}:stamp-settled`)!;
     expect(readyQueued.type === "v2-thread" && readyQueued.hasQueuedMessages).toBe(true);
     expect(readyPlain.type === "v2-thread" && readyPlain.hasQueuedMessages).toBe(false);
     expect(threadListV2ListItemsAreEqual(readyQueued, readyPlain)).toBe(false);
@@ -1412,27 +1412,27 @@ describe("buildThreadListV2ListItems row-state stamps", () => {
 
   it("notices move-availability changes on card rows without a shell update", () => {
     const permissive = new Map([
-      [`${environmentId}:stamp-ready`, { canMoveUp: true, canMoveDown: true }],
-      [`${environmentId}:stamp-settled`, { canMoveUp: true, canMoveDown: true }],
+      [`${machineId}:stamp-ready`, { canMoveUp: true, canMoveDown: true }],
+      [`${machineId}:stamp-settled`, { canMoveUp: true, canMoveDown: true }],
     ]);
     const blocked = new Map([
-      [`${environmentId}:stamp-settled`, { canMoveUp: true, canMoveDown: true }],
+      [`${machineId}:stamp-settled`, { canMoveUp: true, canMoveDown: true }],
     ]);
     const open = buildTickList([readyThread, settledThread], BASE_MS, [], {
       moveAvailability: permissive,
-      snoozeEnvironmentIds: allEnvironments,
+      snoozeMachineIds: allMachines,
     });
     const closed = buildTickList([readyThread, settledThread], BASE_MS, [], {
       moveAvailability: blocked,
-      snoozeEnvironmentIds: allEnvironments,
+      snoozeMachineIds: allMachines,
     });
-    const readyOpen = itemsByThreadKey(open).get(`v2-thread:${environmentId}:stamp-ready`)!;
-    const readyClosed = itemsByThreadKey(closed).get(`v2-thread:${environmentId}:stamp-ready`)!;
+    const readyOpen = itemsByThreadKey(open).get(`v2-thread:${machineId}:stamp-ready`)!;
+    const readyClosed = itemsByThreadKey(closed).get(`v2-thread:${machineId}:stamp-ready`)!;
     expect(readyOpen.type === "v2-thread" && readyOpen.canMoveUp).toBe(true);
     expect(readyClosed.type === "v2-thread" && readyClosed.canMoveUp).toBe(false);
     expect(threadListV2ListItemsAreEqual(readyOpen, readyClosed)).toBe(false);
-    const settledOpen = itemsByThreadKey(open).get(`v2-thread:${environmentId}:stamp-settled`)!;
-    const settledClosed = itemsByThreadKey(closed).get(`v2-thread:${environmentId}:stamp-settled`)!;
+    const settledOpen = itemsByThreadKey(open).get(`v2-thread:${machineId}:stamp-settled`)!;
+    const settledClosed = itemsByThreadKey(closed).get(`v2-thread:${machineId}:stamp-settled`)!;
     expect(settledOpen.type === "v2-thread" && settledOpen.canMoveUp).toBe(false);
     expect(threadListV2ListItemsAreEqual(settledOpen, settledClosed)).toBe(true);
   });
@@ -1482,7 +1482,7 @@ describe("Working section beta", () => {
   const build = (input: Partial<Parameters<typeof buildThreadListV2Items>[0]> = {}) =>
     buildThreadListV2Items({
       threads,
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
       workingShelfEnabled: true,
@@ -1534,7 +1534,7 @@ describe("Working section beta", () => {
           settledAt: NOW,
         }),
       ],
-      environmentId: null,
+      machineId: null,
       searchQuery: "",
       now: NOW,
       workingShelfEnabled: true,

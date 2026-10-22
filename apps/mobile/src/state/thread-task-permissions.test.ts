@@ -22,7 +22,7 @@ import { AsyncResult, type Atom } from "effect/reactivity";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const state = vi.hoisted(() => ({
-  grantedEnvironments: new Set<string>(),
+  grantedMachines: new Set<string>(),
   connectionState: "connected",
   draft: {
     text: "Keep my draft",
@@ -47,7 +47,7 @@ const state = vi.hoisted(() => ({
   },
   thread: {
     id: "thread",
-    environmentId: "secondary",
+    machineId: "secondary",
     projectId: "project",
     modelSelection: { instanceId: "codex", model: "gpt-5.4" },
     runtimeMode: "full-access",
@@ -86,14 +86,14 @@ vi.mock("@effect/atom-react", async () => {
 });
 vi.mock("./entities", () => ({ useServerConfigs: () => new Map() }));
 vi.mock("./session", () => ({
-  readEnvironmentScope: (environmentId: string, scope: string) =>
-    scope === AuthOrchestrationOperateScope && state.grantedEnvironments.has(environmentId),
+  readMachineScope: (machineId: string, scope: string) =>
+    scope === AuthOrchestrationOperateScope && state.grantedMachines.has(machineId),
 }));
 vi.mock("./use-thread-selection", () => ({
   useThreadSelection: () => ({
     selectedThread: state.thread,
     selectedThreadCreation: null,
-    selectedEnvironmentRuntime: {
+    selectedMachineRuntime: {
       connectionState: state.connectionState,
       serverConfig: state.serverConfig,
     },
@@ -109,11 +109,11 @@ vi.mock("./use-atom-command", () => ({ useAtomCommand: <A>(command: A) => comman
 vi.mock("./threads", async () => {
   const { Atom } = await import("effect/reactivity");
   return {
-    environmentThreadDetails: {
+    machineThreadDetails: {
       queueWorkflowAtom: () => Atom.make(null),
       checkpointSummariesAtom: () => Atom.make([]),
     },
-    threadEnvironment: {
+    threadMachine: {
       respondToApproval: state.approve,
       respondToUserInput: state.answer,
       uploadFeedback: state.feedback,
@@ -170,19 +170,19 @@ vi.mock("../lib/commandMetadata", () => ({
   }),
 }));
 vi.mock("../lib/copyTextWithHaptic", () => ({ copyTextWithHaptic: vi.fn() }));
-vi.mock("./use-remote-environment-registry", () => ({ setPendingConnectionError: vi.fn() }));
+vi.mock("./use-remote-machine-registry", () => ({ setPendingConnectionError: vi.fn() }));
 
 import { useThreadComposerState } from "./use-thread-composer-state";
 import { useSelectedThreadRequests } from "./use-selected-thread-requests";
 
 beforeEach(() => {
-  state.grantedEnvironments = new Set(["primary"]);
+  state.grantedMachines = new Set(["primary"]);
   state.connectionState = "connected";
   state.draft = { text: "Keep my draft", attachments: [], modelSelection: undefined };
   state.projection = null;
   state.serverConfig = {
     providers: [{ instanceId: "codex", driver: "codex", enabled: true }],
-    environment: { capabilities: {} },
+    machine: { capabilities: {} },
   } as unknown as ServerConfig;
   state.pendingRequests = {
     approvals: [
@@ -202,7 +202,7 @@ beforeEach(() => {
 });
 
 describe("mobile task permissions", () => {
-  it("keeps a connected read-only task's draft instead of queueing it with another environment's grant", async () => {
+  it("keeps a connected read-only task's draft instead of queueing it with another machine's grant", async () => {
     const composer = useThreadComposerState();
     expect(await composer.onSendMessage()).toBeNull();
     expect(state.enqueue).not.toHaveBeenCalled();
@@ -216,33 +216,33 @@ describe("mobile task permissions", () => {
   });
 
   it("rechecks a retained send callback before clearing or queueing the draft", async () => {
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     const composer = useThreadComposerState();
-    state.grantedEnvironments.delete("secondary");
+    state.grantedMachines.delete("secondary");
     expect(await composer.onSendMessage()).toBeNull();
     expect(state.clearDraft).not.toHaveBeenCalled();
     expect(state.enqueue).not.toHaveBeenCalled();
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     expect(await composer.onSendMessage()).toBe("message");
     expect(state.enqueue).toHaveBeenCalledWith(
       expect.objectContaining({
-        environmentId: "secondary",
+        machineId: "secondary",
         threadId: "thread",
         text: "Keep my draft",
       }),
     );
   });
 
-  it("rechecks the target environment before an approval response", async () => {
-    state.grantedEnvironments.add("secondary");
+  it("rechecks the target machine before an approval response", async () => {
+    state.grantedMachines.add("secondary");
     const requests = useSelectedThreadRequests();
-    state.grantedEnvironments.delete("secondary");
+    state.grantedMachines.delete("secondary");
     await requests.onRespondToApproval(RuntimeRequestId.make("approval"), "accept");
     expect(state.approve).not.toHaveBeenCalled();
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     await requests.onRespondToApproval(RuntimeRequestId.make("approval"), "accept");
     expect(state.approve).toHaveBeenCalledWith({
-      environmentId: "secondary",
+      machineId: "secondary",
       input: { threadId: "thread", requestId: "approval", decision: "accept" },
     });
   });
@@ -262,19 +262,19 @@ describe("mobile task permissions", () => {
     };
     const requestId = RuntimeRequestId.make("input");
     useSelectedThreadRequests().onSelectUserInputOption(requestId, state.question, "TypeScript");
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     const requests = useSelectedThreadRequests();
     expect(requests.activePendingUserInputAnswers).toEqual({ language: "TypeScript" });
-    state.grantedEnvironments.delete("secondary");
+    state.grantedMachines.delete("secondary");
     await requests.onSubmitUserInput();
     expect(state.answer).not.toHaveBeenCalled();
     expect(useSelectedThreadRequests().activePendingUserInputAnswers).toEqual({
       language: "TypeScript",
     });
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     await requests.onSubmitUserInput();
     expect(state.answer).toHaveBeenCalledWith({
-      environmentId: "secondary",
+      machineId: "secondary",
       input: { threadId: "thread", requestId: "input", answers: { language: "TypeScript" } },
     });
   });
@@ -282,7 +282,7 @@ describe("mobile task permissions", () => {
 
 describe("mobile handoff preview and submission", () => {
   it("follows project enablement and provider availability for the selected destination", async () => {
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     const instanceId = ProviderInstanceId.make("antigravity");
     const projectId = ProjectId.make(state.thread.projectId);
     const selection = { instanceId, model: "gemini" };

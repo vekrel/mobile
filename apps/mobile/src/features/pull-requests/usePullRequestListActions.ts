@@ -6,7 +6,7 @@ import {
   settlePromise,
   squashAtomCommandFailure,
 } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentId, PullRequestAction } from "@vekrel/contracts";
+import type { MachineId, PullRequestAction } from "@vekrel/contracts";
 import { Atom, AsyncResult } from "effect/reactivity";
 import { use, useRef, useState } from "react";
 import { Linking, Platform } from "react-native";
@@ -18,34 +18,34 @@ import {
   openOnProviderLabel,
   PR_ACTION_LABELS,
 } from "./pullRequestActions";
-import { scopedPullRequestListKey, type EnvironmentPullRequestListEntry } from "./pullRequestList";
+import { scopedPullRequestListKey, type MachinePullRequestListEntry } from "./pullRequestList";
 import { copyPullRequestLink, sharePullRequestLink } from "./pullRequestLink";
 import { pullRequestTarget } from "./usePullRequestDiff";
 import { useAndroidWorkspaceSelection } from "../workspace/useAndroidWorkspaceSelection";
 
 export function usePullRequestListActions(
-  environmentIds: readonly EnvironmentId[],
+  machineIds: readonly MachineId[],
   onChanged: (
-    entry: EnvironmentPullRequestListEntry,
-    patch: Partial<EnvironmentPullRequestListEntry>,
+    entry: MachinePullRequestListEntry,
+    patch: Partial<MachinePullRequestListEntry>,
   ) => void,
 ) {
   const registry = use(RegistryContext);
   const navigation = useNavigation();
   const selectAndroidWorkspace = useAndroidWorkspaceSelection();
-  const permissionKey = JSON.stringify(environmentIds);
+  const permissionKey = JSON.stringify(machineIds);
   const permissionAtom = (() => {
-    const ids: readonly EnvironmentId[] = JSON.parse(permissionKey);
+    const ids: readonly MachineId[] = JSON.parse(permissionKey);
     return Atom.make(
       (get) => new Set(ids.filter((id) => get(composerPullRequests.runAction.permissionAtom(id)))),
     );
   })();
-  const writableEnvironments = useAtomValue(permissionAtom);
+  const writableMachines = useAtomValue(permissionAtom);
   const run = useAtomCommand(composerPullRequests.runAction, { reportFailure: false });
   const pending = useRef(false);
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  const params = (entry: EnvironmentPullRequestListEntry) => ({
-    environmentId: String(entry.environmentId),
+  const params = (entry: MachinePullRequestListEntry) => ({
+    machineId: String(entry.machineId),
     projectId: String(entry.projectId),
     host: entry.host,
     repository: entry.repository,
@@ -53,10 +53,10 @@ export function usePullRequestListActions(
     initialSummary: entry,
   });
   const perform = async (
-    entry: EnvironmentPullRequestListEntry,
+    entry: MachinePullRequestListEntry,
     action: PullRequestAction | "request-review",
   ) => {
-    const { environmentId } = entry;
+    const { machineId } = entry;
     if (pending.current) return;
     pending.current = true;
     setBusyKey(scopedPullRequestListKey(entry));
@@ -71,7 +71,7 @@ export function usePullRequestListActions(
       const pr = response.value;
       if (action === "request-review") {
         if (
-          !registry.get(composerPullRequests.requestReviewers.permissionAtom(environmentId)) ||
+          !registry.get(composerPullRequests.requestReviewers.permissionAtom(machineId)) ||
           pr.state !== "open" ||
           !pr.capabilities.reviewers.request ||
           !pr.viewerPermissions.requestReviewers
@@ -83,7 +83,7 @@ export function usePullRequestListActions(
         return;
       }
       if (
-        !registry.get(composerPullRequests.runAction.permissionAtom(environmentId)) ||
+        !registry.get(composerPullRequests.runAction.permissionAtom(machineId)) ||
         !canPerformPullRequestAction(pr, action)
       )
         throw new Error("This action isn't available for this pull request.");
@@ -108,7 +108,7 @@ export function usePullRequestListActions(
       );
     }
   };
-  const select = (entry: EnvironmentPullRequestListEntry, action: string) => {
+  const select = (entry: MachinePullRequestListEntry, action: string) => {
     if (action === "open") {
       if (Platform.OS === "android")
         selectAndroidWorkspace({ name: "PullRequest", params: params(entry) });
@@ -144,13 +144,13 @@ export function usePullRequestListActions(
       },
     ]);
   };
-  const actions = (entry: EnvironmentPullRequestListEntry): MenuProps["actions"] => [
+  const actions = (entry: MachinePullRequestListEntry): MenuProps["actions"] => [
     {
       id: "open",
       title: "Open pull request",
       image: Platform.OS === "ios" ? "arrow.up.right" : "open_in_new",
     },
-    ...(writableEnvironments.has(entry.environmentId) && entry.state === "open"
+    ...(writableMachines.has(entry.machineId) && entry.state === "open"
       ? [
           {
             id: "request-review",
@@ -169,7 +169,7 @@ export function usePullRequestListActions(
             attributes: { destructive: true },
           },
         ]
-      : writableEnvironments.has(entry.environmentId) && entry.state === "closed"
+      : writableMachines.has(entry.machineId) && entry.state === "closed"
         ? [
             {
               id: "reopen",

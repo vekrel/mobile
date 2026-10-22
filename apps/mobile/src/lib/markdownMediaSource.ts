@@ -11,7 +11,7 @@ export function resolveMobileMarkdownMediaSource(href: string, input: ResolveMed
   if (source._tag !== "WorkspaceFile") return media;
   return {
     ...media,
-    access: "environment" as const,
+    access: "machine" as const,
     resource: {
       _tag: "draft-workspace-file" as const,
       cwd: input.workspaceRoot,

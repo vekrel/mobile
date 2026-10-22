@@ -4,9 +4,9 @@ import {
   AuthOrchestrationOperateScope,
   resolveProjectProviderInstanceEnabled,
 } from "@vekrel/contracts";
-import { readEnvironmentScope } from "../../state/session";
+import { readMachineScope } from "../../state/session";
 import type {
-  EnvironmentId,
+  MachineId,
   ProjectId,
   ScheduledTask,
   ScheduledTaskUpsertInput,
@@ -14,7 +14,7 @@ import type {
 import {
   MAX_WEBHOOK_DELIVERY_AGE_MINUTES,
   MAX_WEBHOOK_FILTERS,
-  resolveEnvironmentMachineKind,
+  resolveMachineKind,
 } from "@vekrel/contracts";
 import type { MenuAction } from "@react-native-menu/menu";
 import { DateTimePicker } from "@expo/ui/community/datetime-picker";
@@ -42,9 +42,9 @@ import { Button } from "../../components/ui/Button";
 import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import {
-  EnvironmentMachineSymbol,
-  ENVIRONMENT_MACHINE_SYMBOLS,
-} from "../../components/EnvironmentMachineSymbol";
+  MachineSymbol,
+  MACHINE_SYMBOLS,
+} from "../../components/MachineSymbol";
 import { Menu } from "../../components/ui/Menu";
 import type { ComposerEditorSelection } from "../../components/ComposerEditor";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
@@ -55,28 +55,28 @@ import { tryCopyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 import { usePreparedConnection } from "../../state/session";
 import { buildModelOptions } from "../../lib/modelOptions";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
-import { useProjects, useEnvironmentServerConfig } from "../../state/entities";
-import { useEnvironmentQuery } from "../../state/query";
-import { serverEnvironment } from "../../state/server";
+import { useProjects, useMachineServerConfig } from "../../state/entities";
+import { useMachineQuery } from "../../state/query";
+import { serverMachine } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { withNativeGlassHeaderItem } from "../layout/native-glass-header-items";
 import { resolveNewTaskBranchLabel } from "../threads/new-task-context-presentation";
 import { useVoiceInputController } from "../voice-input/useVoiceInputController";
 import { ScheduledTaskPromptField } from "./components/ScheduledTaskPromptField";
 import {
-  AndroidSettingsEnvironmentFilter,
-  SettingsEnvironmentFilterHeader,
-} from "./components/SettingsEnvironmentFilterHeader";
+  AndroidSettingsMachineFilter,
+  SettingsMachineFilterHeader,
+} from "./components/SettingsMachineFilterHeader";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { SettingsSection } from "./components/SettingsSection";
-import { useSettingsEnvironmentFilter, type SettingsTarget } from "./settings-environment-filter";
+import { useSettingsMachineFilter, type SettingsTarget } from "./settings-machine-filter";
 import {
   editDraft,
   scheduledTaskDefaultModel,
   scheduleFromDraft,
   type ScheduledTaskDraft as Draft,
 } from "./scheduledTaskDraft";
-import { settingsTargetsForProject } from "./settings-environment-filter.logic";
+import { settingsTargetsForProject } from "./settings-machine-filter.logic";
 import { useScheduledTaskEditor } from "./scheduled-task-editor";
 import { scheduledTaskEditorSessionAtom } from "./scheduled-task-editor-state";
 import { appAtomRegistry } from "../../state/atom-registry";
@@ -355,9 +355,9 @@ export function SettingsScheduledTasksRouteScreen() {
     };
   });
   const { availableTargets, selectedTargets, selectedProjectKey, projectGroups } =
-    useSettingsEnvironmentFilter();
+    useSettingsMachineFilter();
   const selectedGroup = projectGroups.find((group) => group.key === selectedProjectKey);
-  const visibleEnvironments = settingsTargetsForProject(
+  const visibleMachines = settingsTargetsForProject(
     selectedTargets,
     selectedProjectKey === null ? null : selectedGroup,
   );
@@ -365,21 +365,21 @@ export function SettingsScheduledTasksRouteScreen() {
   const navigation = useNavigation<NativeStackNavigationProp<ScheduledTaskRoutes>>();
   const insets = useSafeAreaInsets();
   const newTask = () => {
-    if (visibleEnvironments.length === 0) return;
+    if (visibleMachines.length === 0) return;
     resetEditor();
     navigation.navigate("SettingsScheduledTaskNew");
   };
 
   return (
     <>
-      <SettingsEnvironmentFilterHeader
+      <SettingsMachineFilterHeader
         trailingItems={[
           withNativeGlassHeaderItem({
             type: "button",
             label: "",
             accessibilityLabel: "New task",
             icon: { type: "sfSymbol", name: "plus" } as const,
-            disabled: visibleEnvironments.length === 0,
+            disabled: visibleMachines.length === 0,
             onPress: newTask,
           }),
         ]}
@@ -388,12 +388,12 @@ export function SettingsScheduledTasksRouteScreen() {
         title="Scheduled Tasks"
         trailing={
           <View className="flex-row items-center">
-            <AndroidSettingsEnvironmentFilter />
+            <AndroidSettingsMachineFilter />
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="New task"
-              accessibilityState={{ disabled: visibleEnvironments.length === 0 }}
-              disabled={visibleEnvironments.length === 0}
+              accessibilityState={{ disabled: visibleMachines.length === 0 }}
+              disabled={visibleMachines.length === 0}
               onPress={newTask}
               className="size-11 items-center justify-center rounded-full disabled:opacity-50"
             >
@@ -411,25 +411,25 @@ export function SettingsScheduledTasksRouteScreen() {
           contentContainerClassName="gap-5 px-5 pt-4"
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
         >
-          {visibleEnvironments.length > 0 ? (
-            visibleEnvironments.map((environment) => (
-              <EnvironmentTasks
-                key={environment.environmentId}
-                environment={environment}
+          {visibleMachines.length > 0 ? (
+            visibleMachines.map((machine) => (
+              <MachineTasks
+                key={machine.machineId}
+                machine={machine}
                 now={now}
                 projectIds={
                   selectedProjectKey === null
                     ? null
                     : (selectedGroup?.members
                         .filter(
-                          (member) => member.project.environmentId === environment.environmentId,
+                          (member) => member.project.machineId === machine.machineId,
                         )
                         .map((member) => member.project.id) ?? [])
                 }
                 onEdit={(task) => {
                   startEditor({
-                    environmentId: environment.environmentId,
-                    environmentLabel: environment.label,
+                    machineId: machine.machineId,
+                    machineLabel: machine.label,
                     draft: editDraft(task),
                   });
                   navigation.navigate("SettingsScheduledTaskEdit");
@@ -439,8 +439,8 @@ export function SettingsScheduledTasksRouteScreen() {
           ) : (
             <Text className="px-2 text-base text-foreground-muted">
               {availableTargets.length === 0
-                ? "Connect an environment to view and create scheduled tasks."
-                : "No environments match these filters. Change the filter above."}
+                ? "Connect a machine to view and create scheduled tasks."
+                : "No machines match these filters. Change the filter above."}
             </Text>
           )}
         </ScrollView>
@@ -451,7 +451,7 @@ export function SettingsScheduledTasksRouteScreen() {
 
 export function SettingsScheduledTaskNewRouteScreen() {
   const { resetEditor } = useScheduledTaskEditor();
-  const { availableTargets } = useSettingsEnvironmentFilter();
+  const { availableTargets } = useSettingsMachineFilter();
   const initialized = useRef(false);
   useLayoutEffect(() => {
     if (initialized.current || availableTargets.length === 0) return;
@@ -473,14 +473,14 @@ function SettingsScheduledTaskEditorScreen({ title }: { readonly title: string }
     setEditor,
     startEditor,
     hasChanges,
-    draftForEnvironment,
+    draftForMachine,
   } = useScheduledTaskEditor();
-  const { availableTargets } = useSettingsEnvironmentFilter();
+  const { availableTargets } = useSettingsMachineFilter();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const ownerKey = editor ? `${voiceOwnerKey}:${editor.environmentId}` : null;
+  const ownerKey = editor ? `${voiceOwnerKey}:${editor.machineId}` : null;
   const prompt = editor?.draft.prompt ?? "";
   const [selectionState, setSelectionState] = useState<{
     readonly ownerKey: string | null;
@@ -509,12 +509,12 @@ function SettingsScheduledTaskEditorScreen({ title }: { readonly title: string }
     selection,
     readDraftMessage: () => {
       const current = readEditor();
-      if (current?.environmentId !== editor?.environmentId) return null;
+      if (current?.machineId !== editor?.machineId) return null;
       return current?.draft.prompt ?? null;
     },
     onChangeSelection: setSelection,
     onChangeDraftMessage: (text) => {
-      if (readEditor()?.environmentId === editor?.environmentId) setPrompt(text);
+      if (readEditor()?.machineId === editor?.machineId) setPrompt(text);
     },
     disabled: saving,
   });
@@ -576,11 +576,11 @@ function SettingsScheduledTaskEditorScreen({ title }: { readonly title: string }
       >
         {editor ? (
           <TaskForm
-            key={editor.environmentId}
-            environmentId={editor.environmentId}
-            environmentLabel={
-              availableTargets.find((target) => target.environmentId === editor.environmentId)
-                ?.label ?? editor.environmentLabel
+            key={editor.machineId}
+            machineId={editor.machineId}
+            machineLabel={
+              availableTargets.find((target) => target.machineId === editor.machineId)
+                ?.label ?? editor.machineLabel
             }
             availableTargets={availableTargets}
             draft={editor.draft}
@@ -601,13 +601,13 @@ function SettingsScheduledTaskEditorScreen({ title }: { readonly title: string }
               if (!saving) setEditor({ ...editor, draft });
             }}
             onSaved={() => setSaved(true)}
-            onChangeEnvironment={(target) => {
-              if (target.environmentId === editor.environmentId) return;
+            onChangeMachine={(target) => {
+              if (target.machineId === editor.machineId) return;
               setEditor({
-                environmentId: target.environmentId,
-                environmentLabel: target.label,
+                machineId: target.machineId,
+                machineLabel: target.label,
                 draft: {
-                  ...draftForEnvironment(target.environmentId),
+                  ...draftForMachine(target.machineId),
                   title: editor.draft.title,
                   prompt: editor.draft.prompt,
                   schedule: editor.draft.schedule,
@@ -619,8 +619,8 @@ function SettingsScheduledTaskEditorScreen({ title }: { readonly title: string }
         ) : (
           <Text className="px-2 text-base text-foreground-muted">
             {availableTargets.length === 0
-              ? "Connect an environment to create a scheduled task."
-              : "No environments match the current filters. Change the filters to create a task."}
+              ? "Connect a machine to create a scheduled task."
+              : "No machines match the current filters. Change the filters to create a task."}
           </Text>
         )}
       </ScrollView>
@@ -629,8 +629,8 @@ function SettingsScheduledTaskEditorScreen({ title }: { readonly title: string }
 }
 
 function TaskForm({
-  environmentId,
-  environmentLabel,
+  machineId,
+  machineLabel,
   availableTargets,
   draft,
   saving,
@@ -639,10 +639,10 @@ function TaskForm({
   promptField,
   setDraft,
   onSaved,
-  onChangeEnvironment,
+  onChangeMachine,
 }: {
-  readonly environmentId: EnvironmentId;
-  readonly environmentLabel: string;
+  readonly machineId: MachineId;
+  readonly machineLabel: string;
   readonly availableTargets: readonly SettingsTarget[];
   readonly draft: Draft;
   readonly saving: boolean;
@@ -651,19 +651,19 @@ function TaskForm({
   readonly promptField: ReactNode;
   readonly setDraft: (draft: Draft) => void;
   readonly onSaved: () => void;
-  readonly onChangeEnvironment: (target: SettingsTarget) => void;
+  readonly onChangeMachine: (target: SettingsTarget) => void;
 }) {
   const navigation = useNavigation<NativeStackNavigationProp<ScheduledTaskRoutes>>();
-  const tasks = useEnvironmentQuery(
-    serverEnvironment.scheduledTasksLive({ environmentId, input: {} }),
+  const tasks = useMachineQuery(
+    serverMachine.scheduledTasksLive({ machineId, input: {} }),
   );
-  const projects = useProjects().filter((project) => project.environmentId === environmentId);
-  const config = useEnvironmentServerConfig(environmentId);
+  const projects = useProjects().filter((project) => project.machineId === machineId);
+  const config = useMachineServerConfig(machineId);
   const modelOptions = buildModelOptions(config, null, undefined, draft.projectId);
   const canOperate = useAtomValue(
-    serverEnvironment.upsertScheduledTask.permissionAtom(environmentId),
+    serverMachine.upsertScheduledTask.permissionAtom(machineId),
   );
-  const upsert = useAtomCommand(serverEnvironment.upsertScheduledTask, {
+  const upsert = useAtomCommand(serverMachine.upsertScheduledTask, {
     label: "scheduled task upsert",
     reportFailure: false,
   });
@@ -673,8 +673,8 @@ function TaskForm({
     draft.task !== null &&
     tasks.data !== null &&
     !tasks.data.tasks.some((task) => task.id === draft.task?.id);
-  const environmentUnavailable = !availableTargets.some(
-    (target) => target.environmentId === environmentId,
+  const machineUnavailable = !availableTargets.some(
+    (target) => target.machineId === machineId,
   );
 
   const failure = (title: string, result: AtomCommandResult<unknown, unknown>) => {
@@ -685,12 +685,12 @@ function TaskForm({
 
   const save = async () => {
     if (
-      !readEnvironmentScope(environmentId, AuthOrchestrationOperateScope) ||
+      !readMachineScope(machineId, AuthOrchestrationOperateScope) ||
       submissionPending.current ||
       saving ||
       dictationPending ||
       taskMissing ||
-      environmentUnavailable
+      machineUnavailable
     )
       return;
     // Signatures are edited on desktop and web; send the task's current one,
@@ -738,7 +738,7 @@ function TaskForm({
       return;
     }
     if (!projects.some((project) => project.id === draft.projectId)) {
-      Dialog.alert("Project unavailable", "Choose a project in this environment.");
+      Dialog.alert("Project unavailable", "Choose a project in this machine.");
       return;
     }
     const input: ScheduledTaskUpsertInput = {
@@ -766,7 +766,7 @@ function TaskForm({
     };
     submissionPending.current = true;
     setSaving(true);
-    const result = await upsert({ environmentId, input });
+    const result = await upsert({ machineId, input });
     setSaving(false);
     if (result._tag === "Failure") {
       submissionPending.current = false;
@@ -788,18 +788,18 @@ function TaskForm({
           <Text className="px-1 text-base text-danger-foreground">This task no longer exists.</Text>
         ) : null}
 
-        {environmentUnavailable ? (
+        {machineUnavailable ? (
           <Text className="px-1 text-base text-danger-foreground">
-            This environment is disconnected. Reconnect before saving.
+            This machine is disconnected. Reconnect before saving.
           </Text>
         ) : null}
         <SettingsSection>
           <SelectRow
             label="Runs on"
-            value={environmentLabel}
+            value={machineLabel}
             valueIcon={
-              <EnvironmentMachineSymbol
-                kind={resolveEnvironmentMachineKind(config)}
+              <MachineSymbol
+                kind={resolveMachineKind(config)}
                 size={18}
                 tintColorClassName="accent-foreground-muted"
               />
@@ -808,18 +808,18 @@ function TaskForm({
               draft.task || saving || dictationPending
                 ? []
                 : availableTargets.map((target) => ({
-                    id: target.environmentId,
+                    id: target.machineId,
                     title: target.label,
                     image:
-                      ENVIRONMENT_MACHINE_SYMBOLS[
-                        resolveEnvironmentMachineKind(target.serverConfig)
+                      MACHINE_SYMBOLS[
+                        resolveMachineKind(target.serverConfig)
                       ],
-                    state: target.environmentId === environmentId ? "on" : undefined,
+                    state: target.machineId === machineId ? "on" : undefined,
                   }))
             }
             onSelect={(id) => {
-              const target = availableTargets.find((entry) => entry.environmentId === id);
-              if (target) onChangeEnvironment(target);
+              const target = availableTargets.find((entry) => entry.machineId === id);
+              if (target) onChangeMachine(target);
             }}
           />
         </SettingsSection>
@@ -881,7 +881,7 @@ function TaskForm({
               (modelOptions.length ? "Choose model" : "No models available")
             }
             onPress={() => navigation.navigate("SettingsScheduledTaskModel")}
-            disabled={saving || dictationPending || environmentUnavailable}
+            disabled={saving || dictationPending || machineUnavailable}
           />
         </SettingsSection>
 
@@ -926,7 +926,7 @@ function TaskForm({
                 workspaceMode: "worktree",
               })}
               borderTop
-              disabled={!draft.projectId || saving || dictationPending || environmentUnavailable}
+              disabled={!draft.projectId || saving || dictationPending || machineUnavailable}
               onPress={() => navigation.navigate("SettingsScheduledTaskBranch")}
             />
           ) : null}
@@ -1038,7 +1038,7 @@ function TaskForm({
           ) : draft.schedule.mode === "webhook" ? (
             <>
               <WebhookScheduleDetails
-                environmentId={environmentId}
+                machineId={machineId}
                 // The live row, so a rotated URL shows up without reopening the form.
                 // Once the list has loaded, a missing task is gone; don't keep showing its URL.
                 task={
@@ -1047,7 +1047,7 @@ function TaskForm({
                     : draft.task
                 }
                 signatureConfigured={draft.schedule.signature !== null}
-                disabled={!canOperate || saving || environmentUnavailable}
+                disabled={!canOperate || saving || machineUnavailable}
               />
               <FormField
                 label="Skip requests older than (minutes)"
@@ -1139,7 +1139,7 @@ function TaskForm({
         </SettingsSection>
         {draft.schedule.mode === "fixed_time" ? (
           <Text className="px-2 text-sm text-foreground-muted">
-            Time uses the environment's time zone, which may differ from your phone's.
+            Time uses the machine's time zone, which may differ from your phone's.
           </Text>
         ) : null}
       </View>
@@ -1147,7 +1147,7 @@ function TaskForm({
         tone="primary"
         fullWidth
         loading={saving}
-        disabled={!canOperate || dictationPending || taskMissing || environmentUnavailable}
+        disabled={!canOperate || dictationPending || taskMissing || machineUnavailable}
         onPress={() => void save()}
         label={saving ? "Saving…" : draft.task ? "Save changes" : "Create task"}
       />
@@ -1156,22 +1156,22 @@ function TaskForm({
 }
 
 function WebhookScheduleDetails({
-  environmentId,
+  machineId,
   task,
   signatureConfigured,
   disabled,
 }: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly task: ScheduledTask | null;
   readonly signatureConfigured: boolean;
   readonly disabled: boolean;
 }) {
   const [rotating, setRotating] = useState(false);
-  const rotate = useAtomCommand(serverEnvironment.rotateScheduledTaskWebhookToken, {
+  const rotate = useAtomCommand(serverMachine.rotateScheduledTaskWebhookToken, {
     label: "scheduled task rotate webhook token",
     reportFailure: false,
   });
-  const preparedConnection = usePreparedConnection(environmentId);
+  const preparedConnection = usePreparedConnection(machineId);
   const httpBaseUrl =
     preparedConnection._tag === "Some" ? preparedConnection.value.httpBaseUrl : null;
   const webhook = task?.schedule.type === "webhook" ? task.webhook : undefined;
@@ -1217,7 +1217,7 @@ function WebhookScheduleDetails({
                   style: "destructive",
                   onPress: () => {
                     setRotating(true);
-                    void rotate({ environmentId, input: { id: task.id } }).then((result) => {
+                    void rotate({ machineId, input: { id: task.id } }).then((result) => {
                       setRotating(false);
                       if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
                         Dialog.alert(
@@ -1243,36 +1243,36 @@ function WebhookScheduleDetails({
   );
 }
 
-function EnvironmentTasks({
-  environment,
+function MachineTasks({
+  machine,
   now,
   projectIds,
   onEdit,
 }: {
-  readonly environment: SettingsTarget;
+  readonly machine: SettingsTarget;
   readonly now: number;
   readonly projectIds: readonly ProjectId[] | null;
   readonly onEdit: (task: ScheduledTask) => void;
 }) {
-  const environmentId = environment.environmentId;
-  const tasks = useEnvironmentQuery(
-    serverEnvironment.scheduledTasksLive({ environmentId, input: {} }),
+  const machineId = machine.machineId;
+  const tasks = useMachineQuery(
+    serverMachine.scheduledTasksLive({ machineId, input: {} }),
   );
   const visibleTasks = tasks.data?.tasks.filter(
     (task) => projectIds === null || projectIds.includes(task.projectId),
   );
   const canOperate = useAtomValue(
-    serverEnvironment.upsertScheduledTask.permissionAtom(environmentId),
+    serverMachine.upsertScheduledTask.permissionAtom(machineId),
   );
-  const setEnabled = useAtomCommand(serverEnvironment.setScheduledTaskEnabled, {
+  const setEnabled = useAtomCommand(serverMachine.setScheduledTaskEnabled, {
     label: "scheduled task enabled",
     reportFailure: false,
   });
-  const runNow = useAtomCommand(serverEnvironment.runScheduledTaskNow, {
+  const runNow = useAtomCommand(serverMachine.runScheduledTaskNow, {
     label: "scheduled task run",
     reportFailure: false,
   });
-  const remove = useAtomCommand(serverEnvironment.deleteScheduledTask, {
+  const remove = useAtomCommand(serverMachine.deleteScheduledTask, {
     label: "scheduled task delete",
     reportFailure: false,
   });
@@ -1283,22 +1283,22 @@ function EnvironmentTasks({
   };
 
   const act = async (task: ScheduledTask, action: "run" | "toggle" | "delete") => {
-    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) return;
+    if (!readMachineScope(machineId, AuthOrchestrationOperateScope)) return;
     const result =
       action === "run"
-        ? await runNow({ environmentId, input: { id: task.id } })
+        ? await runNow({ machineId, input: { id: task.id } })
         : action === "toggle"
-          ? await setEnabled({ environmentId, input: { id: task.id, enabled: !task.enabled } })
-          : await remove({ environmentId, input: { id: task.id } });
+          ? await setEnabled({ machineId, input: { id: task.id, enabled: !task.enabled } })
+          : await remove({ machineId, input: { id: task.id } });
     failure(`Could not ${action === "toggle" ? "update" : action} task`, result);
   };
 
   return (
     <SettingsSection
-      title={environment.label}
+      title={machine.label}
       titleIcon={
-        <EnvironmentMachineSymbol
-          kind={resolveEnvironmentMachineKind(environment.serverConfig)}
+        <MachineSymbol
+          kind={resolveMachineKind(machine.serverConfig)}
           size={16}
           tintColorClassName={
             Platform.OS === "android" ? "accent-primary" : "accent-foreground-muted"

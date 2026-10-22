@@ -3,10 +3,10 @@ import {
   clampFileAttachmentUploadBytes,
   fileAttachmentTooLargeMessage,
 } from "@vekrel/client-runtime/state/attachments";
-import type { EnvironmentShellStatus } from "@vekrel/client-runtime/state/shell";
+import type { MachineShellStatus } from "@vekrel/client-runtime/state/shell";
 import {
   CommandId,
-  EnvironmentId,
+  MachineId,
   IsoDateTime,
   MessageId,
   ModelSelection,
@@ -46,7 +46,7 @@ const QueuedThreadCreationSchema = Schema.Struct({
 
 export const QueuedThreadMessageSchema = Schema.Struct({
   schemaVersion: Schema.Literals([1, 2, THREAD_OUTBOX_SCHEMA_VERSION, 4]),
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   threadId: ThreadId,
   messageId: MessageId,
   commandId: CommandId,
@@ -76,7 +76,7 @@ export interface QueuedThreadCreation {
 }
 
 export interface QueuedThreadMessage {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly messageId: MessageId;
   readonly commandId: CommandId;
@@ -149,7 +149,7 @@ export function groupQueuedThreadMessages(
 
   const grouped: Record<string, Array<QueuedThreadMessage>> = {};
   for (const message of deduplicated.values()) {
-    const threadKey = scopedThreadKey(message.environmentId, message.threadId);
+    const threadKey = scopedThreadKey(message.machineId, message.threadId);
     (grouped[threadKey] ??= []).push(message);
   }
   for (const queue of Object.values(grouped)) {
@@ -173,8 +173,8 @@ export type ThreadOutboxDeliveryAction = "wait" | "remove" | "send";
 export function resolveThreadOutboxDeliveryAction(input: {
   readonly isCreation: boolean;
   readonly threadExists: boolean;
-  readonly shellStatus: EnvironmentShellStatus;
-  readonly environmentConnected: boolean;
+  readonly shellStatus: MachineShellStatus;
+  readonly machineConnected: boolean;
   readonly threadBusy: boolean;
 }): ThreadOutboxDeliveryAction {
   if (input.isCreation) {
@@ -184,12 +184,12 @@ export function resolveThreadOutboxDeliveryAction(input: {
     // Wait for the shell to be live before sending: until the thread list has
     // synchronized, a previously delivered creation whose cleanup failed would
     // look missing and get re-issued, duplicating the thread.
-    return input.environmentConnected && input.shellStatus === "live" ? "send" : "wait";
+    return input.machineConnected && input.shellStatus === "live" ? "send" : "wait";
   }
   if (!input.threadExists) {
     return input.shellStatus === "live" ? "remove" : "wait";
   }
-  return input.environmentConnected ? "send" : "wait";
+  return input.machineConnected ? "send" : "wait";
 }
 
 export type ThreadOutboxDispatchStep =
@@ -252,18 +252,18 @@ function errorMessage(error: unknown): string | null {
  * or an authorization rejection) means the payload itself is bad. The other typed
  * failures a queued send can hit are transport-shaped: a socket that dropped
  * mid-request (`RpcClientError` wrapping a Socket read/write/close reason), or an
- * environment that is not connected or not registered.
+ * machine that is not connected or not registered.
  */
 export function shouldRetryThreadOutboxDelivery(error: unknown): boolean {
   if (typeof error === "object" && error !== null && "_tag" in error) {
     switch (error._tag) {
       case "OrchestrationDispatchCommandError":
-      case "EnvironmentAuthorizationError":
+      case "MachineAuthorizationError":
         return false;
       case "ConnectionTransientError":
       case "RpcClientError":
-      case "EnvironmentRpcUnavailableError":
-      case "EnvironmentNotRegisteredError":
+      case "MachineRpcUnavailableError":
+      case "MachineNotRegisteredError":
         return true;
       default:
         break;

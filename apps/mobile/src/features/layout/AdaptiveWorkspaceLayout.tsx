@@ -1,10 +1,10 @@
 import { createDeferredNavigation } from "./deferred-navigation";
 import { uuidv4 } from "../../lib/uuid";
 import type {
-  EnvironmentProject,
-  EnvironmentThreadShell,
+  MachineProject,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
-import { EnvironmentId, ThreadId, type SidebarProjectGroupingMode } from "@vekrel/contracts";
+import { MachineId, ThreadId, type SidebarProjectGroupingMode } from "@vekrel/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
@@ -56,7 +56,7 @@ import { scopedThreadKey } from "../../lib/scopedEntities";
 import type { ThreadListFilters } from "../../persistence/mobile-preferences";
 import { appAtomRegistry } from "../../state/atom-registry";
 import { useProjects } from "../../state/entities";
-import { environmentThreadShells } from "../../state/threads";
+import { machineThreadShells } from "../../state/threads";
 import { mobilePreferencesAtom } from "../../state/preferences";
 import {
   DEFAULT_MOBILE_PROJECT_GROUPING_SETTINGS,
@@ -101,7 +101,7 @@ interface AdaptiveWorkspaceContextValue {
   readonly primarySidebarSearchQuery: string;
   readonly startNewTask: () => void;
   readonly deferThreadSelectionUntil: (operation: Promise<unknown>) => void;
-  readonly selectThread: (thread: EnvironmentThreadShell) => void;
+  readonly selectThread: (thread: MachineThreadShell) => void;
   readonly selectThreadRoute: (params: ReactNavigation.RootParamList["Thread"]) => void;
   readonly activateAuxiliaryPaneRole: (role: WorkspaceAuxiliaryPaneRole) => () => void;
   readonly registerWorkspaceInspector: (render: () => ReactNode) => () => void;
@@ -377,14 +377,14 @@ function AdaptiveWorkspaceLayoutContent(
     ],
   );
   const activeThread = parseActiveThreadPath(pathname);
-  const environmentId = activeThread?.environmentId ?? null;
+  const machineId = activeThread?.machineId ?? null;
   const threadId = activeThread?.threadId ?? null;
   const selectedThreadKey = (() => {
-    if (environmentId === null || threadId === null) {
+    if (machineId === null || threadId === null) {
       return null;
     }
     try {
-      return scopedThreadKey(EnvironmentId.make(environmentId), ThreadId.make(threadId));
+      return scopedThreadKey(MachineId.make(machineId), ThreadId.make(threadId));
     } catch {
       return null;
     }
@@ -533,7 +533,7 @@ function AdaptiveWorkspaceLayoutContent(
       if (route?.name === "Thread") {
         navigation.dispatch({
           ...CommonActions.setParams({
-            environmentId: undefined,
+            machineId: undefined,
             threadId: undefined,
             draft: undefined,
             ...params,
@@ -556,8 +556,8 @@ function AdaptiveWorkspaceLayoutContent(
   const projects = useProjects();
   const handleStartNewTask = () => {
     const thread = appAtomRegistry
-      .get(environmentThreadShells.navigationThreadShellsAtom)
-      .find((candidate) => candidate.environmentId === environmentId && candidate.id === threadId);
+      .get(machineThreadShells.navigationThreadShellsAtom)
+      .find((candidate) => candidate.machineId === machineId && candidate.id === threadId);
     const currentRoute = navigation
       .getState()
       ?.routes.find((route) => route.key === props.workspaceRouteKey);
@@ -567,13 +567,13 @@ function AdaptiveWorkspaceLayoutContent(
         : undefined;
     const first = (value: string | string[] | undefined) =>
       Array.isArray(value) ? value[0] : value;
-    const draftEnvironmentId = first(draft?.environmentId);
+    const draftMachineId = first(draft?.machineId);
     const draftProjectId = first(draft?.projectId);
     const currentProject = thread
-      ? { environmentId: thread.environmentId, id: thread.projectId }
+      ? { machineId: thread.machineId, id: thread.projectId }
       : projects.find(
           (project) =>
-            project.environmentId === draftEnvironmentId && project.id === draftProjectId,
+            project.machineId === draftMachineId && project.id === draftProjectId,
         );
     handleSelectThreadRoute(
       newTaskDestination(layout.usesSplitView, projects, currentProject, uuidv4()),
@@ -587,10 +587,10 @@ function AdaptiveWorkspaceLayoutContent(
 
   // Minted here (root stack navigation) so the sidebar pane stays free of
   // navigation hooks — on iOS it renders inside an independent nav tree.
-  const handleOpenEnvironmentSettings = () => {
+  const handleOpenMachineSettings = () => {
     navigation.navigate("SettingsSheet", {
       screen: "SettingsContent",
-      params: { screen: "SettingsEnvironments" },
+      params: { screen: "SettingsMachines" },
     });
   };
 
@@ -598,11 +598,11 @@ function AdaptiveWorkspaceLayoutContent(
   const { openPendingTask: handleOpenPendingTask } =
     usePendingTaskListActions(handleSelectThreadRoute);
 
-  const handleNewThreadOnBranch = (thread: EnvironmentThreadShell) => {
+  const handleNewThreadOnBranch = (thread: MachineThreadShell) => {
     handleSelectThreadRoute({
       draft: {
         requestId: uuidv4(),
-        environmentId: String(thread.environmentId),
+        machineId: String(thread.machineId),
         projectId: String(thread.projectId),
         branch: thread.branch,
         worktreePath: thread.worktreePath,
@@ -610,11 +610,11 @@ function AdaptiveWorkspaceLayoutContent(
     });
   };
 
-  const handleNewThreadInProject = (project: EnvironmentProject) => {
+  const handleNewThreadInProject = (project: MachineProject) => {
     handleSelectThreadRoute({
       draft: {
         requestId: uuidv4(),
-        environmentId: String(project.environmentId),
+        machineId: String(project.machineId),
         projectId: String(project.id),
         title: project.title,
       },
@@ -781,9 +781,9 @@ function AdaptiveWorkspaceLayoutContent(
     ),
   );
 
-  const handleSelectThread = (thread: EnvironmentThreadShell) => {
+  const handleSelectThread = (thread: MachineThreadShell) => {
     handleSelectThreadRoute({
-      environmentId: String(thread.environmentId),
+      machineId: String(thread.machineId),
       threadId: String(thread.id),
     });
   };
@@ -877,7 +877,7 @@ function AdaptiveWorkspaceLayoutContent(
                           onRequestVisibility={revealPrimarySidebar}
                           selectedThreadKey={selectedThreadKey}
                           onOpenSettings={handleOpenSettings}
-                          onOpenEnvironmentSettings={handleOpenEnvironmentSettings}
+                          onOpenMachineSettings={handleOpenMachineSettings}
                           onNewThreadInProject={handleNewThreadInProject}
                           onNewThreadOnBranch={handleNewThreadOnBranch}
                           onOpenPendingTask={handleOpenPendingTask}

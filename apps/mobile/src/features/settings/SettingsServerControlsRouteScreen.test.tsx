@@ -11,7 +11,7 @@ const { Children, mocks } = vi.hoisted(() => ({
     branchNaming: { onChange: (_patch: ServerSettingsPatch) => {} },
     updateSettings: vi.fn(),
     alert: vi.fn(),
-    targets: [] as ReturnType<typeof environment>[],
+    targets: [] as ReturnType<typeof machine>[],
     projectSelected: false,
   },
 }));
@@ -47,10 +47,10 @@ vi.mock("./components/AutoSettleDaysField", () => ({ AutoSettleDaysField: () => 
 vi.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ bottom: 0 }) }));
 vi.mock("@react-navigation/native", () => ({ useNavigation: () => ({}) }));
 vi.mock("../../state/session", () => ({
-  readEnvironmentScope: () => true,
-  useEnvironmentsWithScope: () => new Set(mocks.targets.map((target) => target.environmentId)),
+  readMachineScope: () => true,
+  useMachinesWithScope: () => new Set(mocks.targets.map((target) => target.machineId)),
 }));
-vi.mock("../../state/server", () => ({ serverEnvironment: { updateSettings: {} } }));
+vi.mock("../../state/server", () => ({ serverMachine: { updateSettings: {} } }));
 vi.mock("../../state/use-atom-command", () => ({
   useAtomCommand: () => mocks.updateSettings,
 }));
@@ -73,9 +73,9 @@ vi.mock("../../components/ui/Button", () => ({
   ),
 }));
 vi.mock("./components/SettingsScreen", () => ({ SettingsScreen: Children }));
-vi.mock("./components/SettingsEnvironmentFilterHeader", () => ({
-  AndroidSettingsEnvironmentFilter: () => null,
-  SettingsEnvironmentFilterHeader: () => null,
+vi.mock("./components/SettingsMachineFilterHeader", () => ({
+  AndroidSettingsMachineFilter: () => null,
+  SettingsMachineFilterHeader: () => null,
 }));
 vi.mock("./components/DatabaseStorageNotice", () => ({ DatabaseStorageNotice: () => null }));
 vi.mock("./components/SettingsSection", () => ({ SettingsSection: Children }));
@@ -109,15 +109,15 @@ vi.mock("./components/BranchNamingSettings", () => ({
     return null;
   },
 }));
-vi.mock("./settings-environment-filter", () => ({
-  useSettingsEnvironmentFilter: () => ({
+vi.mock("./settings-machine-filter", () => ({
+  useSettingsMachineFilter: () => ({
     selectedTargets: mocks.targets,
     projectGroups: [
       {
         key: "project",
         label: "Project",
         members: mocks.targets.map((target) => ({
-          project: { environmentId: target.environmentId, id: "project" },
+          project: { machineId: target.machineId, id: "project" },
         })),
       },
     ],
@@ -125,11 +125,11 @@ vi.mock("./settings-environment-filter", () => ({
   }),
 }));
 
-import { SettingsEnvironmentSourceControlRouteScreen } from "./SettingsServerControlsRouteScreen";
+import { SettingsMachineSourceControlRouteScreen } from "./SettingsServerControlsRouteScreen";
 
-function environment(environmentId: string, label: string) {
+function machine(machineId: string, label: string) {
   return {
-    environmentId,
+    machineId,
     label,
     connection: { phase: "connected" },
     serverConfig: {
@@ -138,7 +138,7 @@ function environment(environmentId: string, label: string) {
         defaultAutoPull: false,
         sidebarAutoSettleOnMerge: false,
       },
-      environment: {
+      machine: {
         capabilities: { projectSettingsOverrides: true, threadAutoSettlement: true },
       },
     },
@@ -152,7 +152,7 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   container = document.createElement("div");
   root = createRoot(container);
-  mocks.targets = [environment("local", "Local")];
+  mocks.targets = [machine("local", "Local")];
   mocks.projectSelected = false;
   mocks.alert.mockReset();
   mocks.updateSettings.mockReset();
@@ -167,7 +167,7 @@ describe("SettingsServerControlsRouteScreen", () => {
   it("sends a draft saved during a pending write once that write settles", async () => {
     const pending = Promise.withResolvers<AsyncResult.Success<void>>();
     mocks.updateSettings.mockReturnValueOnce(pending.promise);
-    act(() => root.render(<SettingsEnvironmentSourceControlRouteScreen />));
+    act(() => root.render(<SettingsMachineSourceControlRouteScreen />));
 
     act(() => mocks.branchNaming.onChange({ branchNamingMode: "custom" }));
     // The branch naming view closes with a draft while the mode write is pending.
@@ -178,7 +178,7 @@ describe("SettingsServerControlsRouteScreen", () => {
 
     expect(mocks.updateSettings).toHaveBeenCalledTimes(2);
     expect(mocks.updateSettings).toHaveBeenLastCalledWith({
-      environmentId: "local",
+      machineId: "local",
       input: {
         patch: { branchNamingMode: "custom", branchNameInstructions: "Use issue IDs." },
       },

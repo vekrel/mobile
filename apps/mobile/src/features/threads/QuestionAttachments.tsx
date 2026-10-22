@@ -46,7 +46,7 @@ export function QuestionAttachments(props: {
   const configs = useServerConfigs();
   const drafts = useAtomValue(composerDraftsAtom);
   const scopeKey = JSON.stringify([
-    selectedThread?.environmentId,
+    selectedThread?.machineId,
     selectedThread?.id,
     props.requestId,
     props.question.id,
@@ -75,7 +75,7 @@ export function QuestionAttachments(props: {
     const current = appAtomRegistry.get(composerDraftsAtom);
     const otherCount = props.questions.reduce((count, question) => {
       const target = questionAttachmentDraftKey(
-        selectedThread.environmentId,
+        selectedThread.machineId,
         selectedThread.id,
         props.requestId,
         question.id,
@@ -91,11 +91,11 @@ export function QuestionAttachments(props: {
     if (
       !selectedThread ||
       props.disabled ||
-      !configs.get(selectedThread.environmentId)?.environment.capabilities.questionAttachments
+      !configs.get(selectedThread.machineId)?.machine.capabilities.questionAttachments
     )
       return;
     const key = questionAttachmentDraftKey(
-      selectedThread.environmentId,
+      selectedThread.machineId,
       selectedThread.id,
       props.requestId,
       props.question.id,
@@ -123,11 +123,11 @@ export function QuestionAttachments(props: {
       .finally(() => changeQuestionAttachmentPreparation(key, -1));
   });
   if (!selectedThread || props.question.allowCustomAnswer === false) return null;
-  const { environmentId, id: threadId } = selectedThread;
-  const capabilities = configs.get(environmentId)?.environment.capabilities;
+  const { machineId, id: threadId } = selectedThread;
+  const capabilities = configs.get(machineId)?.machine.capabilities;
   const canAttach = capabilities?.questionAttachments === true;
   const key = questionAttachmentDraftKey(
-    environmentId,
+    machineId,
     threadId,
     props.requestId,
     props.question.id,
@@ -178,7 +178,7 @@ export function QuestionAttachments(props: {
         />
       ) : null}
       <ComposerAttachmentStrip
-        environmentId={environmentId}
+        machineId={machineId}
         attachments={attachments}
         onRemove={(id) => {
           if (!props.disabled) removeComposerDraftAttachment(key, id);
@@ -189,7 +189,7 @@ export function QuestionAttachments(props: {
         }
         onPressDocument={(attachment) =>
           navigation.navigate("ThreadAttachment", {
-            environmentId: String(environmentId),
+            machineId: String(machineId),
             threadId: String(threadId),
             attachmentId: attachment.id,
             name: attachment.name,

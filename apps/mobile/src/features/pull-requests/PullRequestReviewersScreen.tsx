@@ -25,7 +25,7 @@ import { SymbolView } from "../../components/ui/AppSymbol";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { useNativeLayoutMetrics } from "../../native/native-layout-metrics";
 import { composerPullRequests } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { useAtomCommand } from "../../state/use-atom-command";
 import {
   createNativeMailSearchToolbarItem,
@@ -59,19 +59,19 @@ export function PullRequestReviewersScreen({ route }: StaticScreenProps<PullRequ
     NATIVE_MAIL_SEARCH_TOOLBAR_SUPPORTED &&
     (!nativeMetrics || nativeMetrics.verticalBarEdge === "none");
   const target = pullRequestTarget(route.params);
-  const detail = useEnvironmentQuery(composerPullRequests.detail(target));
+  const detail = useMachineQuery(composerPullRequests.detail(target));
   const pr = detail.data;
   const canWrite = useAtomValue(
-    composerPullRequests.requestReviewers.permissionAtom(target.environmentId),
+    composerPullRequests.requestReviewers.permissionAtom(target.machineId),
   );
-  const connected = usePullRequestConnected(route.params.environmentId);
+  const connected = usePullRequestConnected(route.params.machineId);
   const allowed =
     connected &&
     canWrite &&
     pr?.state === "open" &&
     pr.capabilities.reviewers.request &&
     pr.viewerPermissions.requestReviewers;
-  const result = useEnvironmentQuery(
+  const result = useMachineQuery(
     pr?.capabilities.reviewers.listCandidates
       ? composerPullRequests.reviewerCandidates(target)
       : null,

@@ -3,7 +3,7 @@ import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import * as Dialog from "../../components/ui/Dialog";
 import { useIsFocused, useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { EnvironmentId, ThreadId, type PreviewSessionSnapshot } from "@vekrel/contracts";
+import { MachineId, ThreadId, type PreviewSessionSnapshot } from "@vekrel/contracts";
 import { normalizePreviewUrl, previewPdfAssetUrl } from "@vekrel/shared/preview";
 import * as Option from "effect/Option";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,7 +29,7 @@ const BrowserPreviewStack = createNativeStackNavigator<{ BrowserPreview: undefin
 const NO_PICTURE_IN_PICTURE: PreviewPictureInPictureState = { supported: false, active: false };
 
 type BrowserPreviewRouteScreenProps = StaticScreenProps<{
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly threadId: string;
   readonly tabId?: string;
 }>;
@@ -51,7 +51,7 @@ export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenPr
         <BrowserPreviewStack.Screen name="BrowserPreview">
           {() => (
             <BrowserPreviewScreen
-              environmentId={EnvironmentId.make(route.params.environmentId)}
+              machineId={MachineId.make(route.params.machineId)}
               threadId={ThreadId.make(route.params.threadId)}
               initialTabId={route.params.tabId ?? null}
               onClose={onClose}
@@ -64,19 +64,19 @@ export function BrowserPreviewRouteScreen({ route }: BrowserPreviewRouteScreenPr
 }
 
 function BrowserPreviewScreen({
-  environmentId,
+  machineId,
   threadId,
   initialTabId,
   onClose,
 }: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly initialTabId: string | null;
   readonly onClose: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const { themeVariables } = useAppearancePreferences();
-  const prepared = usePreparedConnection(environmentId);
+  const prepared = usePreparedConnection(machineId);
   const httpBaseUrl = Option.isSome(prepared) ? prepared.value.httpBaseUrl : null;
   const focused = useIsFocused();
   const [foreground, setForeground] = useState(AppState.currentState !== "background");
@@ -85,7 +85,7 @@ function BrowserPreviewScreen({
   const [streaming, setStreaming] = useState(false);
   const [canControl, setCanControl] = useState(false);
   const streamRef = useRef<PreviewStreamRef>(null);
-  const { tabs, loaded } = useThreadServerBrowserTabs({ environmentId, threadId, enabled: true });
+  const { tabs, loaded } = useThreadServerBrowserTabs({ machineId, threadId, enabled: true });
   const tab = tabs.find((entry) => entry.tabId === selectedTabId) ?? latestBrowserTab(tabs);
   const pdfUri =
     tab?.navStatus._tag === "Success" ? previewPdfAssetUrl(tab.navStatus.url, httpBaseUrl) : null;
@@ -169,7 +169,7 @@ function BrowserPreviewScreen({
         <>
           <BrowserAddressBar
             key={`address:${tab.tabId}`}
-            environmentId={environmentId}
+            machineId={machineId}
             tab={tab}
             streaming={streaming}
             ready={streaming && canControl}
@@ -179,7 +179,7 @@ function BrowserPreviewScreen({
           {live ? (
             <PreviewStreamWebView
               key={`stream:${tab.tabId}`}
-              environmentId={environmentId}
+              machineId={machineId}
               threadId={threadId}
               tabId={tab.tabId}
               pdfUri={pdfUri}
@@ -206,14 +206,14 @@ function BrowserPreviewScreen({
 }
 
 function BrowserAddressBar({
-  environmentId,
+  machineId,
   tab,
   ready,
   streaming,
   onCommand,
   onPaste,
 }: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly tab: PreviewSessionSnapshot;
   readonly ready: boolean;
   readonly streaming: boolean;
@@ -269,7 +269,7 @@ function BrowserAddressBar({
         onPress={() => onCommand({ type: "reload" })}
       />
       <BrowserTabMenu
-        environmentId={environmentId}
+        machineId={machineId}
         tab={tab}
         streaming={streaming}
         onPaste={ready ? onPaste : undefined}

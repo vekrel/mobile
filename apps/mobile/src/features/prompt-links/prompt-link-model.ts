@@ -46,24 +46,24 @@ export function linkedThreadDraftAction(currentText: string, prompt: string) {
   return currentText === prompt ? ("keep" as const) : ("ask" as const);
 }
 
-export function promptLinkScratchEnvironmentId<Id extends string>(
-  environmentIdsMostRecentFirst: ReadonlyArray<Id>,
-  scratchEnvironmentIds: ReadonlyArray<Id>,
+export function promptLinkScratchMachineId<Id extends string>(
+  machineIdsMostRecentFirst: ReadonlyArray<Id>,
+  scratchMachineIds: ReadonlyArray<Id>,
 ): Id | null {
   return (
-    environmentIdsMostRecentFirst.find((id) => scratchEnvironmentIds.includes(id)) ??
-    scratchEnvironmentIds[0] ??
+    machineIdsMostRecentFirst.find((id) => scratchMachineIds.includes(id)) ??
+    scratchMachineIds[0] ??
     null
   );
 }
 
-export function latestThreadEnvironmentIds<Id extends string>(
-  threads: ReadonlyArray<{ readonly environmentId: Id; readonly updatedAt: string }>,
+export function latestThreadMachineIds<Id extends string>(
+  threads: ReadonlyArray<{ readonly machineId: Id; readonly updatedAt: string }>,
 ): ReadonlyArray<Id> {
   const latest = new Map<Id, string>();
   for (const thread of threads) {
-    if (thread.updatedAt > (latest.get(thread.environmentId) ?? "")) {
-      latest.set(thread.environmentId, thread.updatedAt);
+    if (thread.updatedAt > (latest.get(thread.machineId) ?? "")) {
+      latest.set(thread.machineId, thread.updatedAt);
     }
   }
   return Array.from(latest.keys()).sort((left, right) =>

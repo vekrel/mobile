@@ -10,13 +10,13 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentId, OrchestrationV2ProjectedTurnItem } from "@vekrel/contracts";
+import type { MachineId, OrchestrationV2ProjectedTurnItem } from "@vekrel/contracts";
 import { useRef, useState } from "react";
 import { View, type ColorValue } from "react-native";
 
 import { SymbolView, type AppSymbolName } from "../../components/ui/AppSymbol";
 import { AppText as Text, AppTextInput as TextInput } from "../../components/ui/AppText";
-import { serverEnvironment } from "../../state/server";
+import { serverMachine } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { Button } from "../../components/ui/Button";
 
@@ -24,7 +24,7 @@ const LOCK_SYMBOL: AppSymbolName = { ios: "lock", android: "lock" };
 const PRIVATE_SYMBOL: AppSymbolName = { ios: "checkmark.shield", android: "lock" };
 
 export function SecretRequestCard(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly projectedItem: OrchestrationV2ProjectedTurnItem;
   readonly iconColor: ColorValue;
 }) {
@@ -34,7 +34,7 @@ export function SecretRequestCard(props: {
   if (display.kind === "pending") {
     return (
       <PendingSecretRequestForm
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         item={item}
         iconColor={props.iconColor}
       />
@@ -57,12 +57,12 @@ export function SecretRequestCard(props: {
 }
 
 function PendingSecretRequestForm(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly item: SecretRequestItem;
   readonly iconColor: ColorValue;
 }) {
   const { item } = props;
-  const answer = useAtomCommand(serverEnvironment.answerSecretRequest, {
+  const answer = useAtomCommand(serverMachine.answerSecretRequest, {
     label: "answer secret request",
     // The failure cause holds the request; keep it out of the console.
     reportFailure: false,
@@ -82,7 +82,7 @@ function PendingSecretRequestForm(props: {
     inFlight.current = true;
     setSubmitting(true);
     setError(null);
-    const result = await answer({ environmentId: props.environmentId, input }).finally(() => {
+    const result = await answer({ machineId: props.machineId, input }).finally(() => {
       inFlight.current = false;
       setSubmitting(false);
     });

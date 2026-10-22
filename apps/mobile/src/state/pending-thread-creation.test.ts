@@ -1,6 +1,6 @@
 import {
   CommandId,
-  EnvironmentId,
+  MachineId,
   MessageId,
   ProjectId,
   ProviderInstanceId,
@@ -15,7 +15,7 @@ import {
 import type { QueuedThreadMessage } from "./thread-outbox-model";
 
 const creation: QueuedThreadMessage = {
-  environmentId: EnvironmentId.make("environment-1"),
+  machineId: MachineId.make("machine-1"),
   threadId: ThreadId.make("thread-1"),
   messageId: MessageId.make("message-1"),
   commandId: CommandId.make("command-1"),
@@ -42,7 +42,7 @@ const creation: QueuedThreadMessage = {
 };
 
 describe("resolvePendingThreadCreation", () => {
-  const threadKey = `${creation.environmentId}:${creation.threadId}`;
+  const threadKey = `${creation.machineId}:${creation.threadId}`;
   const pending: PendingThreadCreation = { message: creation, outcome: null };
   const prompt = { id: creation.messageId };
 

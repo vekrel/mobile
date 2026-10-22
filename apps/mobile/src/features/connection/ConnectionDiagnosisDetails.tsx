@@ -6,9 +6,9 @@ import {
   connectionRoutes,
   hasRelayRoute,
   presentConnectionDiagnosis,
-  type EnvironmentPresentation,
+  type MachinePresentation,
 } from "@vekrel/client-runtime/connection";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import Constants from "expo-constants";
 import * as Option from "effect/Option";
 import { AsyncResult } from "effect/reactivity";
@@ -16,7 +16,7 @@ import { Linking, View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { Button } from "../../components/ui/Button";
-import { environmentCatalog } from "../../connection/catalog";
+import { machineCatalog } from "../../connection/catalog";
 import { cn } from "../../lib/cn";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 
@@ -25,11 +25,11 @@ const HOP_NOTE = { ok: "", failed: " · Failed", unchecked: " · Not checked" } 
 
 /** Same model as the web Settings row; null while connected, off, or not failed. */
 export function useConnectionDiagnosis(
-  environmentId: EnvironmentId,
-  presentation: EnvironmentPresentation | null,
+  machineId: MachineId,
+  presentation: MachinePresentation | null,
 ) {
   const state = Option.getOrElse(
-    AsyncResult.value(useAtomValue(environmentCatalog.stateAtom(environmentId))),
+    AsyncResult.value(useAtomValue(machineCatalog.stateAtom(machineId))),
     () => AVAILABLE_CONNECTION_STATE,
   );
   if (presentation === null || !presentation.entry.enabled) return { diagnosis: null, state };
@@ -42,7 +42,7 @@ export function useConnectionDiagnosis(
     state,
     via: relayOnly ? "relay" : "direct",
     clientVersion: Constants.expoConfig?.version,
-    serverVersion: presentation.serverConfig?.environment.serverVersion,
+    serverVersion: presentation.serverConfig?.machine.serverVersion,
   });
   return { diagnosis, state };
 }

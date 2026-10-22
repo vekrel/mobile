@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import { settlePromise, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { AsyncResult } from "effect/reactivity";
 import { useEffect, useRef, useState } from "react";
 import { View } from "react-native";
@@ -9,24 +9,24 @@ import { AppText as Text } from "../../components/ui/AppText";
 import * as Dialog from "../../components/ui/Dialog";
 import {
   describeOutdatedServer,
-  serverEnvironment,
+  serverMachine,
   updateOutdatedServer,
 } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { SettingsActionRow } from "./components/SettingsActionRow";
 import { SettingsSection } from "./components/SettingsSection";
-import { findEnvironmentUpdate } from "./environment-maintenance";
+import { findMachineUpdate } from "./machine-maintenance";
 
 export function OutdatedServerUpdateSection({
-  environmentId,
+  machineId,
   label,
 }: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly label: string;
 }) {
   const describe = useAtomCommand(describeOutdatedServer, { reportFailure: false });
   const update = useAtomCommand(updateOutdatedServer, { reportFailure: false });
-  const state = useAtomValue(serverEnvironment.updateStateAtom(environmentId));
+  const state = useAtomValue(serverMachine.updateStateAtom(machineId));
   const [release, setRelease] = useState<{
     fromVersion: string;
     targetVersion: string | null;
@@ -45,10 +45,10 @@ export function OutdatedServerUpdateSection({
     setError(null);
     const timeout = setTimeout(() => request.abort(), 20_000);
     const result = await settlePromise(async () => {
-      const description = await describe(environmentId);
+      const description = await describe(machineId);
       if (AsyncResult.isFailure(description)) throw squashAtomCommandFailure(description);
       const fromVersion = description.value.serverVersion;
-      const targetVersion = await findEnvironmentUpdate(fromVersion, request.signal);
+      const targetVersion = await findMachineUpdate(fromVersion, request.signal);
       if (!request.signal.aborted) setRelease({ fromVersion, targetVersion });
     });
     clearTimeout(timeout);
@@ -73,7 +73,7 @@ export function OutdatedServerUpdateSection({
           onPress: () => {
             setError(null);
             void update({
-              environmentId,
+              machineId,
               input: { targetVersion },
               fromVersion: release.fromVersion,
             });

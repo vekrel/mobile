@@ -3,7 +3,7 @@ import {
   generateSpreadPinOrderKeys,
   pinOrderKeyBetween,
 } from "@vekrel/client-runtime/state/thread-sort";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 
 import {
   computeThreadMoveAvailability,
@@ -11,10 +11,10 @@ import {
   type OrderRow,
 } from "./threadOrder";
 
-function makeRow(id: string, environmentId: string, key: string | null, pinned: boolean): OrderRow {
+function makeRow(id: string, machineId: string, key: string | null, pinned: boolean): OrderRow {
   return {
     id: id as OrderRow["id"],
-    environmentId: environmentId as OrderRow["environmentId"],
+    machineId: machineId as OrderRow["machineId"],
     pinOrderKey: pinned ? key : null,
     activeOrderKey: pinned ? null : key,
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -70,17 +70,17 @@ const KEY_POOL = [
 function referenceAvailability(
   ordered: readonly OrderRow[],
   allThreads: readonly OrderRow[],
-  writable: ReadonlySet<EnvironmentId>,
+  writable: ReadonlySet<MachineId>,
 ) {
   const planner = createThreadMovePlanner({
     ordered,
     allThreads,
     section: "pinned",
-    reorderableEnvironmentIds: writable,
+    reorderableMachineIds: writable,
   });
   const answers = new Map<string, { canMoveUp: boolean; canMoveDown: boolean }>();
   for (const row of ordered) {
-    const movedId = `${row.environmentId}:${row.id}`;
+    const movedId = `${row.machineId}:${row.id}`;
     answers.set(movedId, {
       canMoveUp: planner(movedId, "up") !== null,
       canMoveDown: planner(movedId, "down") !== null,
@@ -93,10 +93,10 @@ function randomCase(rng: () => number) {
   const rowCount = 1 + Math.floor(rng() * 9);
   const rows: OrderRow[] = [];
   for (let index = 0; index < rowCount; index += 1) {
-    const environment = rng() < 0.75 ? "env-w" : "env-x";
+    const machine = rng() < 0.75 ? "env-w" : "env-x";
     const key = KEY_POOL[Math.floor(rng() * KEY_POOL.length)] ?? null;
     const id = rng() < 0.4 ? `t:${index}` : `t${index}`;
-    rows.push(makeRow(id, environment, key, true));
+    rows.push(makeRow(id, machine, key, true));
   }
   const hidden: OrderRow[] = [];
   const hiddenCount = Math.floor(rng() * 4);
@@ -108,7 +108,7 @@ function randomCase(rng: () => number) {
   return { ordered: rows, allThreads: [...rows, ...hidden] };
 }
 
-const WRITABLE = new Set<EnvironmentId>(["env-w" as EnvironmentId]);
+const WRITABLE = new Set<MachineId>(["env-w" as MachineId]);
 
 describe("computeThreadMoveAvailability matches the reference planner", () => {
   it("agrees across randomized sections (keys, holes, non-writable rows, hidden keys)", () => {
@@ -119,14 +119,14 @@ describe("computeThreadMoveAvailability matches the reference planner", () => {
         ordered,
         allThreads,
         section: "pinned",
-        reorderableEnvironmentIds: WRITABLE,
+        reorderableMachineIds: WRITABLE,
       });
       const reference = referenceAvailability(ordered, allThreads, WRITABLE);
       for (const [id, answer] of reference) {
         expect(
           batch.get(id) ?? { canMoveUp: false, canMoveDown: false },
           `seed ${seed} row ${id} ordered=${ordered
-            .map((row) => `${row.id}:${row.pinOrderKey ?? "-"}:${row.environmentId}`)
+            .map((row) => `${row.id}:${row.pinOrderKey ?? "-"}:${row.machineId}`)
             .join(",")}`,
         ).toEqual(answer);
       }
@@ -146,7 +146,7 @@ describe("computeThreadMoveAvailability matches the reference planner", () => {
     const batch = computeThreadMoveAvailability({
       ordered: rows,
       section: "pinned",
-      reorderableEnvironmentIds: WRITABLE,
+      reorderableMachineIds: WRITABLE,
       pendingOrder: pending,
     });
     expect(batch.size).toBe(0);
@@ -159,7 +159,7 @@ describe("computeThreadMoveAvailability matches the reference planner", () => {
       ordered: withThird,
       allThreads: withThird,
       section: "pinned",
-      reorderableEnvironmentIds: WRITABLE,
+      reorderableMachineIds: WRITABLE,
     });
     const reference = referenceAvailability(withThird, withThird, WRITABLE);
     expect(Object.fromEntries(batch)).toEqual(Object.fromEntries(reference));
@@ -171,12 +171,12 @@ describe("computeThreadMoveAvailability matches the reference planner", () => {
     const batch = computeThreadMoveAvailability({
       ordered: rows,
       section: "pinned",
-      reorderableEnvironmentIds: new Set<EnvironmentId>(["env" as EnvironmentId]),
+      reorderableMachineIds: new Set<MachineId>(["env" as MachineId]),
     });
     const reference = referenceAvailability(
       rows,
       rows,
-      new Set<EnvironmentId>(["env" as EnvironmentId]),
+      new Set<MachineId>(["env" as MachineId]),
     );
     expect(Object.fromEntries(batch)).toEqual(Object.fromEntries(reference));
     expect(batch.get("env:thread:1")).toEqual({ canMoveUp: false, canMoveDown: true });
@@ -190,20 +190,20 @@ describe("computeThreadMoveAvailability matches the reference planner", () => {
         ordered: [],
         allThreads: hidden,
         section: "pinned",
-        reorderableEnvironmentIds: WRITABLE,
+        reorderableMachineIds: WRITABLE,
       }).size,
     ).toBe(0);
-    for (const environment of ["env-w", "env-x"]) {
-      const ordered = [makeRow("t0", environment, "a", true)];
+    for (const machine of ["env-w", "env-x"]) {
+      const ordered = [makeRow("t0", machine, "a", true)];
       const allThreads = [...ordered, ...hidden];
       const batch = computeThreadMoveAvailability({
         ordered,
         allThreads,
         section: "pinned",
-        reorderableEnvironmentIds: WRITABLE,
+        reorderableMachineIds: WRITABLE,
       });
       expect(Object.fromEntries(batch)).toEqual({
-        [`${environment}:t0`]: { canMoveUp: false, canMoveDown: false },
+        [`${machine}:t0`]: { canMoveUp: false, canMoveDown: false },
       });
       expect(Object.fromEntries(batch)).toEqual(
         Object.fromEntries(referenceAvailability(ordered, allThreads, WRITABLE)),
@@ -221,7 +221,7 @@ describe("computeThreadMoveAvailability matches the reference planner", () => {
       ordered: rows,
       allThreads: rows,
       section: "pinned",
-      reorderableEnvironmentIds: WRITABLE,
+      reorderableMachineIds: WRITABLE,
     });
     const reference = referenceAvailability(rows, rows, WRITABLE);
     expect(Object.fromEntries(batch)).toEqual(Object.fromEntries(reference));
@@ -241,7 +241,7 @@ describe("computeThreadMoveAvailability matches the reference planner", () => {
       ordered,
       allThreads,
       section: "pinned",
-      reorderableEnvironmentIds: WRITABLE,
+      reorderableMachineIds: WRITABLE,
     });
     const reference = referenceAvailability(ordered, allThreads, WRITABLE);
     expect(Object.fromEntries(batch)).toEqual(Object.fromEntries(reference));

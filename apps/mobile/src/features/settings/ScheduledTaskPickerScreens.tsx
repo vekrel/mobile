@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { AppText as Text } from "../../components/ui/AppText";
 import { buildModelOptions, groupByProvider } from "../../lib/modelOptions";
 import { resolveProviderOptionDescriptors } from "../../lib/providerOptions";
-import { useEnvironmentServerConfig, useProjects } from "../../state/entities";
+import { useMachineServerConfig, useProjects } from "../../state/entities";
 import { useDebouncedValue, usePaginatedBranches } from "../../state/queries";
 import { BranchPickerScreen } from "../threads/NewTaskContextPickerScreens";
 import { ThreadSettingsPickerScreen } from "../threads/ThreadSettingsSheet";
@@ -23,7 +23,7 @@ function MissingTaskDraft() {
 export function ScheduledTaskModelPickerRouteScreen() {
   const navigation = useNavigation();
   const { editor, setEditor } = useScheduledTaskEditor();
-  const config = useEnvironmentServerConfig(editor?.environmentId ?? null);
+  const config = useMachineServerConfig(editor?.machineId ?? null);
   const selectedModel = editor?.draft.modelSelection ?? null;
   const projectId = editor?.draft.projectId ?? null;
   const models = useMemo(
@@ -49,7 +49,7 @@ export function ScheduledTaskModelPickerRouteScreen() {
 
   return (
     <ThreadSettingsPickerScreen
-      environmentId={editor.environmentId}
+      machineId={editor.machineId}
       projectId={projectId}
       providerGroups={providerGroups}
       selectedModel={selectedModel}
@@ -111,12 +111,12 @@ export function ScheduledTaskBranchPickerRouteScreen() {
   const project =
     projects.find(
       (entry) =>
-        entry.environmentId === editor?.environmentId && entry.id === editor.draft.projectId,
+        entry.machineId === editor?.machineId && entry.id === editor.draft.projectId,
     ) ?? null;
   const [query, setQuery] = useState("");
   const debouncedQuery = useDebouncedValue(query, 150);
   const branches = usePaginatedBranches({
-    environmentId: editor?.environmentId ?? null,
+    machineId: editor?.machineId ?? null,
     cwd: project?.workspaceRoot ?? null,
     query: debouncedQuery,
   });

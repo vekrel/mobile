@@ -1,4 +1,4 @@
-import { EnvironmentId, MessageId, ThreadId } from "@vekrel/contracts";
+import { MachineId, MessageId, ThreadId } from "@vekrel/contracts";
 import * as Schema from "effect/Schema";
 
 import { writeFileAtomically } from "../lib/atomic-file";
@@ -32,7 +32,7 @@ export class ThreadOutboxStorageError extends Schema.TaggedError<ThreadOutboxSto
   "ThreadOutboxStorageError",
   {
     operation: Schema.Literals(["load", "read-message", "write", "remove"]),
-    environmentId: Schema.NullOr(EnvironmentId),
+    machineId: Schema.NullOr(MachineId),
     threadId: Schema.NullOr(ThreadId),
     messageId: Schema.NullOr(MessageId),
     fileName: Schema.NullOr(Schema.String),
@@ -40,7 +40,7 @@ export class ThreadOutboxStorageError extends Schema.TaggedError<ThreadOutboxSto
   },
 ) {
   override get message(): string {
-    return `Thread outbox storage operation ${this.operation} failed for environment ${this.environmentId ?? "unknown"}, thread ${this.threadId ?? "unknown"}, message ${this.messageId ?? "unknown"}, file ${this.fileName ?? "unknown"}.`;
+    return `Thread outbox storage operation ${this.operation} failed for machine ${this.machineId ?? "unknown"}, thread ${this.threadId ?? "unknown"}, message ${this.messageId ?? "unknown"}, file ${this.fileName ?? "unknown"}.`;
   }
 }
 
@@ -89,7 +89,7 @@ export const expoThreadOutboxStorage: ThreadOutboxStorage = {
           errors.push(
             new ThreadOutboxStorageError({
               operation: "read-message",
-              environmentId: null,
+              machineId: null,
               threadId: null,
               messageId: null,
               fileName: entry.name,
@@ -101,7 +101,7 @@ export const expoThreadOutboxStorage: ThreadOutboxStorage = {
     } catch (cause) {
       throw new ThreadOutboxStorageError({
         operation: "load",
-        environmentId: null,
+        machineId: null,
         threadId: null,
         messageId: null,
         fileName: null,
@@ -122,7 +122,7 @@ export const expoThreadOutboxStorage: ThreadOutboxStorage = {
     } catch (cause) {
       throw new ThreadOutboxStorageError({
         operation: "write",
-        environmentId: message.environmentId,
+        machineId: message.machineId,
         threadId: message.threadId,
         messageId: message.messageId,
         fileName,
@@ -140,7 +140,7 @@ export const expoThreadOutboxStorage: ThreadOutboxStorage = {
     } catch (cause) {
       throw new ThreadOutboxStorageError({
         operation: "remove",
-        environmentId: message.environmentId,
+        machineId: message.machineId,
         threadId: message.threadId,
         messageId: message.messageId,
         fileName,

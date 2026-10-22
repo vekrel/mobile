@@ -14,7 +14,7 @@ import { AppText as Text, AppTextInput as TextInput } from "../../components/ui/
 import { Button } from "../../components/ui/Button";
 import { SegmentedControl } from "../../components/ui/SegmentedControl";
 import { composerPullRequests } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { PullRequestSheetContent as SheetContent } from "./PullRequestSheetContent";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
@@ -66,7 +66,7 @@ export function PullRequestReviewSheet({
 }: StaticScreenProps<PullRequestParams & { readonly mode: "review" | "comment" }>) {
   const params = route.params;
   const target = pullRequestTarget(params);
-  const result = useEnvironmentQuery(composerPullRequests.detail(target));
+  const result = useMachineQuery(composerPullRequests.detail(target));
   const { refresh: refreshDetail } = result;
   useFocusEffect(() => refreshDetail());
   const permissions = usePullRequestPermissions(params, result.data);

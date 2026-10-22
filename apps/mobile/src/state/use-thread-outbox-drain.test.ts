@@ -1,7 +1,7 @@
 import { acknowledgedThreadMessagesAtom } from "./acknowledged-thread-messages";
 import {
   CommandId,
-  EnvironmentId,
+  MachineId,
   MessageId,
   ProjectId,
   ProviderInstanceId,
@@ -84,13 +84,13 @@ vi.mock("./entities", () => ({
 
 vi.mock("./server", async () => {
   const { Atom } = await import("effect/reactivity");
-  return { serverEnvironment: { configValueAtom: Atom.family(() => Atom.make(null)) } };
+  return { serverMachine: { configValueAtom: Atom.family(() => Atom.make(null)) } };
 });
 
-vi.mock("./git", () => ({ gitEnvironment: {} }));
+vi.mock("./git", () => ({ gitMachine: {} }));
 
 vi.mock("./threads", () => ({
-  threadEnvironment: {},
+  threadMachine: {},
 }));
 
 vi.mock("./use-atom-command", () => ({
@@ -98,8 +98,8 @@ vi.mock("./use-atom-command", () => ({
 }));
 
 vi.mock("./session", () => ({
-  readEnvironmentScope: () => harness.canOperate,
-  useEnvironmentsWithScope: () => new Set(),
+  readMachineScope: () => harness.canOperate,
+  useMachinesWithScope: () => new Set(),
 }));
 
 vi.mock("./use-thread-outbox", async () => {
@@ -111,8 +111,8 @@ vi.mock("./use-thread-outbox", async () => {
   };
 });
 
-vi.mock("./use-remote-environment-registry", () => ({
-  useRemoteConnectionStatus: () => ({ connectedEnvironments: [] }),
+vi.mock("./use-remote-machine-registry", () => ({
+  useRemoteConnectionStatus: () => ({ connectedMachines: [] }),
 }));
 
 vi.mock("./thread-outbox", async () => {
@@ -158,7 +158,7 @@ function queuedMessage(input: {
   readonly fileUri?: string;
 }): QueuedThreadMessage {
   return {
-    environmentId: EnvironmentId.make("environment-1"),
+    machineId: MachineId.make("machine-1"),
     threadId: ThreadId.make("thread-1"),
     messageId: MessageId.make(input.messageId),
     commandId: CommandId.make(`command-${input.messageId}`),
@@ -190,7 +190,7 @@ function withReusedFileUpload(
         ? {
             ...attachment,
             uploadedAttachmentId: attachmentId,
-            uploadEnvironmentId: message.environmentId,
+            uploadMachineId: message.machineId,
           }
         : attachment,
     ),
@@ -287,7 +287,7 @@ describe("thread outbox attachment preparation", () => {
         ? {
             ...attachment,
             uploadedAttachmentId: "pending-new-upload",
-            uploadEnvironmentId: message.environmentId,
+            uploadMachineId: message.machineId,
           }
         : attachment,
     );
@@ -331,7 +331,7 @@ describe("thread outbox drain delivery cleanup", () => {
   it("removes an acknowledged outbox item even when the sign-out archive write fails", async () => {
     const message = queuedMessage({ messageId: "archive-write-failure", text: "Delivered" });
     await harness.manager.enqueue(message);
-    await composerDrafts.archiveCloudComposerDrafts("account-a", new Set([message.environmentId]));
+    await composerDrafts.archiveCloudComposerDrafts("account-a", new Set([message.machineId]));
     harness.draftFile.setWriteError(new Error("Draft storage unavailable"));
 
     await expect(
@@ -358,14 +358,14 @@ describe("thread outbox drain delivery cleanup", () => {
       const deliveryRevision = harness.manager.revisionOf(message.messageId);
       await composerDrafts.archiveCloudComposerDrafts(
         "account-a",
-        new Set([message.environmentId]),
+        new Set([message.machineId]),
       );
       expect(
         appAtomRegistry.get(composerDrafts.composerCloudDraftsAtom).signedOut["account-a"]
           ?.queuedMessages,
       ).toEqual([message]);
 
-      if (cleared) await harness.manager.clearEnvironment(message.environmentId);
+      if (cleared) await harness.manager.clearMachine(message.machineId);
       await expect(completeQueuedMessageDelivery(message, deliveryRevision)).resolves.toBe(
         cleared ? "edited" : "removed",
       );
@@ -386,8 +386,8 @@ describe("thread outbox drain delivery cleanup", () => {
     const deliveryRevision = harness.manager.revisionOf(message.messageId);
     const edited = { ...message, text: "Keep this edit" };
     await harness.manager.update(edited);
-    await composerDrafts.archiveCloudComposerDrafts("account-a", new Set([message.environmentId]));
-    await harness.manager.clearEnvironment(message.environmentId);
+    await composerDrafts.archiveCloudComposerDrafts("account-a", new Set([message.machineId]));
+    await harness.manager.clearMachine(message.machineId);
     await expect(completeQueuedMessageDelivery(message, deliveryRevision)).resolves.toBe("edited");
     await composerDrafts.restoreCloudComposerDrafts("account-a");
     expect(remainingMessages()).toEqual([edited]);
@@ -498,7 +498,7 @@ describe("thread outbox delivered creation recovery", () => {
 
       expect(remainingMessages()).toEqual([newer]);
       expect(
-        composerDrafts.getComposerDraftSnapshot(`${message.environmentId}:${message.threadId}`),
+        composerDrafts.getComposerDraftSnapshot(`${message.machineId}:${message.threadId}`),
       ).toMatchObject({ text: message.text, attachments: [] });
       expect(harness.removePersistedFile).not.toHaveBeenCalled();
     } finally {
@@ -536,7 +536,7 @@ describe("thread outbox delivered creation recovery", () => {
 
       expect(remainingMessages()).toEqual([message]);
       expect(
-        composerDrafts.getComposerDraftSnapshot(`${message.environmentId}:${message.threadId}`),
+        composerDrafts.getComposerDraftSnapshot(`${message.machineId}:${message.threadId}`),
       ).toMatchObject({ text: message.text, attachments: [] });
       expect(harness.removePersistedFile).not.toHaveBeenCalled();
     } finally {
@@ -551,7 +551,7 @@ describe("thread outbox delivered creation recovery", () => {
       text: "recover once",
       fileUri: "file:///documents/t3-composer-attachments/retry.pdf",
     });
-    const draftKey = `${message.environmentId}:${message.threadId}`;
+    const draftKey = `${message.machineId}:${message.threadId}`;
     const removeSpy = vi
       .spyOn(harness.manager, "remove")
       .mockRejectedValueOnce(new Error("storage unavailable"));
@@ -591,7 +591,7 @@ describe("thread outbox delivered creation recovery", () => {
 describe("thread outbox recovery rollback", () => {
   it("reopens a rejected task with setup edits and every attachment, even above the send cap", async () => {
     const message = queuedMessage({ messageId: "failed-setup", text: "Original prompt" });
-    const sourceKey = `${message.environmentId}:${message.threadId}`;
+    const sourceKey = `${message.machineId}:${message.threadId}`;
     const targetKey = "new-task:restored-failed-setup";
     const files = Array.from(
       { length: 10 },
@@ -623,7 +623,7 @@ describe("thread outbox recovery rollback", () => {
 
   it("keeps setup edits recoverable when saving their recovery draft fails", async () => {
     const message = queuedMessage({ messageId: "failed-save", text: "Original prompt" });
-    const sourceKey = `${message.environmentId}:${message.threadId}`;
+    const sourceKey = `${message.machineId}:${message.threadId}`;
     appAtomRegistry.set(composerDrafts.composerDraftsAtom, {
       "new-task:restored-failed-save": { text: message.text, attachments: [] },
       [sourceKey]: { text: "Follow-up", attachments: [] },
@@ -662,7 +662,7 @@ describe("thread outbox recovery rollback", () => {
       attachments: message.attachments,
       modelSelection: message.modelSelection,
       project: {
-        environmentId: message.environmentId,
+        machineId: message.machineId,
         projectId: message.creation!.projectId,
         createdAt: message.createdAt,
       },
@@ -671,7 +671,7 @@ describe("thread outbox recovery rollback", () => {
     expect(appAtomRegistry.get(threadComposerErrorsAtom)).toEqual({});
     expect(
       appAtomRegistry.get(pendingThreadCreationOutcomesAtom)[
-        `${message.environmentId}:${message.threadId}`
+        `${message.machineId}:${message.threadId}`
       ],
     ).toEqual({ kind: "failed", message, reason: "rejected by server" });
   });
@@ -684,13 +684,13 @@ describe("thread outbox recovery rollback", () => {
 
     expect(appAtomRegistry.get(pendingThreadCreationOutcomesAtom)).toEqual({});
     expect(
-      appAtomRegistry.get(threadComposerErrorsAtom)[`${message.environmentId}:${message.threadId}`],
+      appAtomRegistry.get(threadComposerErrorsAtom)[`${message.machineId}:${message.threadId}`],
     ).toEqual({ message: "rejected", messageId: message.messageId });
   });
 
   it("leaves no error when the restored text is resent before recovery finishes", async () => {
     const message = queuedMessage({ messageId: "message-resent", text: "resend me" });
-    const threadKey = `${message.environmentId}:${message.threadId}`;
+    const threadKey = `${message.machineId}:${message.threadId}`;
     await harness.manager.enqueue(message);
     const unsubscribe = appAtomRegistry.subscribe(composerDrafts.composerDraftsAtom, (drafts) => {
       if (drafts[threadKey]?.text === "resend me") {
@@ -707,7 +707,7 @@ describe("thread outbox recovery rollback", () => {
 
   it("withdraws the error when an edit makes the recovery back out", async () => {
     const message = queuedMessage({ messageId: "message-edited-mid-recovery", text: "edit me" });
-    const threadKey = `${message.environmentId}:${message.threadId}`;
+    const threadKey = `${message.machineId}:${message.threadId}`;
     await harness.manager.enqueue(message);
     const unsubscribe = appAtomRegistry.subscribe(composerDrafts.composerDraftsAtom, (drafts) => {
       if (drafts[threadKey]?.text === "edit me") {
@@ -724,7 +724,7 @@ describe("thread outbox recovery rollback", () => {
 
   it("rolls a failed recovery merge back so the retry cannot duplicate the text", async () => {
     const message = queuedMessage({ messageId: "message-restore", text: "queued text" });
-    const draftKey = `${message.environmentId}:${message.threadId}`;
+    const draftKey = `${message.machineId}:${message.threadId}`;
     appAtomRegistry.set(composerDrafts.composerDraftsAtom, {
       [draftKey]: { text: "typed offline", attachments: [] },
     });

@@ -1,6 +1,6 @@
 import * as Dialog from "../../components/ui/Dialog";
 import type {
-  EnvironmentId,
+  MachineId,
   ProjectId,
   ProviderInteractionMode,
   ServerProvider,
@@ -8,9 +8,9 @@ import type {
   ThreadPullRequestLink,
 } from "@vekrel/contracts";
 import { matchComposerThreadItems } from "@vekrel/client-runtime/composerThreadItems";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/models";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/models";
 
-const EMPTY_THREAD_SHELLS: ReadonlyArray<EnvironmentThreadShell> = [];
+const EMPTY_THREAD_SHELLS: ReadonlyArray<MachineThreadShell> = [];
 import {
   COMPOSER_CONTEXT_MAX_RECORDS,
   PROVIDER_WORKSPACE_SNAPSHOT_TTL_MS,
@@ -48,7 +48,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import type { ComposerEditorSelection } from "../../components/ComposerEditor";
-import { serverEnvironment } from "../../state/server";
+import { serverMachine } from "../../state/server";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useComposerPathSearch, useComposerPullRequestSearch } from "../../state/queries";
 import type { ComposerCommandItem } from "./ComposerCommandPopover";
@@ -170,7 +170,7 @@ export function resolveComposerCommandSelection(input: {
 export function useComposerCommandMenu({
   draftMessage,
   ownerKey,
-  environmentId,
+  machineId,
   threadShells = EMPTY_THREAD_SHELLS,
   currentThreadId = null,
   projectCwd,
@@ -188,8 +188,8 @@ export function useComposerCommandMenu({
 }: {
   readonly draftMessage: string;
   readonly ownerKey: string | null;
-  readonly environmentId: EnvironmentId | null;
-  readonly threadShells?: ReadonlyArray<EnvironmentThreadShell>;
+  readonly machineId: MachineId | null;
+  readonly threadShells?: ReadonlyArray<MachineThreadShell>;
   readonly currentThreadId?: ThreadId | null;
   readonly projectCwd: string | null;
   readonly pullRequestProjectId?: ProjectId | null;
@@ -236,7 +236,7 @@ export function useComposerCommandMenu({
   const skills = selectedProviderStatus
     ? resolveProviderSkillsForCwd(selectedProviderStatus, projectCwd)
     : [];
-  const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
+  const refreshProviders = useAtomCommand(serverMachine.refreshProviders, {
     reportFailure: false,
   });
   const selectedProviderInstanceId = selectedProviderStatus?.instanceId;
@@ -252,8 +252,8 @@ export function useComposerCommandMenu({
     notBefore: number;
   } | null>(null);
   const workspaceRefreshScopeKey =
-    environmentId && projectCwd && selectedProviderInstanceId
-      ? `${environmentId}:${selectedProviderInstanceId}:${projectCwd}`
+    machineId && projectCwd && selectedProviderInstanceId
+      ? `${machineId}:${selectedProviderInstanceId}:${projectCwd}`
       : null;
   const workspaceSlashCommandsPending =
     selectedProviderStatus?.workspaceSnapshots?.some(
@@ -283,8 +283,8 @@ export function useComposerCommandMenu({
     hadWorkspaceSnapshotRef.current = hasWorkspaceSnapshot;
   }, [hasWorkspaceSnapshot]);
   useEffect(() => {
-    if (!environmentId || !projectCwd || !selectedProviderInstanceId) return;
-    const key = `${environmentId}:${selectedProviderInstanceId}:${projectCwd}`;
+    if (!machineId || !projectCwd || !selectedProviderInstanceId) return;
+    const key = `${machineId}:${selectedProviderInstanceId}:${projectCwd}`;
     const now = Date.now();
     const lastRequest = workspaceRefreshKeyRef.current;
     if (
@@ -309,7 +309,7 @@ export function useComposerCommandMenu({
       });
     };
     void refreshProviders({
-      environmentId,
+      machineId,
       input: { instanceId: selectedProviderInstanceId, cwd: projectCwd },
     }).then((result) => {
       const refreshed =
@@ -324,7 +324,7 @@ export function useComposerCommandMenu({
     }, retryLater);
   }, [
     draftMessage,
-    environmentId,
+    machineId,
     projectCwd,
     refreshProviders,
     selectedProviderInstanceId,
@@ -339,12 +339,12 @@ export function useComposerCommandMenu({
     return detectComposerTrigger(draftMessage, selection.end);
   })();
   const pathSearch = useComposerPathSearch({
-    environmentId,
+    machineId,
     cwd: trigger?.kind === "path" ? projectCwd : null,
     query: trigger?.kind === "path" ? trigger.query : null,
   });
   const pullRequestSearch = useComposerPullRequestSearch({
-    environmentId,
+    machineId,
     projectId: pullRequestProjectId,
     repository: pullRequestRepository,
     threadPullRequests,
@@ -494,10 +494,10 @@ export function useComposerCommandMenu({
     }
 
     if (trigger.kind === "path") {
-      const threadItems = environmentId
+      const threadItems = machineId
         ? matchComposerThreadItems({
             shells: threadShells,
-            environmentId,
+            machineId,
             excludeThreadId: currentThreadId,
             query: trigger.query,
           })
@@ -527,7 +527,7 @@ export function useComposerCommandMenu({
       if (!ownerKey || trigger.kind !== "path") return;
       const shell = threadShells.find(
         (candidate) =>
-          candidate.environmentId === item.thread.environmentId &&
+          candidate.machineId === item.thread.machineId &&
           candidate.id === item.thread.threadId,
       );
       if (!shell) return;

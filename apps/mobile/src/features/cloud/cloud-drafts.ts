@@ -1,4 +1,4 @@
-import { EnvironmentRegistry, removedWithRelay } from "@vekrel/client-runtime/connection";
+import { MachineRegistry, removedWithRelay } from "@vekrel/client-runtime/connection";
 import { createRuntimeCommand } from "@vekrel/client-runtime/state/runtime";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
@@ -10,35 +10,35 @@ import { archiveCloudComposerDrafts } from "../../state/use-composer-drafts";
 export class CloudDraftArchiveError extends Schema.TaggedError<CloudDraftArchiveError>()(
   "CloudDraftArchiveError",
   {
-    environmentCount: Schema.Number,
+    machineCount: Schema.Number,
     hasAccountId: Schema.Boolean,
     cause: Schema.Defect(),
   },
 ) {
   override get message(): string {
-    return `Could not preserve local drafts for ${this.environmentCount} cloud environments before sign-out.`;
+    return `Could not preserve local drafts for ${this.machineCount} cloud machines before sign-out.`;
   }
 }
 
-export const removeCloudEnvironments = createRuntimeCommand(connectionAtomRuntime, {
-  label: "cloud:preserve-drafts-and-remove-environments",
-  execute: Effect.fn("removeCloudEnvironments")(function* (accountId: string | null) {
-    const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
+export const removeCloudMachines = createRuntimeCommand(connectionAtomRuntime, {
+  label: "cloud:preserve-drafts-and-remove-machines",
+  execute: Effect.fn("removeCloudMachines")(function* (accountId: string | null) {
+    const registry = yield* MachineRegistry.MachineRegistry;
     const entries = yield* SubscriptionRef.get(registry.entries);
-    const environmentIds = new Set(
-      [...entries.values()].filter(removedWithRelay).map((entry) => entry.target.environmentId),
+    const machineIds = new Set(
+      [...entries.values()].filter(removedWithRelay).map((entry) => entry.target.machineId),
     );
     // Credentials are already revoked. A failed backup must leave the local
     // owners intact so a later sign-in can retry without losing their files.
     yield* Effect.tryPromise({
-      try: () => archiveCloudComposerDrafts(accountId, environmentIds),
+      try: () => archiveCloudComposerDrafts(accountId, machineIds),
       catch: (cause) =>
         new CloudDraftArchiveError({
-          environmentCount: environmentIds.size,
+          machineCount: machineIds.size,
           hasAccountId: accountId !== null,
           cause,
         }),
     });
-    yield* registry.removeRelayEnvironments();
+    yield* registry.removeRelayMachines();
   }),
 });

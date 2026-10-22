@@ -1,11 +1,11 @@
 import { splitThreadSearchText } from "@vekrel/shared/threadSearch";
-import type { EnvironmentThreadSearchMatch } from "@vekrel/client-runtime/state/thread-search";
+import type { MachineThreadSearchMatch } from "@vekrel/client-runtime/state/thread-search";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { cn } from "../../lib/cn";
 
 export function ThreadSearchMatchExcerpt(props: {
-  readonly match: EnvironmentThreadSearchMatch;
+  readonly match: MachineThreadSearchMatch;
   readonly query: string;
   readonly selected?: boolean;
   readonly compact?: boolean;

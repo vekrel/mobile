@@ -1,26 +1,26 @@
-import type { EnvironmentId, ThreadId, WorktreeSetupSnapshot } from "@vekrel/contracts";
+import type { MachineId, ThreadId, WorktreeSetupSnapshot } from "@vekrel/contracts";
 import { resolveVisibleWorktreeSetup } from "@vekrel/client-runtime/worktree-setup";
 import { useEffect, useState } from "react";
-import { useEnvironmentQuery } from "../../state/query";
-import { vcsEnvironment } from "../../state/vcs";
+import { useMachineQuery } from "../../state/query";
+import { vcsMachine } from "../../state/vcs";
 import { resolveWorktreeSetupSnapshot } from "./worktree-setup-state";
 
 export function useWorktreeSetup(input: {
-  environmentId: EnvironmentId | null;
+  machineId: MachineId | null;
   threadId: ThreadId | null;
   preparing: boolean;
   turnStarted: boolean;
   followUpSent: boolean;
 }) {
-  const key = JSON.stringify([input.environmentId, input.threadId]);
+  const key = JSON.stringify([input.machineId, input.threadId]);
   const [held, setHeld] = useState<{ key: string; snapshot: WorktreeSetupSnapshot } | null>(null);
   const live = held?.key === key ? held.snapshot : null;
-  const query = useEnvironmentQuery(
-    input.environmentId &&
+  const query = useMachineQuery(
+    input.machineId &&
       input.threadId &&
       (live?.phase === "running" || (!live && input.preparing))
-      ? vcsEnvironment.worktreeSetup({
-          environmentId: input.environmentId,
+      ? vcsMachine.worktreeSetup({
+          machineId: input.machineId,
           input: { threadId: input.threadId },
         })
       : null,

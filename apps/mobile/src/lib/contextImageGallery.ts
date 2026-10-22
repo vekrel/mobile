@@ -1,4 +1,4 @@
-import type { ComposerContextRecord, EnvironmentId } from "@vekrel/contracts";
+import type { ComposerContextRecord, MachineId } from "@vekrel/contracts";
 import { imageMimeType } from "@vekrel/shared/image";
 import type { FilePreviewItem } from "../components/FilePreviewModal.types";
 import { composerImageGallery } from "./composerImageGallery";
@@ -7,19 +7,19 @@ import type { DraftComposerAttachment } from "./composerImages";
 export function contextImageGallery(
   records: readonly ComposerContextRecord[],
   attachments: readonly DraftComposerAttachment[],
-  environmentId?: EnvironmentId,
+  machineId?: MachineId,
 ): FilePreviewItem[] {
   return records.flatMap((record): FilePreviewItem[] => {
     if (!("attachmentId" in record) || (record.kind !== "image" && imageMimeType(record) === null))
       return [];
     const local = attachments.find((item) => item.id === record.attachmentId);
     if (local) return composerImageGallery([local]);
-    return environmentId
+    return machineId
       ? [
           {
             kind: "image",
             name: record.name,
-            environmentId,
+            machineId,
             resource: {
               _tag: "attachment",
               attachmentId: record.attachmentId,

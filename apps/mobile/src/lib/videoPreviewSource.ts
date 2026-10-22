@@ -1,4 +1,4 @@
-import type { AssetResource, ChatFileAttachment, EnvironmentId } from "@vekrel/contracts";
+import type { AssetResource, ChatFileAttachment, MachineId } from "@vekrel/contracts";
 import { videoMimeType } from "@vekrel/shared/video";
 
 import type { DraftComposerFileAttachment } from "./composerImages";
@@ -14,7 +14,7 @@ export type MediaVideoPreviewSource = {
 } & (
   | { readonly uri: string }
   | {
-      readonly environmentId: EnvironmentId;
+      readonly machineId: MachineId;
       readonly resource: Extract<
         AssetResource,
         { readonly _tag: "attachment" | "media-file" | "draft-workspace-file" | "github-media" }
@@ -35,12 +35,12 @@ export function mediaVideoThumbnailKey(source: MediaVideoPreviewSource): string 
     "uri" in source
       ? ["media-video", source.uri]
       : source.resource._tag === "attachment"
-        ? ["media-video", source.environmentId, "attachment", source.resource.attachmentId]
+        ? ["media-video", source.machineId, "attachment", source.resource.attachmentId]
         : source.resource._tag === "media-file"
           ? [
               "media-video",
               "media-file",
-              source.environmentId,
+              source.machineId,
               source.resource.threadId,
               source.resource.path,
               source.srcFragment ?? "",
@@ -49,14 +49,14 @@ export function mediaVideoThumbnailKey(source: MediaVideoPreviewSource): string 
             ? [
                 "media-video",
                 "github-media",
-                source.environmentId,
+                source.machineId,
                 source.resource.cwd,
                 source.resource.url,
               ]
             : [
                 "media-video",
                 "draft-workspace-file",
-                source.environmentId,
+                source.machineId,
                 source.resource.cwd,
                 source.resource.path,
                 source.srcFragment ?? "",
@@ -73,7 +73,7 @@ export interface LocalVideoPreviewSource {
 export type VideoPreviewSource = LocalVideoPreviewSource | MediaVideoPreviewSource;
 
 export function attachmentVideoPreviewSource(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   attachment: ChatFileAttachment,
   sourceIdentifier?: string,
 ): MediaVideoPreviewSource {
@@ -89,13 +89,13 @@ export function attachmentVideoPreviewSource(
     name: attachment.name,
     mimeType,
     ...(sourceIdentifier ? { sourceIdentifier } : {}),
-    environmentId,
+    machineId,
     resource,
     actionsSource: {
       name: attachment.name,
       mimeType,
       ...(sourceIdentifier ? { sourceIdentifier } : {}),
-      environmentId,
+      machineId,
       resource,
     },
   };

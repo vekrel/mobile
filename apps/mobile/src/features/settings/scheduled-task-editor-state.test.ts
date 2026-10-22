@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { appAtomRegistry } from "../../state/atom-registry";
@@ -14,8 +14,8 @@ afterEach(() => appAtomRegistry.set(scheduledTaskEditorSessionAtom, null));
 
 describe("scheduled task voice draft", () => {
   const editor = {
-    environmentId: EnvironmentId.make("environment"),
-    environmentLabel: "Environment",
+    machineId: MachineId.make("machine"),
+    machineLabel: "Machine",
     draft: createDraft(null, null),
   };
 
@@ -36,7 +36,7 @@ describe("scheduled task voice draft", () => {
     expect(appAtomRegistry.get(scheduledTaskEditorSessionAtom)?.initial).toBe(editor);
   });
 
-  it("rejects an old voice target when another task opens in the same environment", () => {
+  it("rejects an old voice target when another task opens in the same machine", () => {
     startScheduledTaskEditor(editor);
     const original = appAtomRegistry.get(scheduledTaskEditorSessionAtom)!;
     startScheduledTaskEditor({ ...editor, draft: { ...editor.draft, prompt: "other task" } });

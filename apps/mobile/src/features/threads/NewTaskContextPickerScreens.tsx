@@ -4,13 +4,13 @@ import { Toolbar } from "../../components/ui/Toolbar";
 import * as Dialog from "../../components/ui/Dialog";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { NavigationRow } from "../../components/ui/NavigationRow";
-import type { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
+import type { MachineProject } from "@vekrel/client-runtime/state/shell";
 import { shouldCheckoutNewTaskBranch } from "./new-task-context-presentation";
 import type { VcsRef } from "@vekrel/client-runtime/state/vcs";
 import {
   AuthSourceControlWriteScope,
-  resolveEnvironmentMachineKind,
-  type EnvironmentId,
+  resolveMachineKind,
+  type MachineId,
 } from "@vekrel/contracts";
 import { LegendList } from "@legendapp/list/react-native";
 import {
@@ -27,13 +27,13 @@ import { AndroidScreenHeader } from "../../components/ui/AndroidScreenHeader";
 import { ScreenContent } from "../../components/ui/ScreenContent";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { AppText as Text } from "../../components/ui/AppText";
-import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSymbol";
+import { MachineSymbol } from "../../components/MachineSymbol";
 import { ThemedSwitch } from "../../components/ui/ThemedSwitch";
 import { cn } from "../../lib/cn";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
-import { useEnvironmentScope } from "../../state/session";
+import { useMachineScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { vcsEnvironment } from "../../state/vcs";
+import { vcsMachine } from "../../state/vcs";
 import {
   createNativeMailSearchToolbarItem,
   NATIVE_MAIL_SEARCH_TOOLBAR_CONTENT_INSET,
@@ -42,17 +42,17 @@ import { useNativeMailSearchToolbar } from "../../native/use-native-mail-search-
 import { branchBadgeLabel, useNewTaskFlow } from "./new-task-flow-provider";
 import { checkoutNewTaskBranch } from "./checkout-new-task-branch";
 
-import { useEnvironmentPresentation } from "../../state/presentation";
-import { useRemoteConnections } from "../../state/use-remote-environment-registry";
+import { useMachinePresentation } from "../../state/presentation";
+import { useRemoteConnections } from "../../state/use-remote-machine-registry";
 import { ConnectionStatusDot } from "../connection/ConnectionStatusDot";
 import {
   ConnectionDiagnosisDetails,
   useConnectionDiagnosis,
 } from "../connection/ConnectionDiagnosisDetails";
-import { environmentStatusText } from "../connection/environmentStatusText";
+import { machineStatusText } from "../connection/machineStatusText";
 
-function EnvironmentPickerRow(props: {
-  environmentId: EnvironmentId;
+function MachinePickerRow(props: {
+  machineId: MachineId;
   title: string;
   selected: boolean;
   disabled: boolean;
@@ -60,13 +60,13 @@ function EnvironmentPickerRow(props: {
   onPress: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const { presentation } = useEnvironmentPresentation(props.environmentId);
-  const { diagnosis, state } = useConnectionDiagnosis(props.environmentId, presentation);
-  const { onReconnectEnvironment } = useRemoteConnections();
+  const { presentation } = useMachinePresentation(props.machineId);
+  const { diagnosis, state } = useConnectionDiagnosis(props.machineId, presentation);
+  const { onReconnectMachine } = useRemoteConnections();
   const connection = presentation?.connection;
   const status =
     diagnosis?.headline ??
-    (connection ? environmentStatusText({ ...connection, error: null }) : "Offline");
+    (connection ? machineStatusText({ ...connection, error: null }) : "Offline");
   return (
     <View className={cn("bg-grouped-card", !props.isLast && "border-b border-border-subtle")}>
       <View className="flex-row items-center">
@@ -78,8 +78,8 @@ function EnvironmentPickerRow(props: {
           onPress={props.onPress}
           className="min-h-16 flex-1 flex-row items-center gap-3 px-4 py-3 active:bg-subtle"
         >
-          <EnvironmentMachineSymbol
-            kind={resolveEnvironmentMachineKind(presentation?.serverConfig ?? null)}
+          <MachineSymbol
+            kind={resolveMachineKind(presentation?.serverConfig ?? null)}
             size={20}
             tintColorClassName="accent-icon-muted"
           />
@@ -127,7 +127,7 @@ function EnvironmentPickerRow(props: {
           {connection?.phase !== "connected" ? (
             <Button
               label="Reconnect now"
-              onPress={() => onReconnectEnvironment(props.environmentId)}
+              onPress={() => onReconnectMachine(props.machineId)}
             />
           ) : null}
         </View>
@@ -296,7 +296,7 @@ function PickerSurface(props: { readonly children: ReactNode }) {
   );
 }
 
-export function NewTaskEnvironmentPickerRouteScreen() {
+export function NewTaskMachinePickerRouteScreen() {
   const flow = useNewTaskFlow();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -305,12 +305,12 @@ export function NewTaskEnvironmentPickerRouteScreen() {
       <NativeStackScreenOptions
         options={{
           headerShown: Platform.OS !== "android",
-          title: "Environment",
+          title: "Machine",
         }}
       />
       {Platform.OS === "android" ? (
         <AndroidScreenHeader
-          title="Environment"
+          title="Machine"
           hideBottomBorder
           onBack={() => navigation.goBack()}
         />
@@ -326,20 +326,20 @@ export function NewTaskEnvironmentPickerRouteScreen() {
           showsVerticalScrollIndicator={false}
         >
           <PickerSurface>
-            {flow.environments.map((environment, index) => (
-              <EnvironmentPickerRow
-                key={String(environment.environmentId)}
-                environmentId={environment.environmentId}
-                isLast={index === flow.environments.length - 1}
-                disabled={flow.switchingToEnvironmentId !== null}
+            {flow.machines.map((machine, index) => (
+              <MachinePickerRow
+                key={String(machine.machineId)}
+                machineId={machine.machineId}
+                isLast={index === flow.machines.length - 1}
+                disabled={flow.switchingToMachineId !== null}
                 onPress={() => {
                   void Haptics.selectionAsync();
-                  void flow.switchEnvironment(environment.environmentId).then((switched) => {
+                  void flow.switchMachine(machine.machineId).then((switched) => {
                     if (switched) navigation.goBack();
                   });
                 }}
-                selected={flow.selectedEnvironmentId === environment.environmentId}
-                title={environment.environmentLabel}
+                selected={flow.selectedMachineId === machine.machineId}
+                title={machine.machineLabel}
               />
             ))}
           </PickerSurface>
@@ -351,13 +351,13 @@ export function NewTaskEnvironmentPickerRouteScreen() {
 
 export function NewTaskBranchPickerRouteScreen() {
   const flow = useNewTaskFlow();
-  const canWriteSourceControl = useEnvironmentScope(
-    flow.selectedProject?.environmentId ?? null,
+  const canWriteSourceControl = useMachineScope(
+    flow.selectedProject?.machineId ?? null,
     AuthSourceControlWriteScope,
   );
   const navigation = useNavigation();
-  const readRefs = useAtomCommand(vcsEnvironment.readRefs, { reportFailure: false });
-  const switchRef = useAtomCommand(vcsEnvironment.switchRef, { reportFailure: false });
+  const readRefs = useAtomCommand(vcsMachine.readRefs, { reportFailure: false });
+  const switchRef = useAtomCommand(vcsMachine.switchRef, { reportFailure: false });
   const [switchingBranchName, setSwitchingBranchName] = useState<string | null>(null);
   const selectingBranchNameRef = useRef<string | null>(null);
   const allowSelectionNavigationRef = useRef(false);
@@ -470,7 +470,7 @@ export function NewTaskBranchPickerRouteScreen() {
 
 export function BranchPickerScreen(props: {
   readonly title: string;
-  readonly project: EnvironmentProject | null;
+  readonly project: MachineProject | null;
   readonly branches: readonly VcsRef[];
   readonly selectedBranchName: string | null;
   readonly query: string;

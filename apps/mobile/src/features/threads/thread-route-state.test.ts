@@ -31,7 +31,7 @@ describe("draft thread handoff", () => {
     expect(isDraftThreadRoute(draft.routes.at(-1))).toBe(true);
     const submitted = router.getStateForAction(
       draft,
-      CommonActions.setParams(submittedThreadParams("environment", "thread")),
+      CommonActions.setParams(submittedThreadParams("machine", "thread")),
       options,
     )!;
     expect(submitted.routes.map((route) => route.key)).toEqual(
@@ -40,7 +40,7 @@ describe("draft thread handoff", () => {
     expect(submitted.index).toBe(draft.index);
     expect(submitted.routes.at(-1)?.params).toEqual({
       draft: undefined,
-      environmentId: "environment",
+      machineId: "machine",
       threadId: "thread",
     });
     expect(isDraftThreadRoute(submitted.routes.at(-1))).toBe(false);
@@ -59,7 +59,7 @@ describe("missing shared-content project recovery", () => {
     const staleDraft = router.getStateForAction(
       initial,
       CommonActions.navigate("Thread", {
-        draft: { environmentId: "environment", projectId: "deleted", incomingShareId: "share" },
+        draft: { machineId: "machine", projectId: "deleted", incomingShareId: "share" },
       }),
       options,
     )!;
@@ -75,20 +75,20 @@ describe("missing shared-content project recovery", () => {
     const recovered = router.getStateForAction(
       picker,
       CommonActions.navigate("Thread", {
-        draft: { environmentId: "environment", projectId: "replacement", incomingShareId: "share" },
+        draft: { machineId: "machine", projectId: "replacement", incomingShareId: "share" },
       }),
       options,
     )!;
     expect(recovered.routes.filter(isDraftThreadRoute)).toHaveLength(1);
     expect(recovered.routes.at(-1)?.params).toEqual({
-      draft: { environmentId: "environment", projectId: "replacement", incomingShareId: "share" },
+      draft: { machineId: "machine", projectId: "replacement", incomingShareId: "share" },
     });
   });
 });
 
 describe("draft route identity", () => {
   it("changes when a reused Thread route selects another draft or starts a new one", () => {
-    const draft = { environmentId: "env", projectId: "project", draftId: "a" };
+    const draft = { machineId: "env", projectId: "project", draftId: "a" };
     expect(draftRouteIdentity(draft)).not.toBe(draftRouteIdentity({ ...draft, draftId: "b" }));
     expect(draftRouteIdentity(draft)).not.toBe(
       draftRouteIdentity({ ...draft, draftId: undefined }),
@@ -103,13 +103,13 @@ describe("draft route identity", () => {
 
   it("normalizes link parameters without resetting for display metadata", () => {
     expect(
-      draftRouteIdentity({ environmentId: ["env"], projectId: ["project"], title: "Old" }),
-    ).toBe(draftRouteIdentity({ environmentId: "env", projectId: "project", title: "New" }));
+      draftRouteIdentity({ machineId: ["env"], projectId: ["project"], title: "Old" }),
+    ).toBe(draftRouteIdentity({ machineId: "env", projectId: "project", title: "New" }));
   });
 });
 
 it("starts a fresh controller for repeated new-task requests in the same project", () => {
-  const project = { environmentId: "env", projectId: "project" };
+  const project = { machineId: "env", projectId: "project" };
   expect(draftRouteIdentity({ ...project, requestId: "first" })).not.toBe(
     draftRouteIdentity({ ...project, requestId: "second" }),
   );

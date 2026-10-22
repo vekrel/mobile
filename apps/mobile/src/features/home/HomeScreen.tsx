@@ -7,14 +7,14 @@ import type { LegendListRef } from "@legendapp/list/react-native";
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import { THREAD_SIDEBAR_ROW_LAYOUT } from "../threads/threadListAnimations";
 import {
-  type EnvironmentProject,
-  type EnvironmentThreadShell,
+  type MachineProject,
+  type MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import {
   threadSearchMatchKey,
-  type EnvironmentThreadSearchMatch,
+  type MachineThreadSearchMatch,
 } from "@vekrel/client-runtime/state/thread-search";
-import { type EnvironmentId, type SidebarProjectGroupingMode } from "@vekrel/contracts";
+import { type MachineId, type SidebarProjectGroupingMode } from "@vekrel/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useFocusEffect } from "@react-navigation/native";
 import { use, useEffect, useRef, useState, type ComponentProps } from "react";
@@ -40,7 +40,7 @@ import {
 } from "../../lib/layout";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { FloatingActionButton } from "../../components/ui/FloatingActionButton";
-import type { WorkspaceEnvironment, WorkspaceState } from "../../state/workspaceModel";
+import type { WorkspaceMachine, WorkspaceState } from "../../state/workspaceModel";
 import type { SavedRemoteConnection } from "../../lib/connection";
 import { scopedProjectKey, scopedThreadKey } from "../../lib/scopedEntities";
 import { NativePrimaryColumnContext } from "../../native/v5-workspace-context";
@@ -55,7 +55,7 @@ import { useNativeWorkspaceColumnsSupported } from "../../native/NativeWorkspace
 import { useThreadSearch } from "../../state/queries";
 import { useThreadJumpShortcuts } from "../keyboard/threadKeyboardShortcuts";
 import { usePendingThreadOrder } from "../../state/thread-order";
-import { threadListEnvironmentsAtom } from "../../state/server";
+import { threadListMachinesAtom } from "../../state/server";
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 import { useQueuedThreadKeys } from "../../state/use-thread-outbox";
 import {
@@ -80,7 +80,7 @@ import {
   type ThreadListV2ListItem,
 } from "../threads/threadListV2";
 import { useThreadListV2ShelfPreferences } from "../threads/use-thread-list-v2-shelf-preferences";
-import type { HomeListFilterMenuEnvironment } from "./home-list-filter-menu";
+import type { HomeListFilterMenuMachine } from "./home-list-filter-menu";
 import {
   buildHomeProjectScopes,
   findHomeProjectScope,
@@ -93,51 +93,51 @@ import { useWorkspaceTabs } from "../workspace/WorkspaceTabsContext";
 import { ThreadListFilters } from "./ThreadListFilters";
 
 interface HomeScreenProps {
-  readonly projects: ReadonlyArray<EnvironmentProject>;
-  readonly threads: ReadonlyArray<EnvironmentThreadShell>;
+  readonly projects: ReadonlyArray<MachineProject>;
+  readonly threads: ReadonlyArray<MachineThreadShell>;
   readonly pendingTasks: ReadonlyArray<PendingNewTask>;
   readonly catalogState: WorkspaceState;
   readonly savedConnectionsById: Readonly<Record<string, SavedRemoteConnection>>;
-  readonly environments: ReadonlyArray<
-    HomeListFilterMenuEnvironment & Pick<WorkspaceEnvironment, "connectionState">
+  readonly machines: ReadonlyArray<
+    HomeListFilterMenuMachine & Pick<WorkspaceMachine, "connectionState">
   >;
   readonly searchQuery: string;
-  readonly selectedEnvironmentId: EnvironmentId | null;
+  readonly selectedMachineId: MachineId | null;
   readonly selectedProjectKey: string | null;
   readonly projectSortOrder: HomeProjectSortOrder;
   readonly projectGroupingMode: SidebarProjectGroupingMode;
   readonly onSearchQueryChange: (query: string) => void;
-  readonly onEnvironmentChange: (environmentId: EnvironmentId | null) => void;
+  readonly onMachineChange: (machineId: MachineId | null) => void;
   readonly onProjectChange: (projectKey: string | null) => void;
   readonly onAddConnection: () => void;
   readonly onOpenSettings: () => void;
   readonly onStartNewTask: () => void;
-  readonly onSelectThread: (thread: EnvironmentThreadShell) => void;
-  readonly onArchiveThread: (thread: EnvironmentThreadShell) => void;
-  readonly onDeleteThread: (thread: EnvironmentThreadShell) => void;
-  readonly onSettleThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
+  readonly onSelectThread: (thread: MachineThreadShell) => void;
+  readonly onArchiveThread: (thread: MachineThreadShell) => void;
+  readonly onDeleteThread: (thread: MachineThreadShell) => void;
+  readonly onSettleThread: (thread: MachineThreadShell) => Promise<boolean>;
   readonly onSnoozeThread: (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     snoozedUntil: string,
   ) => Promise<boolean>;
-  readonly onUnsnoozeThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly onUnsettleThread: (thread: EnvironmentThreadShell) => void;
-  readonly onPinThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly onUnpinThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
+  readonly onUnsnoozeThread: (thread: MachineThreadShell) => Promise<boolean>;
+  readonly onUnsettleThread: (thread: MachineThreadShell) => void;
+  readonly onPinThread: (thread: MachineThreadShell) => Promise<boolean>;
+  readonly onUnpinThread: (thread: MachineThreadShell) => Promise<boolean>;
   readonly onSetThreadAutoSettle: (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     enabled: boolean,
   ) => Promise<boolean>;
   readonly onMoveThread: (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     direction: ThreadMoveDestination,
   ) => Promise<boolean>;
-  readonly onRenameThread: (thread: EnvironmentThreadShell) => void;
-  readonly onRegenerateThreadTitle: (thread: EnvironmentThreadShell) => Promise<boolean>;
+  readonly onRenameThread: (thread: MachineThreadShell) => void;
+  readonly onRegenerateThreadTitle: (thread: MachineThreadShell) => Promise<boolean>;
   readonly onSelectPendingTask: (pendingTask: PendingNewTask) => void;
   readonly onDeletePendingTask: (pendingTask: PendingNewTask) => void;
-  readonly onNewThreadOnBranch: (thread: EnvironmentThreadShell) => void;
-  readonly onNewThreadInProject: (project: EnvironmentProject) => void;
+  readonly onNewThreadOnBranch: (thread: MachineThreadShell) => void;
+  readonly onNewThreadInProject: (project: MachineProject) => void;
 }
 
 const ESTIMATED_THREAD_LIST_V2_ROW_HEIGHT = 72;
@@ -153,16 +153,16 @@ function deriveEmptyState(props: {
   const { catalogState } = props;
   if (catalogState.isLoadingConnections) {
     return {
-      title: "Loading environments",
-      detail: "Checking saved environments on this device.",
+      title: "Loading machines",
+      detail: "Checking saved machines on this device.",
       loading: true,
     };
   }
 
   if (!catalogState.hasConnections) {
     return {
-      title: "No environments connected",
-      detail: "Add an environment to load projects and start coding sessions.",
+      title: "No machines connected",
+      detail: "Add a machine to load projects and start coding sessions.",
       loading: false,
     };
   }
@@ -178,22 +178,22 @@ function deriveEmptyState(props: {
       title:
         catalogState.connectionState === "unsupported"
           ? "Client not supported"
-          : "Environment unavailable",
+          : "Machine unavailable",
       detail:
         catalogState.connectionError ??
-        "The saved environment is offline. Check the URL or start the environment, then retry.",
+        "The saved machine is offline. Check the URL or start the machine, then retry.",
       loading: false,
     };
   }
 
   if (
-    catalogState.hasConnectingEnvironment &&
+    catalogState.hasConnectingMachine &&
     !catalogState.hasLoadedShellSnapshot &&
     catalogState.connectionError === null
   ) {
     return {
-      title: "Connecting to environment",
-      detail: "Loading projects and threads from the saved environment.",
+      title: "Connecting to machine",
+      detail: "Loading projects and threads from the saved machine.",
       loading: true,
     };
   }
@@ -201,7 +201,7 @@ function deriveEmptyState(props: {
   if (props.projectCount === 0 && catalogState.hasLoadedShellSnapshot) {
     return {
       title: "No projects found",
-      detail: "The connected environment did not report any projects.",
+      detail: "The connected machine did not report any projects.",
       loading: false,
     };
   }
@@ -293,21 +293,21 @@ export function HomeScreen(props: HomeScreenProps) {
     24,
     workspace?.bottomClearance ?? 0,
   );
-  const searchEnvironmentIds =
-    props.selectedEnvironmentId === null
-      ? props.environments
-          .filter((environment) => environment.connectionState === "connected")
-          .map((environment) => environment.environmentId)
-      : props.environments.some(
-            (environment) =>
-              environment.environmentId === props.selectedEnvironmentId &&
-              environment.connectionState === "connected",
+  const searchMachineIds =
+    props.selectedMachineId === null
+      ? props.machines
+          .filter((machine) => machine.connectionState === "connected")
+          .map((machine) => machine.machineId)
+      : props.machines.some(
+            (machine) =>
+              machine.machineId === props.selectedMachineId &&
+              machine.connectionState === "connected",
           )
-        ? [props.selectedEnvironmentId]
+        ? [props.selectedMachineId]
         : [];
-  const threadSearch = useThreadSearch(searchEnvironmentIds, props.searchQuery);
+  const threadSearch = useThreadSearch(searchMachineIds, props.searchQuery);
   const threadSearchMatchByKey = (() => {
-    const matches = new Map<string, EnvironmentThreadSearchMatch>();
+    const matches = new Map<string, MachineThreadSearchMatch>();
     for (const match of threadSearch.matches) {
       if (match.source === "user" || match.source === "assistant") {
         matches.set(threadSearchMatchKey(match), match);
@@ -334,7 +334,7 @@ export function HomeScreen(props: HomeScreenProps) {
   };
   const openThreadPullRequests = useOpenThreadPullRequests();
   const handleOpenThreadPullRequests = (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     pr: ThreadPrPresentation,
   ) => {
     openSwipeableRef.current?.close();
@@ -390,14 +390,14 @@ export function HomeScreen(props: HomeScreenProps) {
 
   const projectScopes = buildHomeProjectScopes({
     projects: props.projects,
-    environmentId: props.selectedEnvironmentId,
+    machineId: props.selectedMachineId,
     projectGroupingMode: props.projectGroupingMode,
   });
   const hasSearchQuery = props.searchQuery.trim().length > 0;
   const projectByKey = (() => {
-    const map = new Map<string, EnvironmentProject>();
+    const map = new Map<string, MachineProject>();
     for (const project of props.projects) {
-      map.set(scopedProjectKey(project.environmentId, project.id), project);
+      map.set(scopedProjectKey(project.machineId, project.id), project);
     }
     return map;
   })();
@@ -408,7 +408,7 @@ export function HomeScreen(props: HomeScreenProps) {
     projectScopes.flatMap((scope) =>
       scope.projectRefs.map(
         (projectRef) =>
-          [scopedProjectKey(projectRef.environmentId, projectRef.projectId), scope.title] as const,
+          [scopedProjectKey(projectRef.machineId, projectRef.projectId), scope.title] as const,
       ),
     ),
   );
@@ -417,7 +417,7 @@ export function HomeScreen(props: HomeScreenProps) {
       ? null
       : new Set(
           v2ScopedProjectGroup.projectRefs.map((projectRef) =>
-            scopedProjectKey(projectRef.environmentId, projectRef.projectId),
+            scopedProjectKey(projectRef.machineId, projectRef.projectId),
           ),
         );
   const handleSettleThread = props.onSettleThread;
@@ -434,7 +434,7 @@ export function HomeScreen(props: HomeScreenProps) {
   const [settledVisibleCount, setSettledVisibleCount] = useState(
     THREAD_LIST_V2_SETTLED_INITIAL_COUNT,
   );
-  const settledResetKey = `${props.selectedEnvironmentId ?? "all"}:${v2ProjectScopeKey ?? "all"}:${props.searchQuery.trim()}`;
+  const settledResetKey = `${props.selectedMachineId ?? "all"}:${v2ProjectScopeKey ?? "all"}:${props.searchQuery.trim()}`;
   const [lastSettledResetKey, setLastSettledResetKey] = useState(settledResetKey);
   if (lastSettledResetKey !== settledResetKey) {
     setLastSettledResetKey(settledResetKey);
@@ -463,19 +463,19 @@ export function HomeScreen(props: HomeScreenProps) {
     const id = setInterval(() => setNow(new Date().toISOString()), 60_000);
     return () => clearInterval(id);
   });
-  const listEnvironments = useAtomValue(threadListEnvironmentsAtom);
+  const listMachines = useAtomValue(threadListMachinesAtom);
   const {
-    providersByEnvironmentId,
-    machineByEnvironmentId,
-    settlementEnvironmentIds,
-    snoozeEnvironmentIds,
-    pinningEnvironmentIds,
-    autoSettleOptOutEnvironmentIds,
-    pinReorderEnvironmentIds,
-    activeReorderEnvironmentIds,
-    titleRegenerationEnvironmentIds,
-  } = listEnvironments;
-  const resolveProviderInstance = useThreadRowProviderInstanceResolver(providersByEnvironmentId);
+    providersByMachineId,
+    machineByMachineId,
+    settlementMachineIds,
+    snoozeMachineIds,
+    pinningMachineIds,
+    autoSettleOptOutMachineIds,
+    pinReorderMachineIds,
+    activeReorderMachineIds,
+    titleRegenerationMachineIds,
+  } = listMachines;
+  const resolveProviderInstance = useThreadRowProviderInstanceResolver(providersByMachineId);
   const pendingOrder = usePendingThreadOrder(nowMinute, snoozeWakeTick);
   // Up/down menu availability for every card, computed once per section per
   // rebuild (see computeThreadMoveAvailability): per-thread planner calls made
@@ -486,15 +486,15 @@ export function HomeScreen(props: HomeScreenProps) {
         allThreads: props.threads,
         section,
         pendingOrder,
-        reorderableEnvironmentIds:
-          section === "pinned" ? pinReorderEnvironmentIds : activeReorderEnvironmentIds,
+        reorderableMachineIds:
+          section === "pinned" ? pinReorderMachineIds : activeReorderMachineIds,
         ordered: getThreadListV2OrderedSection({
           threads: props.threads,
           section,
           pendingOrder,
           now,
-          settlementEnvironmentIds,
-          snoozeEnvironmentIds,
+          settlementMachineIds,
+          snoozeMachineIds,
           queuedThreadKeys,
         }),
       });
@@ -508,12 +508,12 @@ export function HomeScreen(props: HomeScreenProps) {
     return buildThreadListV2Items({
       pendingOrder,
       threads: props.threads.filter((thread) => thread.archivedAt === null),
-      environmentId: props.selectedEnvironmentId,
+      machineId: props.selectedMachineId,
       projectRefs: v2ScopedProjectGroup === null ? null : v2ScopedProjectGroup.projectRefs,
       searchQuery: props.searchQuery,
       matchedThreadKeys,
-      settlementEnvironmentIds,
-      snoozeEnvironmentIds,
+      settlementMachineIds,
+      snoozeMachineIds,
       queuedThreadKeys,
       settledLimit: settledVisibleCount,
       now,
@@ -543,11 +543,11 @@ export function HomeScreen(props: HomeScreenProps) {
   const v2SearchQuery = props.searchQuery.trim().toLocaleLowerCase();
   const v2PendingTasks = props.pendingTasks.filter(
     (pendingTask) =>
-      (props.selectedEnvironmentId === null ||
-        pendingTask.environmentId === props.selectedEnvironmentId) &&
+      (props.selectedMachineId === null ||
+        pendingTask.machineId === props.selectedMachineId) &&
       (v2ScopedProjectKeys === null ||
         v2ScopedProjectKeys.has(
-          scopedProjectKey(pendingTask.environmentId, pendingTask.projectId),
+          scopedProjectKey(pendingTask.machineId, pendingTask.projectId),
         )) &&
       (v2SearchQuery.length === 0 || pendingTask.title.toLocaleLowerCase().includes(v2SearchQuery)),
   );
@@ -564,7 +564,7 @@ export function HomeScreen(props: HomeScreenProps) {
     settledShelfExpanded,
     settledShelfHeaderIndex: threadListV2Layout.settledShelfHeaderIndex,
     snoozeLabelNow: `${nowMinute}:00.000Z`,
-    snoozeEnvironmentIds,
+    snoozeMachineIds,
     queuedThreadKeys,
     moveAvailability: threadMoveAvailability,
     shelfPreferencesLoading: !shelfPreferencesLoaded,
@@ -578,7 +578,7 @@ export function HomeScreen(props: HomeScreenProps) {
   const renderV2Item = ({ item }: { readonly item: ThreadListV2ListItem }) => {
     if (item.type === "v2-pending") {
       const pendingScopeKey = scopedProjectKey(
-        item.pendingTask.environmentId,
+        item.pendingTask.machineId,
         item.pendingTask.projectId,
       );
       return (
@@ -588,18 +588,18 @@ export function HomeScreen(props: HomeScreenProps) {
           selected={
             activeNewTask?.pendingKey === item.pendingTask.key ||
             (item.pendingTask.kind === "pending" &&
-              scopedThreadKey(item.pendingTask.environmentId, item.pendingTask.message.threadId) ===
+              scopedThreadKey(item.pendingTask.machineId, item.pendingTask.message.threadId) ===
                 selectedThreadKey)
           }
           project={projectByKey.get(pendingScopeKey) ?? null}
           projectTitle={v2ProjectTitleByProjectKey.get(pendingScopeKey)}
-          environmentLabel={
+          machineLabel={
             Object.keys(props.savedConnectionsById).length > 1
-              ? (props.savedConnectionsById[item.pendingTask.environmentId]?.environmentLabel ??
+              ? (props.savedConnectionsById[item.pendingTask.machineId]?.machineLabel ??
                 null)
               : null
           }
-          environmentMachine={machineByEnvironmentId.get(item.pendingTask.environmentId)}
+          machine={machineByMachineId.get(item.pendingTask.machineId)}
           showPendingDivider={item.showPendingDivider}
           showTrailingDivider={item.showTrailingDivider}
           onSelectPendingTask={props.onSelectPendingTask}
@@ -646,7 +646,7 @@ export function HomeScreen(props: HomeScreenProps) {
     return (
       <ThreadListV2Row
         pane={primaryColumn ? "sidebar" : "screen"}
-        selected={scopedThreadKey(thread.environmentId, thread.id) === selectedThreadKey}
+        selected={scopedThreadKey(thread.machineId, thread.id) === selectedThreadKey}
         fullSwipeWidth={fullSwipeWidth}
         onNewThreadOnBranch={props.onNewThreadOnBranch}
         thread={thread}
@@ -659,21 +659,21 @@ export function HomeScreen(props: HomeScreenProps) {
         snoozeWakeLabelText={item.snoozeWakeLabelText}
         timeLabel={item.timeLabel}
         showTrailingDivider={item.showTrailingDivider}
-        project={projectByKey.get(scopedProjectKey(thread.environmentId, thread.projectId)) ?? null}
+        project={projectByKey.get(scopedProjectKey(thread.machineId, thread.projectId)) ?? null}
         projectTitle={v2ProjectTitleByProjectKey.get(
-          scopedProjectKey(thread.environmentId, thread.projectId),
+          scopedProjectKey(thread.machineId, thread.projectId),
         )}
         providerInstance={resolveProviderInstance(thread)}
-        providers={providersByEnvironmentId.get(thread.environmentId)}
-        environmentLabel={
+        providers={providersByMachineId.get(thread.machineId)}
+        machineLabel={
           Object.keys(props.savedConnectionsById).length > 1
-            ? (props.savedConnectionsById[thread.environmentId]?.environmentLabel ?? null)
+            ? (props.savedConnectionsById[thread.machineId]?.machineLabel ?? null)
             : null
         }
-        environmentMachine={machineByEnvironmentId.get(thread.environmentId)}
+        machine={machineByMachineId.get(thread.machineId)}
         searchMatch={threadSearchMatchByKey.get(
           threadSearchMatchKey({
-            environmentId: thread.environmentId,
+            machineId: thread.machineId,
             threadId: thread.id,
           }),
         )}
@@ -684,16 +684,16 @@ export function HomeScreen(props: HomeScreenProps) {
         onArchiveThread={props.onArchiveThread}
         onRenameThread={handleRenameThread}
         onRegenerateThreadTitle={handleRegenerateThreadTitle}
-        titleRegenerationSupported={titleRegenerationEnvironmentIds.has(thread.environmentId)}
-        settlementSupported={settlementEnvironmentIds.has(thread.environmentId)}
+        titleRegenerationSupported={titleRegenerationMachineIds.has(thread.machineId)}
+        settlementSupported={settlementMachineIds.has(thread.machineId)}
         onSettleThread={handleSettleThread}
-        snoozeSupported={snoozeEnvironmentIds.has(thread.environmentId)}
-        pinningSupported={pinningEnvironmentIds.has(thread.environmentId)}
-        autoSettleOptOutSupported={autoSettleOptOutEnvironmentIds.has(thread.environmentId)}
+        snoozeSupported={snoozeMachineIds.has(thread.machineId)}
+        pinningSupported={pinningMachineIds.has(thread.machineId)}
+        autoSettleOptOutSupported={autoSettleOptOutMachineIds.has(thread.machineId)}
         reorderSupported={
           item.item.pinned
-            ? pinReorderEnvironmentIds.has(thread.environmentId)
-            : !workingShelfEnabled && activeReorderEnvironmentIds.has(thread.environmentId)
+            ? pinReorderMachineIds.has(thread.machineId)
+            : !workingShelfEnabled && activeReorderMachineIds.has(thread.machineId)
         }
         canMoveUp={item.canMoveUp}
         canMoveDown={item.canMoveDown}
@@ -721,7 +721,7 @@ export function HomeScreen(props: HomeScreenProps) {
     activeNewTask,
     projectByKey,
     projectTitleByProjectKey: v2ProjectTitleByProjectKey,
-    listEnvironments,
+    listMachines,
     savedConnectionsById: props.savedConnectionsById,
     searchQuery: props.searchQuery,
     selectedThreadKey,
@@ -731,11 +731,11 @@ export function HomeScreen(props: HomeScreenProps) {
 
   const hasAnyThreads =
     props.threads.some((thread) => thread.archivedAt === null) || props.pendingTasks.length > 0;
-  const selectedEnvironmentLabel =
-    props.selectedEnvironmentId === null
+  const selectedMachineLabel =
+    props.selectedMachineId === null
       ? null
-      : (props.savedConnectionsById[props.selectedEnvironmentId]?.environmentLabel ??
-        "this environment");
+      : (props.savedConnectionsById[props.selectedMachineId]?.machineLabel ??
+        "this machine");
   const emptyState = deriveEmptyState({
     catalogState: props.catalogState,
     projectCount: props.projects.length,
@@ -761,12 +761,12 @@ export function HomeScreen(props: HomeScreenProps) {
             <EmptyState
               title={emptyState.title}
               detail={emptyState.detail}
-              actionLabel={!props.catalogState.hasReadyEnvironment ? "Add environment" : undefined}
-              onAction={!props.catalogState.hasReadyEnvironment ? props.onAddConnection : undefined}
+              actionLabel={!props.catalogState.hasReadyMachine ? "Add machine" : undefined}
+              onAction={!props.catalogState.hasReadyMachine ? props.onAddConnection : undefined}
               action={
-                Platform.OS === "android" && !props.catalogState.hasReadyEnvironment ? (
+                Platform.OS === "android" && !props.catalogState.hasReadyMachine ? (
                   <FloatingActionButton
-                    label="Add environment"
+                    label="Add machine"
                     icon="plus"
                     variant="extended"
                     tone="primary"
@@ -794,11 +794,11 @@ export function HomeScreen(props: HomeScreenProps) {
       {listHeader}
       {Platform.OS === "ios" && workspace ? (
         <ThreadListFilters
-          environments={props.environments}
+          machines={props.machines}
           projects={projectScopes.map((scope) => ({ key: scope.key, label: scope.title }))}
-          selectedEnvironmentId={props.selectedEnvironmentId}
+          selectedMachineId={props.selectedMachineId}
           selectedProjectKey={props.selectedProjectKey}
-          onEnvironmentChange={props.onEnvironmentChange}
+          onMachineChange={props.onMachineChange}
           onProjectChange={props.onProjectChange}
         />
       ) : null}
@@ -818,10 +818,10 @@ export function HomeScreen(props: HomeScreenProps) {
         detail="Choose another project or create a new task."
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
-    ) : selectedEnvironmentLabel ? (
+    ) : selectedMachineLabel ? (
       <EmptyState
-        title={`No threads in ${selectedEnvironmentLabel}`}
-        detail="Choose another environment or create a new task."
+        title={`No threads in ${selectedMachineLabel}`}
+        detail="Choose another machine or create a new task."
         variant={Platform.OS === "android" ? "plain" : undefined}
       />
     ) : (

@@ -1,6 +1,6 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import {
-  EnvironmentId,
+  MachineId,
   ProjectId,
   ProviderInstanceId,
   ThreadId,
@@ -9,7 +9,7 @@ import {
 import { describe, expect, it } from "vite-plus/test";
 import { Atom, AtomRegistry } from "effect/reactivity";
 
-import { createThreadListEnvironmentsAtom } from "../../state/thread-list-environments";
+import { createThreadListMachinesAtom } from "../../state/thread-list-machines";
 
 import {
   createThreadRowProviderInstanceResolver,
@@ -26,14 +26,14 @@ function makeConfig(
 ): ServerConfig {
   return {
     providers: providers.map((provider) => ({ enabled: true, ...provider })),
-    environment: { capabilities: {}, platform: { machine: "laptop" } },
+    machine: { capabilities: {}, platform: { machine: "laptop" } },
     settings: {},
   } as unknown as ServerConfig;
 }
 
-function makeThread(environmentId: EnvironmentId, instanceId: string): EnvironmentThreadShell {
+function makeThread(machineId: MachineId, instanceId: string): MachineThreadShell {
   return {
-    environmentId,
+    machineId,
     id: ThreadId.make("thread-1"),
     projectId: ProjectId.make("project-1"),
     title: "Thread",
@@ -53,39 +53,39 @@ function makeThread(environmentId: EnvironmentId, instanceId: string): Environme
     hasPendingApprovals: false,
     hasPendingUserInput: false,
     hasActionableProposedPlan: false,
-  } as unknown as EnvironmentThreadShell;
+  } as unknown as MachineThreadShell;
 }
 
 describe("resolveThreadProviderInstance", () => {
-  it("resolves two environments with the same default instance id independently", () => {
-    const environmentA = EnvironmentId.make("environment-a");
-    const environmentB = EnvironmentId.make("environment-b");
-    const serverConfigs = new Map<EnvironmentId, ServerConfig>([
+  it("resolves two machines with the same default instance id independently", () => {
+    const machineA = MachineId.make("machine-a");
+    const machineB = MachineId.make("machine-b");
+    const serverConfigs = new Map<MachineId, ServerConfig>([
       [
-        environmentA,
+        machineA,
         makeConfig([{ instanceId: "codex", driver: "codex", accentColor: "#ff8800" }]),
       ],
-      [environmentB, makeConfig([{ instanceId: "codex", driver: "codex" }])],
+      [machineB, makeConfig([{ instanceId: "codex", driver: "codex" }])],
     ]);
 
-    const threadA = makeThread(environmentA, "codex");
-    const threadB = makeThread(environmentB, "codex");
+    const threadA = makeThread(machineA, "codex");
+    const threadB = makeThread(machineB, "codex");
 
     expect(
-      resolveThreadProviderInstance(serverConfigs.get(environmentA)?.providers, threadA)
+      resolveThreadProviderInstance(serverConfigs.get(machineA)?.providers, threadA)
         ?.accentColor,
     ).toBe("#ff8800");
     expect(
-      resolveThreadProviderInstance(serverConfigs.get(environmentB)?.providers, threadB)
+      resolveThreadProviderInstance(serverConfigs.get(machineB)?.providers, threadB)
         ?.accentColor,
     ).toBeUndefined();
   });
 
   it("uses the current runtime owner after a provider handoff", () => {
-    const environmentId = EnvironmentId.make("environment-a");
-    const serverConfigs = new Map<EnvironmentId, ServerConfig>([
+    const machineId = MachineId.make("machine-a");
+    const serverConfigs = new Map<MachineId, ServerConfig>([
       [
-        environmentId,
+        machineId,
         makeConfig([
           { instanceId: "claudeAgent", driver: "claudeAgent" },
           { instanceId: "codex", driver: "codex", displayName: "Codex" },
@@ -94,7 +94,7 @@ describe("resolveThreadProviderInstance", () => {
       ],
     ]);
     const thread = {
-      ...makeThread(environmentId, "claudeAgent"),
+      ...makeThread(machineId, "claudeAgent"),
       runtime: {
         status: "running" as const,
         activeRunId: null,
@@ -106,7 +106,7 @@ describe("resolveThreadProviderInstance", () => {
     };
 
     expect(
-      resolveThreadProviderInstance(serverConfigs.get(environmentId)?.providers, thread),
+      resolveThreadProviderInstance(serverConfigs.get(machineId)?.providers, thread),
     ).toMatchObject({
       driverKind: "codex",
       displayName: "Codex Work",
@@ -116,23 +116,23 @@ describe("resolveThreadProviderInstance", () => {
 });
 
 describe("createThreadRowProviderInstanceResolver", () => {
-  it("updates thread badges through the environment projection when a sibling is disabled and re-enabled", () => {
-    const environmentId = EnvironmentId.make("environment-a");
-    const personal = makeThread(environmentId, "codex");
-    const work = makeThread(environmentId, "codex_work");
+  it("updates thread badges through the machine projection when a sibling is disabled and re-enabled", () => {
+    const machineId = MachineId.make("machine-a");
+    const personal = makeThread(machineId, "codex");
+    const work = makeThread(machineId, "codex_work");
     const config = makeConfig([
       { instanceId: "codex", driver: "codex" },
       { instanceId: "codex_work", driver: "codex" },
     ]);
-    const configs = Atom.make<ReadonlyMap<EnvironmentId, ServerConfig>>(
-      new Map([[environmentId, config]]),
+    const configs = Atom.make<ReadonlyMap<MachineId, ServerConfig>>(
+      new Map([[machineId, config]]),
     );
-    const environments = createThreadListEnvironmentsAtom(configs);
+    const machines = createThreadListMachinesAtom(configs);
     const registry = AtomRegistry.make();
-    registry.mount(environments);
+    registry.mount(machines);
     try {
       const before = createThreadRowProviderInstanceResolver(
-        registry.get(environments).providersByEnvironmentId,
+        registry.get(machines).providersByMachineId,
       );
       expect(before(personal)?.showBadge).toBe(true);
       expect(before(work)?.showBadge).toBe(true);
@@ -141,7 +141,7 @@ describe("createThreadRowProviderInstanceResolver", () => {
         configs,
         new Map([
           [
-            environmentId,
+            machineId,
             {
               ...config,
               providers: config.providers.map((provider) =>
@@ -152,14 +152,14 @@ describe("createThreadRowProviderInstanceResolver", () => {
         ]),
       );
       const disabled = createThreadRowProviderInstanceResolver(
-        registry.get(environments).providersByEnvironmentId,
+        registry.get(machines).providersByMachineId,
       );
       expect(disabled(personal)?.showBadge).toBe(false);
       expect(disabled(work)?.showBadge).toBe(true);
 
-      registry.set(configs, new Map([[environmentId, config]]));
+      registry.set(configs, new Map([[machineId, config]]));
       const restored = createThreadRowProviderInstanceResolver(
-        registry.get(environments).providersByEnvironmentId,
+        registry.get(machines).providersByMachineId,
       );
       expect(restored(personal)?.showBadge).toBe(true);
       expect(restored(work)?.showBadge).toBe(true);

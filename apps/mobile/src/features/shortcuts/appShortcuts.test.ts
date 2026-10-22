@@ -14,7 +14,7 @@ function navState(route: { name: string; params?: unknown }): NavigationState {
 }
 
 function thread(suffix: string, title = `Thread ${suffix}`): RecentThreadShortcut {
-  return { environmentId: `env-${suffix}`, threadId: `thread-${suffix}`, title };
+  return { machineId: `env-${suffix}`, threadId: `thread-${suffix}`, title };
 }
 
 describe("withRecentThreadShortcut", () => {
@@ -33,7 +33,7 @@ describe("withRecentThreadShortcut", () => {
 describe("buildShortcutActions", () => {
   it("deep-links threads with encoded route params", () => {
     const actions = buildShortcutActions([
-      { environmentId: "env 1", threadId: "thread/2", title: "Spaced out" },
+      { machineId: "env 1", threadId: "thread/2", title: "Spaced out" },
     ]);
     expect(actions[1]?.params?.href).toBe("/threads/env%201/thread%2F2");
     expect(actions[1]?.title).toBe("Spaced out");
@@ -75,13 +75,13 @@ describe("activeThreadRef", () => {
     const malformed: unknown[] = [
       undefined,
       {},
-      { environmentId: "env-1" },
-      { environmentId: "", threadId: "thread-2" },
-      { environmentId: "   ", threadId: "thread-2" },
-      { environmentId: "env-1", threadId: "  " },
-      { environmentId: 42, threadId: "thread-2" },
-      { environmentId: { nested: true }, threadId: "thread-2" },
-      { environmentId: [], threadId: [] },
+      { machineId: "env-1" },
+      { machineId: "", threadId: "thread-2" },
+      { machineId: "   ", threadId: "thread-2" },
+      { machineId: "env-1", threadId: "  " },
+      { machineId: 42, threadId: "thread-2" },
+      { machineId: { nested: true }, threadId: "thread-2" },
+      { machineId: [], threadId: [] },
     ];
     for (const params of malformed) {
       expect(activeThreadRef(navState({ name: "Thread", params }))).toBe(null);
@@ -91,8 +91,8 @@ describe("activeThreadRef", () => {
 
 describe("launcher shortcut ids", () => {
   it("cannot collide across different env/thread pairs", () => {
-    const a = buildShortcutActions([{ environmentId: "a-b", threadId: "c", title: "x" }]);
-    const b = buildShortcutActions([{ environmentId: "a", threadId: "b-c", title: "x" }]);
+    const a = buildShortcutActions([{ machineId: "a-b", threadId: "c", title: "x" }]);
+    const b = buildShortcutActions([{ machineId: "a", threadId: "b-c", title: "x" }]);
     expect(a[1]?.id).not.toBe(b[1]?.id);
   });
 });

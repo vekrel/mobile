@@ -3,54 +3,54 @@ import { resolveFilesystemReadAccess } from "@vekrel/client-runtime/state/filesy
 import {
   assetUrlStateFromResult,
   blockedAssetUrlState,
-  createAssetEnvironmentAtoms,
+  createAssetMachineAtoms,
   createProjectFaviconUrlAtomFamily,
   EMPTY_ASSET_URL_ATOM,
 } from "@vekrel/client-runtime/state/assets";
-import type { AssetResource, EnvironmentId } from "@vekrel/contracts";
+import type { AssetResource, MachineId } from "@vekrel/contracts";
 import { useCallback } from "react";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 import { projectFaviconDatabaseCache } from "../lib/projectFaviconDatabaseCache";
 import { type AssetUrlState, deriveAssetUrlState } from "./asset-url-state";
-import { environmentProjectCloneListAtom } from "./projectClones";
-import { environmentSession, usePreparedConnection } from "./session";
-import { useEnvironmentPresentation } from "./presentation";
-import { useEnvironmentQuery } from "./query";
+import { machineProjectCloneListAtom } from "./projectClones";
+import { machineSession, usePreparedConnection } from "./session";
+import { useMachinePresentation } from "./presentation";
+import { useMachineQuery } from "./query";
 import { useAtomQueryRunner } from "./use-atom-query-runner";
 
 export type { AssetUrlFailureReason, AssetUrlState } from "./asset-url-state";
 
-export const assetEnvironment = createAssetEnvironmentAtoms(connectionAtomRuntime);
+export const assetMachine = createAssetMachineAtoms(connectionAtomRuntime);
 
 export const projectFaviconUrlAtom = createProjectFaviconUrlAtomFamily({
   imageCache: projectFaviconDatabaseCache,
-  createUrl: assetEnvironment.createUrl,
-  preparedConnection: environmentSession.preparedConnectionValueAtom,
-  projectClones: environmentProjectCloneListAtom,
+  createUrl: assetMachine.createUrl,
+  preparedConnection: machineSession.preparedConnectionValueAtom,
+  projectClones: machineProjectCloneListAtom,
 });
 
 export function useAssetUrlState(
-  environmentId: EnvironmentId | null,
+  machineId: MachineId | null,
   resource: AssetResource | null,
 ): AssetUrlState {
-  const fileAccessSession = useEnvironmentQuery(
-    environmentId === null ? null : environmentSession.sessionStateAtom(environmentId),
+  const fileAccessSession = useMachineQuery(
+    machineId === null ? null : machineSession.sessionStateAtom(machineId),
   );
-  const fileEnvironment = useEnvironmentPresentation(environmentId);
+  const fileMachine = useMachinePresentation(machineId);
   const fileAccess = resolveFilesystemReadAccess({
-    isCatalogReady: fileEnvironment.isReady,
-    connection: fileEnvironment.presentation?.connection ?? null,
+    isCatalogReady: fileMachine.isReady,
+    connection: fileMachine.presentation?.connection ?? null,
     session: fileAccessSession.data,
     sessionError: fileAccessSession.error,
   });
   const blocked = blockedAssetUrlState(resource, fileAccess);
-  const preparedConnection = usePreparedConnection(environmentId);
-  const connectionPhase = fileEnvironment.presentation?.connection.phase ?? "available";
+  const preparedConnection = usePreparedConnection(machineId);
+  const connectionPhase = fileMachine.presentation?.connection.phase ?? "available";
   const result = useAtomValue(
-    blocked !== null || environmentId === null || resource === null
+    blocked !== null || machineId === null || resource === null
       ? EMPTY_ASSET_URL_ATOM
-      : assetEnvironment.createUrl({ environmentId, input: { resource } }),
+      : assetMachine.createUrl({ machineId, input: { resource } }),
   );
   const shared =
     blocked ??
@@ -65,30 +65,30 @@ export function useAssetUrlState(
 }
 
 export function useAssetUrl(
-  environmentId: EnvironmentId | null,
+  machineId: MachineId | null,
   resource: AssetResource | null,
 ): string | null {
-  const state = useAssetUrlState(environmentId, resource);
+  const state = useAssetUrlState(machineId, resource);
   return state._tag === "Success" ? state.url : null;
 }
 
 /** Explicit playback and sharing must reauthorize files that may have been replaced on disk. */
 export function useRefreshAssetUrl(
-  environmentId: EnvironmentId | null,
+  machineId: MachineId | null,
   resource: AssetResource | null,
 ): () => Promise<string | null> {
-  const connection = usePreparedConnection(environmentId);
+  const connection = usePreparedConnection(machineId);
   const httpBaseUrl = connection._tag === "Some" ? connection.value.httpBaseUrl : null;
-  const createUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
+  const createUrl = useAtomQueryRunner(assetMachine.createUrl, {
     refresh: true,
     reportFailure: false,
   });
   return useCallback(async () => {
-    if (environmentId === null || resource === null || httpBaseUrl === null) return null;
+    if (machineId === null || resource === null || httpBaseUrl === null) return null;
     const state = assetUrlStateFromResult(
-      await createUrl({ environmentId, input: { resource } }),
+      await createUrl({ machineId, input: { resource } }),
       httpBaseUrl,
     );
     return state._tag === "Success" ? state.url : null;
-  }, [createUrl, environmentId, httpBaseUrl, resource]);
+  }, [createUrl, machineId, httpBaseUrl, resource]);
 }

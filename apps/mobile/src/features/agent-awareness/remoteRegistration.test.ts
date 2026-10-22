@@ -13,7 +13,7 @@ import * as Layer from "effect/Layer";
 import { Cookies, FetchHttpClient, HttpClientRequest, HttpClientResponse } from "effect/http";
 import { ManagedRelay } from "@vekrel/client-runtime/relay";
 
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { verifyDpopProof } from "@vekrel/shared/dpop";
 import type { SavedRemoteConnection } from "../../lib/connection";
 import * as Dpop from "../cloud/dpop";
@@ -52,10 +52,10 @@ const widgetMocks = vi.hoisted(() => ({
   getInstances: vi.fn(() => []),
   start: vi.fn(() => ({})),
 }));
-const environmentConfigsMock = vi.hoisted(() => ({
+const machineConfigsMock = vi.hoisted(() => ({
   configs: new Map<
     string,
-    { environment: { capabilities: { agentActivityPublishing?: boolean } } }
+    { machine: { capabilities: { agentActivityPublishing?: boolean } } }
   >(),
 }));
 const backgroundRuntime = vi.hoisted(() => ({
@@ -98,12 +98,12 @@ vi.mock("./agentLiveActivity", () => ({
 // into the import graph; the arming gate only needs the configs map.
 vi.mock("../../state/atom-registry", () => ({
   appAtomRegistry: {
-    get: () => environmentConfigsMock.configs,
+    get: () => machineConfigsMock.configs,
   },
 }));
 
 vi.mock("../../state/server", () => ({
-  environmentServerConfigsAtom: Symbol("environmentServerConfigsAtom"),
+  machineServerConfigsAtom: Symbol("machineServerConfigsAtom"),
 }));
 
 vi.mock("expo-notifications", () => ({
@@ -203,8 +203,8 @@ function proofIat(proof: string): number {
 
 function savedConnection(): SavedRemoteConnection {
   return {
-    environmentId: "env-1" as EnvironmentId,
-    environmentLabel: "Desktop",
+    machineId: "env-1" as MachineId,
+    machineLabel: "Desktop",
     pairingUrl: "https://desktop.example/pair",
     displayUrl: "https://desktop.example",
     httpBaseUrl: "https://desktop.example",
@@ -264,7 +264,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
     widgetMocks.getInstances.mockReturnValue([]);
     widgetMocks.start.mockClear();
     widgetMocks.dismissEnded.mockReset();
-    environmentConfigsMock.configs.clear();
+    machineConfigsMock.configs.clear();
   });
 
   it("disables push features in Personal Team relay registrations", () => {
@@ -623,7 +623,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
   });
 
   it.effect(
-    "keeps the user-scoped relay APNs device when an environment connection is removed",
+    "keeps the user-scoped relay APNs device when a machine connection is removed",
     () => {
       const fetchMock = vi.fn((request: RequestInfo | URL) => {
         const url = request instanceof Request ? request.url : String(request);
@@ -654,7 +654,7 @@ describe("makeRelayDeviceRegistrationRequest", () => {
         yield* runBackgroundOperations();
         fetchMock.mockClear();
 
-        unregisterAgentAwarenessConnection(savedConnection().environmentId);
+        unregisterAgentAwarenessConnection(savedConnection().machineId);
 
         expect(fetchMock).not.toHaveBeenCalled();
       }).pipe(Effect.provide(layerRelayTest));

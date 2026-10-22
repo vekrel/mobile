@@ -45,49 +45,49 @@ vi.mock("react-native-safe-area-context", () => ({
 }));
 vi.mock("../../components/ui/AppSymbol", () => ({ SymbolView: "SymbolView" }));
 vi.mock("../../components/ui/AppText", () => ({ AppText: "Text", AppTextInput: "TextInput" }));
-vi.mock("../../components/EnvironmentMachineSymbol", () => ({
-  EnvironmentMachineSymbol: "EnvironmentMachineSymbol",
+vi.mock("../../components/MachineSymbol", () => ({
+  MachineSymbol: "MachineSymbol",
 }));
 vi.mock("../../components/ui/ErrorBanner", () => ({ ErrorBanner: "ErrorBanner" }));
 vi.mock("./SourceControlIcon", () => ({ SourceControlIcon: "SourceControlIcon" }));
 vi.mock("../../lib/uuid", () => ({ uuidv4: () => "project" }));
 vi.mock("../../state/session", () => ({
-  useEnvironmentScope: (_environmentId: string, scope: string) => state.scopes.has(scope),
-  readEnvironmentScope: (_environmentId: string, scope: string) => state.scopes.has(scope),
+  useMachineScope: (_machineId: string, scope: string) => state.scopes.has(scope),
+  readMachineScope: (_machineId: string, scope: string) => state.scopes.has(scope),
 }));
 vi.mock("../../state/entities", () => ({
   useProjects: () => [],
   useServerConfigs: () =>
     new Map([
       [
-        "environment",
+        "machine",
         {
-          environment: { platform: { os: "linux" }, capabilities: {} },
+          machine: { platform: { os: "linux" }, capabilities: {} },
           settings: { addProjectBaseDirectory: state.baseDirectory },
         },
       ],
     ]),
 }));
-vi.mock("../../state/use-remote-environment-registry", () => ({
-  useRemoteEnvironmentRuntime: () => ({ connectionState: "connected" }),
+vi.mock("../../state/use-remote-machine-registry", () => ({
+  useRemoteMachineRuntime: () => ({ connectionState: "connected" }),
   useRemoteConnectionStatus: () => ({
-    connectedEnvironments: [{ environmentId: "environment", connectionState: "connected" }],
+    connectedMachines: [{ machineId: "machine", connectionState: "connected" }],
   }),
   useSavedRemoteConnections: () => ({
     savedConnectionsById: {
-      connection: { environmentId: "environment", environmentLabel: "Environment" },
+      connection: { machineId: "machine", machineLabel: "Machine" },
     },
   }),
 }));
 vi.mock("../../state/use-atom-command", () => ({ useAtomCommand: (command: unknown) => command }));
 vi.mock("../../state/use-atom-query-runner", () => ({ useAtomQueryRunner: () => () => {} }));
-vi.mock("../../state/query", () => ({ useEnvironmentQuery: () => ({ data: null }) }));
+vi.mock("../../state/query", () => ({ useMachineQuery: () => ({ data: null }) }));
 vi.mock("../../state/presentation", () => ({
-  useEnvironmentPresentation: () => ({ isReady: true, presentation: null }),
+  useMachinePresentation: () => ({ isReady: true, presentation: null }),
 }));
-vi.mock("../../state/filesystem", () => ({ filesystemEnvironment: {} }));
+vi.mock("../../state/filesystem", () => ({ filesystemMachine: {} }));
 vi.mock("../../state/sourceControl", () => ({
-  sourceControlEnvironment: {
+  sourceControlMachine: {
     cloneRepository: async ({ input }: { input: { destinationPath: string } }) => {
       NodeFS.mkdirSync(input.destinationPath);
       return AsyncResult.success({ cwd: input.destinationPath });
@@ -95,7 +95,7 @@ vi.mock("../../state/sourceControl", () => ({
   },
 }));
 vi.mock("../../state/projects", () => ({
-  projectEnvironment: {
+  projectMachine: {
     create: async ({ input }: { input: { workspaceRoot: string } }) => {
       if (!state.scopes.has(AuthOrchestrationOperateScope)) {
         return AsyncResult.failure(Cause.fail(new Error("Project creation denied")));
@@ -126,7 +126,7 @@ function findAction(node: ReactNode, label: string): (() => unknown) | null {
 function cloneAction() {
   const action = findAction(
     AddProjectDestinationScreen({
-      environmentId: "environment",
+      machineId: "machine",
       remoteUrl: "https://example.com/repo.git",
       repositoryName: "repo",
     }),

@@ -1,6 +1,6 @@
 import * as Dialog from "../../components/ui/Dialog";
 import { AuthRelayWriteScope } from "@vekrel/contracts";
-import { readEnvironmentScope } from "../../state/session";
+import { readMachineScope } from "../../state/session";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { useAuth } from "@clerk/expo";
 import { useAtomSet, useAtomValue } from "@effect/atom-react";
@@ -32,11 +32,11 @@ import {
   refreshAgentAwarenessRegistration,
   subscribeAgentAwarenessRegistrationStatus,
 } from "../agent-awareness/remoteRegistration";
-import { refreshManagedRelayEnvironments } from "../cloud/managedRelayState";
+import { refreshManagedRelayMachines } from "../cloud/managedRelayState";
 import { hasCloudPublicConfig, resolveRelayClerkTokenOptions } from "../cloud/publicConfig";
 import { runtime } from "../../lib/runtime";
 import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../../state/preferences";
-import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
+import { useSavedRemoteConnections } from "../../state/use-remote-machine-registry";
 import { SettingsRow } from "./components/SettingsRow";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsSwitchRow } from "./components/SettingsSwitchRow";
@@ -99,7 +99,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
     preferencesResult.value.liveActivitiesEnabled !== false;
 
   const connections = Object.values(savedConnectionsById);
-  const environmentCount = connections.length;
+  const machineCount = connections.length;
 
   const refreshNotifications = async () => {
     if (Platform.OS !== "ios" && Platform.OS !== "android") {
@@ -215,7 +215,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
     );
   };
 
-  const linkEnvironments = async () => {
+  const linkMachines = async () => {
     if (!isSignedIn) {
       promptSignIn();
       return;
@@ -268,8 +268,8 @@ function ConfiguredSettingsNotificationsRouteScreen() {
     const updateResult = await settleAsyncResult(() =>
       runtime.runPromiseExit(
         setLiveActivityUpdatesEnabled({
-          canConfigureEnvironment: (environmentId) =>
-            readEnvironmentScope(environmentId, AuthRelayWriteScope),
+          canConfigureMachine: (machineId) =>
+            readMachineScope(machineId, AuthRelayWriteScope),
           enabled: true,
           previousEnabled: liveActivitiesPreferenceEnabled,
           clerkToken: tokenResult.value,
@@ -292,17 +292,17 @@ function ConfiguredSettingsNotificationsRouteScreen() {
     }
 
     savePreferences({ liveActivitiesEnabled: true });
-    refreshManagedRelayEnvironments();
+    refreshManagedRelayMachines();
     setLiveActivityStatus("enabled");
-    // The environment link can succeed while this device's own registration
+    // The machine link can succeed while this device's own registration
     // (the push-to-start token the relay needs) has not — don't claim Live
     // Activities are live until the device is actually registered.
     if (getAgentAwarenessRegistrationStatus() === "registered") {
       Dialog.alert(
         Platform.OS === "android" ? "Ongoing activity enabled" : "Live Activities enabled",
-        environmentCount > 0
-          ? "Agent activity updates are enabled for environments this connection can configure."
-          : "Agent activity updates are enabled. Add an environment to start receiving updates.",
+        machineCount > 0
+          ? "Agent activity updates are enabled for machines this connection can configure."
+          : "Agent activity updates are enabled. Add a machine to start receiving updates.",
       );
     } else {
       Dialog.alert(
@@ -349,8 +349,8 @@ function ConfiguredSettingsNotificationsRouteScreen() {
     const updateResult = await settleAsyncResult(() =>
       runtime.runPromiseExit(
         setLiveActivityUpdatesEnabled({
-          canConfigureEnvironment: (environmentId) =>
-            readEnvironmentScope(environmentId, AuthRelayWriteScope),
+          canConfigureMachine: (machineId) =>
+            readMachineScope(machineId, AuthRelayWriteScope),
           enabled: false,
           previousEnabled: liveActivitiesPreferenceEnabled,
           clerkToken: token,
@@ -366,7 +366,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
       return;
     }
     savePreferences({ liveActivitiesEnabled: false });
-    refreshManagedRelayEnvironments();
+    refreshManagedRelayMachines();
     setLiveActivityStatus("disabled");
   }
 
@@ -387,7 +387,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
     }
 
     liveActivityWriteInFlight.current = true;
-    await linkEnvironments();
+    await linkMachines();
     liveActivityWriteInFlight.current = false;
   };
 

@@ -12,9 +12,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { reportAtomCommandResult, settlePromise } from "@vekrel/client-runtime/state/runtime";
 import { AppText as Text } from "../../components/ui/AppText";
-import { useRemoteConnections } from "../../state/use-remote-environment-registry";
-import { CloudEnvironmentRows } from "../connection/CloudEnvironmentRows";
-import { splitEnvironmentSections } from "../connection/environmentSections";
+import { useRemoteConnections } from "../../state/use-remote-machine-registry";
+import { CloudMachineRows } from "../connection/CloudMachineRows";
+import { splitMachineSections } from "../connection/machineSections";
 import { useConnectionController } from "../connection/useConnectionController";
 import { optOutOfConnectOnboarding } from "./connectOnboardingOptOut";
 import { hasCloudPublicConfig } from "./publicConfig";
@@ -42,18 +42,18 @@ function ConfiguredConnectOnboardingRouteScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const { isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
-  const { connectedEnvironments, onSetEnvironmentEnabled, onRemoveEnvironmentPress } =
+  const { connectedMachines, onSetMachineEnabled, onRemoveMachinePress } =
     useRemoteConnections();
-  const { refreshRelayEnvironments } = useConnectionController();
-  const { connectedCloudEnvironments } = splitEnvironmentSections({
-    connectedEnvironments,
-    cloudEnvironments: null,
+  const { refreshRelayMachines } = useConnectionController();
+  const { connectedCloudMachines } = splitMachineSections({
+    connectedMachines,
+    cloudMachines: null,
   });
 
   const [isRefreshing, setIsRefreshing] = useState(false);
   const handleRefresh = () => {
     setIsRefreshing(true);
-    void refreshRelayEnvironments().finally(() => setIsRefreshing(false));
+    void refreshRelayMachines().finally(() => setIsRefreshing(false));
   };
 
   const handleClose = () => {
@@ -84,14 +84,14 @@ function ConfiguredConnectOnboardingRouteScreen() {
               <View
                 className="size-12 items-center justify-center"
                 accessible
-                accessibilityLabel="Refreshing environments"
+                accessibilityLabel="Refreshing machines"
                 accessibilityState={{ busy: true }}
               >
                 <AppActivityIndicator />
               </View>
             ) : (
               <IconButton
-                accessibilityLabel="Refresh environments"
+                accessibilityLabel="Refresh machines"
                 icon="arrow.clockwise"
                 onPress={handleRefresh}
               />
@@ -118,10 +118,10 @@ function ConfiguredConnectOnboardingRouteScreen() {
         }
       >
         {isSignedIn ? (
-          <CloudEnvironmentRows
-            connectedCloudEnvironments={connectedCloudEnvironments}
-            onSetEnvironmentEnabled={onSetEnvironmentEnabled}
-            onRemoveEnvironment={onRemoveEnvironmentPress}
+          <CloudMachineRows
+            connectedCloudMachines={connectedCloudMachines}
+            onSetMachineEnabled={onSetMachineEnabled}
+            onRemoveMachine={onRemoveMachinePress}
             showHeader={false}
           />
         ) : (

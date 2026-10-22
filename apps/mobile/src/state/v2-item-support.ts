@@ -1,18 +1,18 @@
 import { useAtomValue } from "@effect/atom-react";
-import { scopeThreadRef } from "@vekrel/client-runtime/environment";
+import { scopeThreadRef } from "@vekrel/client-runtime/machine";
 import {
   EMPTY_V2_ITEM_SUPPORT,
   resolveV2ItemSupport,
   v2ItemSupportEqual,
   type V2ItemSupport,
 } from "@vekrel/client-runtime/state/item-support";
-import type { EnvironmentId, ThreadId, TurnItemId } from "@vekrel/contracts";
+import type { MachineId, ThreadId, TurnItemId } from "@vekrel/contracts";
 import { Atom } from "effect/reactivity";
 
-import { environmentThreadDetails } from "./threads";
+import { machineThreadDetails } from "./threads";
 
 interface ItemSupportTarget {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly itemId: TurnItemId;
 }
@@ -27,10 +27,10 @@ function parseSupportKey(key: string): ItemSupportTarget {
 
 const itemSupportAtomFamily = Atom.family((key: string) => {
   const target = parseSupportKey(key);
-  const ref = scopeThreadRef(target.environmentId, target.threadId);
+  const ref = scopeThreadRef(target.machineId, target.threadId);
   let previous = EMPTY_V2_ITEM_SUPPORT;
   return Atom.make((get): V2ItemSupport => {
-    const scoped = get(environmentThreadDetails.threadAtom(ref));
+    const scoped = get(machineThreadDetails.threadAtom(ref));
     if (scoped === null) return EMPTY_V2_ITEM_SUPPORT;
     const next = resolveV2ItemSupport(scoped.projection, target.itemId);
     if (v2ItemSupportEqual(previous, next)) return previous;
@@ -40,14 +40,14 @@ const itemSupportAtomFamily = Atom.family((key: string) => {
 });
 
 export function useV2ItemSupport(target: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly sourceThreadId: ThreadId;
   readonly sourceItemId: TurnItemId;
 }): V2ItemSupport {
   return useAtomValue(
     itemSupportAtomFamily(
       supportKey({
-        environmentId: target.environmentId,
+        machineId: target.machineId,
         threadId: target.sourceThreadId,
         itemId: target.sourceItemId,
       }),

@@ -1,8 +1,8 @@
 import { makeThreadShellFixture } from "../../test-fixtures";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import {
   AuthOrchestrationOperateScope,
-  EnvironmentId,
+  MachineId,
   ProjectId,
   ProviderInstanceId,
   RunId,
@@ -18,10 +18,10 @@ const state = vi.hoisted(() => ({
   failedAction: null as string | null,
   archivedRefreshes: [] as string[],
   scopes: new Map<string, Set<string>>(),
-  shells: [] as EnvironmentThreadShell[],
+  shells: [] as MachineThreadShell[],
   requests: [] as {
     action: string;
-    environmentId: string;
+    machineId: string;
     input: { threadId: string; orderKey?: string; snoozedUntil?: string; reason?: string };
   }[],
   dialogs: [] as { onConfirm: () => void }[],
@@ -52,16 +52,16 @@ vi.mock("../../components/ui/Dialog", () => ({
   confirm: (dialog: { onConfirm: () => void }) => state.dialogs.push(dialog),
 }));
 vi.mock("../archive/useArchivedThreadSnapshots", () => ({
-  refreshArchivedThreadsForEnvironment: (environmentId: string) => {
-    state.archivedRefreshes.push(environmentId);
+  refreshArchivedThreadsForMachine: (machineId: string) => {
+    state.archivedRefreshes.push(machineId);
   },
 }));
 vi.mock("../../state/session", () => ({
-  readEnvironmentScope: (environmentId: string, scope: string) =>
-    state.scopes.get(environmentId)?.has(scope) === true,
+  readMachineScope: (machineId: string, scope: string) =>
+    state.scopes.get(machineId)?.has(scope) === true,
 }));
 vi.mock("../../state/server", () => ({
-  environmentServerConfigsAtom: "server-configs",
+  machineServerConfigsAtom: "server-configs",
 }));
 vi.mock("../../state/atom-registry", () => ({
   appAtomRegistry: {
@@ -76,10 +76,10 @@ vi.mock("../../state/atom-registry", () => ({
           : atom === "queued-thread-keys"
             ? new Set<string>()
             : new Map(
-                [...state.scopes.keys()].map((environmentId) => [
-                  environmentId,
+                [...state.scopes.keys()].map((machineId) => [
+                  machineId,
                   {
-                    environment: {
+                    machine: {
                       capabilities: {
                         threadSettlement: true,
                         threadSnooze: true,
@@ -114,8 +114,8 @@ vi.mock("../../state/thread-order", () => ({
   },
 }));
 vi.mock("../../state/threads", () => ({
-  environmentThreadShells: { threadShellsAtom: "thread-shells" },
-  threadEnvironment: Object.fromEntries(
+  machineThreadShells: { threadShellsAtom: "thread-shells" },
+  threadMachine: Object.fromEntries(
     [
       "archive",
       "unarchive",
@@ -131,11 +131,11 @@ vi.mock("../../state/threads", () => ({
     ].map((action) => [
       action,
       async (request: {
-        environmentId: string;
+        machineId: string;
         input: { threadId: string; orderKey?: string };
       }) => {
         state.requests.push({ action, ...request });
-        if (!state.scopes.get(request.environmentId)?.has(AuthOrchestrationOperateScope)) {
+        if (!state.scopes.get(request.machineId)?.has(AuthOrchestrationOperateScope)) {
           return AsyncResult.failure(Cause.fail(new Error("Thread operation denied")));
         }
         if (action === state.failedAction)
@@ -150,14 +150,14 @@ vi.mock("../../state/threads", () => ({
 import { dismissThreadUndoNotice, readThreadUndoNotice } from "./thread-undo-notice";
 import { useThreadListActions } from "./useThreadListActions";
 
-const primaryEnvironmentId = EnvironmentId.make("primary");
-const otherEnvironmentId = EnvironmentId.make("other");
+const primaryMachineId = MachineId.make("primary");
+const otherMachineId = MachineId.make("other");
 
-function makeThread(input: Partial<EnvironmentThreadShell> = {}): EnvironmentThreadShell {
+function makeThread(input: Partial<MachineThreadShell> = {}): MachineThreadShell {
   return makeThreadShellFixture({
     id: ThreadId.make("thread"),
     title: "Thread",
-    environmentId: primaryEnvironmentId,
+    machineId: primaryMachineId,
     projectId: ProjectId.make("project"),
     modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "model" },
     ...input,
@@ -181,8 +181,8 @@ beforeEach(() => {
   state.pendingOrder = null;
   state.dropBusy = false;
   state.scopes = new Map([
-    [primaryEnvironmentId, new Set([AuthOrchestrationOperateScope])],
-    [otherEnvironmentId, new Set<string>()],
+    [primaryMachineId, new Set([AuthOrchestrationOperateScope])],
+    [otherMachineId, new Set<string>()],
   ]);
   state.requests = [];
   state.shells = [];
@@ -199,10 +199,10 @@ afterEach(() => {
 
 describe("thread list operation permissions", () => {
   it.each(mutationCases)(
-    "%s rejects a retained callback after its environment loses permission",
+    "%s rejects a retained callback after its machine loses permission",
     async (handler) => {
       const actions = useThreadListActions();
-      state.scopes.get(primaryEnvironmentId)!.clear();
+      state.scopes.get(primaryMachineId)!.clear();
 
       await actions[handler](makeThread(), "2099-01-01T00:00:00.000Z");
 
@@ -210,9 +210,9 @@ describe("thread list operation permissions", () => {
     },
   );
 
-  it.each(mutationCases)("%s requires the target environment's permission", async (handler) => {
+  it.each(mutationCases)("%s requires the target machine's permission", async (handler) => {
     await useThreadListActions()[handler](
-      makeThread({ environmentId: otherEnvironmentId }),
+      makeThread({ machineId: otherMachineId }),
       "2099-01-01T00:00:00.000Z",
     );
 
@@ -223,7 +223,7 @@ describe("thread list operation permissions", () => {
     useThreadListActions().confirmDeleteThread(makeThread());
     const confirm = state.dialogs[0]?.onConfirm;
     expect(confirm).toBeTypeOf("function");
-    state.scopes.get(primaryEnvironmentId)!.clear();
+    state.scopes.get(primaryMachineId)!.clear();
 
     await confirm!();
 
@@ -238,7 +238,7 @@ describe("pinned thread operation permissions", () => {
       moved,
       makeThread({
         id: ThreadId.make("other-thread"),
-        environmentId: otherEnvironmentId,
+        machineId: otherMachineId,
         pinnedAt: "2026-09-02T00:00:00.000Z",
         createdAt: "2026-09-02T00:00:00.000Z",
       }),
@@ -254,7 +254,7 @@ describe("pinned thread operation permissions", () => {
       moved,
       makeThread({
         id: ThreadId.make("other-thread"),
-        environmentId: otherEnvironmentId,
+        machineId: otherMachineId,
         pinnedAt: "2026-09-02T00:00:00.000Z",
         pinOrderKey: "g",
       }),
@@ -262,7 +262,7 @@ describe("pinned thread operation permissions", () => {
 
     expect(await useThreadListActions().moveThread(moved, "up")).toBe(true);
     expect(state.requests).toEqual([
-      expect.objectContaining({ action: "reorderPin", environmentId: primaryEnvironmentId }),
+      expect.objectContaining({ action: "reorderPin", machineId: primaryMachineId }),
     ]);
   });
 
@@ -276,7 +276,7 @@ describe("pinned thread operation permissions", () => {
         createdAt: "2026-09-02T00:00:00.000Z",
       }),
     ];
-    state.afterRequest = () => state.scopes.get(primaryEnvironmentId)!.clear();
+    state.afterRequest = () => state.scopes.get(primaryMachineId)!.clear();
 
     expect(await useThreadListActions().moveThread(moved, "up")).toBe(false);
     expect(state.requests).toHaveLength(1);
@@ -322,7 +322,7 @@ describe("thread action undo", () => {
     expect(await actions.archiveThread(thread)).toBe(false);
     expect(await first).toBe(true);
     expect(state.requests.map(({ action }) => action)).toEqual(["archive"]);
-    expect(state.archivedRefreshes).toEqual([primaryEnvironmentId]);
+    expect(state.archivedRefreshes).toEqual([primaryMachineId]);
   });
 
   it("restores pin placement and snooze after settling, only once", async () => {
@@ -358,7 +358,7 @@ describe("thread action undo", () => {
     await readThreadUndoNotice()!.undo();
     expect(state.requests.at(-1)).toMatchObject({
       action: "unsnooze",
-      environmentId: thread.environmentId,
+      machineId: thread.machineId,
       input: { threadId: thread.id, reason: "user" },
     });
   });
@@ -386,7 +386,7 @@ describe("thread action undo", () => {
       if (restoresSnooze) {
         expect(state.requests[2]).toMatchObject({
           action: "snooze",
-          environmentId: thread.environmentId,
+          machineId: thread.machineId,
           input: { threadId: thread.id, snoozedUntil },
         });
       }
@@ -436,7 +436,7 @@ describe("thread action undo", () => {
 
   it("rechecks the destination permission before undoing", async () => {
     await useThreadListActions().unpinThread(makeThread());
-    state.scopes.get(primaryEnvironmentId)!.clear();
+    state.scopes.get(primaryMachineId)!.clear();
     await readThreadUndoNotice()!.undo();
     expect(state.requests.map(({ action }) => action)).toEqual(["unpin"]);
   });
@@ -456,7 +456,7 @@ describe("thread action undo", () => {
   it("refreshes the archive after archiving on a settlement-capable server", async () => {
     await useThreadListActions().archiveThread(makeThread());
     expect(state.requests.map(({ action }) => action)).toEqual(["archive"]);
-    expect(state.archivedRefreshes).toEqual([primaryEnvironmentId]);
+    expect(state.archivedRefreshes).toEqual([primaryMachineId]);
   });
 });
 

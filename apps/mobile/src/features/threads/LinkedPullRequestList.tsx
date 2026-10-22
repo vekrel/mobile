@@ -1,4 +1,4 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import {
   pullRequestListLines,
   resolveThreadPullRequestChains,
@@ -14,7 +14,7 @@ import * as Dialog from "../../components/ui/Dialog";
 import { Menu } from "../../components/ui/Menu";
 import { cn } from "../../lib/cn";
 import { relativeTime } from "../../lib/time";
-import type { EnvironmentRuntimeState } from "../../state/remote-runtime-types";
+import type { MachineRuntimeState } from "../../state/remote-runtime-types";
 import { useScaledTextRole } from "../settings/appearance/useScaledTextRole";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import type { LinkedPullRequestActions } from "./useLinkedPullRequestActions";
@@ -31,10 +31,10 @@ import {
 } from "../pull-requests/pullRequestStatus";
 
 export function useLinkedPullRequestLines(
-  thread: EnvironmentThreadShell | null,
-  runtime: EnvironmentRuntimeState | null,
+  thread: MachineThreadShell | null,
+  runtime: MachineRuntimeState | null,
 ) {
-  const supported = runtime?.serverConfig?.environment.capabilities.threadPullRequests === true;
+  const supported = runtime?.serverConfig?.machine.capabilities.threadPullRequests === true;
   const pullRequests = thread?.pullRequests;
   return useMemo(() => {
     const chains = resolveThreadPullRequestChains(supported ? (pullRequests ?? []) : []);

@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import * as Effect from "effect/Effect";
 import { Atom } from "effect/reactivity";
 
@@ -6,8 +6,8 @@ import * as MobileDatabase from "../persistence/mobile-database";
 import { projectFaviconDatabaseCache } from "../lib/projectFaviconDatabaseCache";
 import * as Runtime from "../lib/runtime";
 
-export interface EnvironmentClientCacheSummary {
-  readonly environmentId: EnvironmentId;
+export interface MachineClientCacheSummary {
+  readonly machineId: MachineId;
   readonly recordCount: number;
   readonly payloadBytes: number;
   readonly kinds: Readonly<Partial<Record<MobileDatabase.ClientCacheKind, number>>>;
@@ -16,36 +16,36 @@ export interface EnvironmentClientCacheSummary {
 export interface ClientCacheSummary {
   readonly recordCount: number;
   readonly payloadBytes: number;
-  readonly environments: ReadonlyArray<EnvironmentClientCacheSummary>;
+  readonly machines: ReadonlyArray<MachineClientCacheSummary>;
 }
 
 export type ClientCacheClearScope =
   | { readonly type: "all" }
-  | { readonly type: "environment"; readonly environmentId: EnvironmentId };
+  | { readonly type: "machine"; readonly machineId: MachineId };
 
 function aggregateCacheSummary(
   rows: ReadonlyArray<{
-    readonly environmentId: EnvironmentId;
+    readonly machineId: MachineId;
     readonly kind: MobileDatabase.ClientCacheKind;
     readonly recordCount: number;
     readonly payloadBytes: number;
   }>,
 ): ClientCacheSummary {
-  const environments = new Map<EnvironmentId, EnvironmentClientCacheSummary>();
+  const machines = new Map<MachineId, MachineClientCacheSummary>();
   let recordCount = 0;
   let payloadBytes = 0;
 
   for (const row of rows) {
     recordCount += row.recordCount;
     payloadBytes += row.payloadBytes;
-    const current = environments.get(row.environmentId) ?? {
-      environmentId: row.environmentId,
+    const current = machines.get(row.machineId) ?? {
+      machineId: row.machineId,
       recordCount: 0,
       payloadBytes: 0,
       kinds: {},
     };
-    environments.set(row.environmentId, {
-      environmentId: row.environmentId,
+    machines.set(row.machineId, {
+      machineId: row.machineId,
       recordCount: current.recordCount + row.recordCount,
       payloadBytes: current.payloadBytes + row.payloadBytes,
       kinds: { ...current.kinds, [row.kind]: row.recordCount },
@@ -55,7 +55,7 @@ function aggregateCacheSummary(
   return {
     recordCount,
     payloadBytes,
-    environments: [...environments.values()],
+    machines: [...machines.values()],
   };
 }
 
@@ -75,13 +75,13 @@ export const clearClientCacheAtom = clientCacheRuntime
     Effect.promise(() =>
       scope.type === "all"
         ? projectFaviconDatabaseCache.clearAll()
-        : projectFaviconDatabaseCache.clearEnvironment(scope.environmentId),
+        : projectFaviconDatabaseCache.clearMachine(scope.machineId),
     ).pipe(
       Effect.andThen(MobileDatabase.MobileDatabase),
       Effect.flatMap((database) =>
         scope.type === "all"
           ? database.clearAllCaches
-          : database.clearEnvironmentCache(scope.environmentId),
+          : database.clearMachineCache(scope.machineId),
       ),
       Effect.tap(() =>
         Effect.sync(() => {

@@ -1,6 +1,6 @@
 import { useIsFocused, useNavigation, type StaticScreenProps } from "@react-navigation/native";
-import { EnvironmentId, ThreadId, TurnItemId } from "@vekrel/contracts";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import { MachineId, ThreadId, TurnItemId } from "@vekrel/contracts";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import { turnItemDetailRevision } from "@vekrel/client-runtime/work-log/item-detail";
 import { mcpAppFromToolItem } from "@vekrel/shared/toolOutput";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -9,14 +9,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
-import { orchestrationEnvironment } from "../../state/orchestration";
-import { scopeThreadRef } from "@vekrel/client-runtime/environment";
+import { orchestrationMachine } from "../../state/orchestration";
+import { scopeThreadRef } from "@vekrel/client-runtime/machine";
 import { useThreadShell, useThreadShells } from "../../state/entities";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { ThreadMcpApp } from "./McpAppWebView";
 
 type McpAppFullscreenScreenProps = StaticScreenProps<{
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly threadId: string;
   readonly conversationThreadId?: string;
   readonly itemId: string;
@@ -24,29 +24,29 @@ type McpAppFullscreenScreenProps = StaticScreenProps<{
 }>;
 
 function useConversationThreadId(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   threadId: ThreadId,
   requested: string | undefined,
 ): ThreadId {
   const shells = useThreadShells();
   return useMemo(
     () =>
-      requested !== undefined && descendsFrom(shells, environmentId, requested, threadId)
+      requested !== undefined && descendsFrom(shells, machineId, requested, threadId)
         ? ThreadId.make(requested)
         : threadId,
-    [shells, environmentId, threadId, requested],
+    [shells, machineId, threadId, requested],
   );
 }
 
 function descendsFrom(
-  shells: ReadonlyArray<EnvironmentThreadShell>,
-  environmentId: EnvironmentId,
+  shells: ReadonlyArray<MachineThreadShell>,
+  machineId: MachineId,
   threadId: string,
   ancestorId: ThreadId,
 ): boolean {
   const parents = new Map(
     shells
-      .filter((shell) => shell.environmentId === environmentId)
+      .filter((shell) => shell.machineId === machineId)
       .filter((shell) => shell.lineage.relationshipToParent === "fork")
       .map((shell) => [shell.id as string, shell.lineage.parentThreadId]),
   );
@@ -77,17 +77,17 @@ export function McpAppFullscreenScreen({ route }: McpAppFullscreenScreenProps) {
   }, [navigation]);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const params = route.params;
-  const environmentId = EnvironmentId.make(params.environmentId);
+  const machineId = MachineId.make(params.machineId);
   const threadId = ThreadId.make(params.threadId);
   const itemId = TurnItemId.make(params.itemId);
   const conversationThreadId = useConversationThreadId(
-    environmentId,
+    machineId,
     threadId,
     params.conversationThreadId,
   );
-  const detail = useEnvironmentQuery(
-    orchestrationEnvironment.turnItem({
-      environmentId,
+  const detail = useMachineQuery(
+    orchestrationMachine.turnItem({
+      machineId,
       input: {
         threadId,
         itemId,
@@ -101,7 +101,7 @@ export function McpAppFullscreenScreen({ route }: McpAppFullscreenScreenProps) {
   const derived = item?.type === "dynamic_tool" ? mcpAppFromToolItem(item) : undefined;
   const [app, setApp] = useState(derived);
   if (derived?.attachmentId !== app?.attachmentId) setApp(derived);
-  const conversation = useThreadShell(scopeThreadRef(environmentId, conversationThreadId));
+  const conversation = useThreadShell(scopeThreadRef(machineId, conversationThreadId));
   const awaitingUser =
     conversation?.hasPendingApprovals === true || conversation?.hasPendingUserInput === true;
   useEffect(() => {
@@ -139,7 +139,7 @@ export function McpAppFullscreenScreen({ route }: McpAppFullscreenScreenProps) {
           )
         ) : size.width > 0 ? (
           <ThreadMcpApp
-            environmentId={environmentId}
+            machineId={machineId}
             threadId={threadId}
             conversationThreadId={conversationThreadId}
             itemId={itemId}

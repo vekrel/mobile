@@ -1,4 +1,4 @@
-import { type EnvironmentConnectionPhase } from "@vekrel/client-runtime/connection";
+import { type MachineConnectionPhase } from "@vekrel/client-runtime/connection";
 
 export type ThreadContentPresentation =
   | { readonly kind: "ready" }
@@ -13,7 +13,7 @@ export function projectThreadContentPresentation(input: {
   readonly hasDetail: boolean;
   readonly detailError: string | null;
   readonly detailDeleted: boolean;
-  readonly connectionState: EnvironmentConnectionPhase;
+  readonly connectionState: MachineConnectionPhase;
 }): ThreadContentPresentation {
   if (input.hasDetail) {
     return { kind: "ready" };
@@ -42,6 +42,6 @@ export function projectThreadContentPresentation(input: {
   return {
     kind: "unavailable",
     title: "Messages not cached",
-    detail: "Reconnect this environment to load the conversation.",
+    detail: "Reconnect this machine to load the conversation.",
   };
 }

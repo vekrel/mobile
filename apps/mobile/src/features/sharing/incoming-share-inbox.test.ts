@@ -147,7 +147,7 @@ describe("IncomingShareInbox", () => {
   it("durably reserves a share for one project before draft import", async () => {
     const { inbox, persisted } = createHarness();
     persisted.set("share-stable", draft("share-stable"));
-    const destination = { environmentId: "environment-1", projectId: "project-1" };
+    const destination = { machineId: "machine-1", projectId: "project-1" };
 
     await expect(inbox.reserve("share-stable", destination)).resolves.toEqual([
       { ...draft("share-stable"), destination },
@@ -162,12 +162,12 @@ describe("IncomingShareInbox", () => {
     const { inbox, persisted } = createHarness();
     persisted.set("share-stable", {
       ...draft("share-stable"),
-      destination: { environmentId: "environment-1", projectId: "project-1" },
+      destination: { machineId: "machine-1", projectId: "project-1" },
     });
 
     await expect(
       inbox.reserve("share-stable", {
-        environmentId: "environment-1",
+        machineId: "machine-1",
         projectId: "project-2",
       }),
     ).rejects.toThrow("already reserved");
@@ -176,7 +176,7 @@ describe("IncomingShareInbox", () => {
 
   it("conditionally releases a reservation when its project is unavailable", async () => {
     const { inbox, persisted } = createHarness();
-    const destination = { environmentId: "environment-1", projectId: "project-1" };
+    const destination = { machineId: "machine-1", projectId: "project-1" };
     persisted.set("share-stable", { ...draft("share-stable"), destination });
 
     await expect(inbox.releaseReservation("share-stable", destination)).resolves.toEqual([
@@ -186,13 +186,13 @@ describe("IncomingShareInbox", () => {
 
     await expect(
       inbox.reserve("share-stable", {
-        environmentId: "environment-2",
+        machineId: "machine-2",
         projectId: "project-2",
       }),
     ).resolves.toEqual([
       {
         ...draft("share-stable"),
-        destination: { environmentId: "environment-2", projectId: "project-2" },
+        destination: { machineId: "machine-2", projectId: "project-2" },
       },
     ]);
   });
@@ -201,12 +201,12 @@ describe("IncomingShareInbox", () => {
     const { inbox, persisted } = createHarness();
     persisted.set("share-stable", {
       ...draft("share-stable"),
-      destination: { environmentId: "environment-2", projectId: "project-2" },
+      destination: { machineId: "machine-2", projectId: "project-2" },
     });
 
     await expect(
       inbox.releaseReservation("share-stable", {
-        environmentId: "environment-1",
+        machineId: "machine-1",
         projectId: "project-1",
       }),
     ).rejects.toThrow("reservation changed");
@@ -219,7 +219,7 @@ describe("IncomingShareInbox", () => {
 
     await expect(
       inbox.releaseReservation("share-stable", {
-        environmentId: "environment-1",
+        machineId: "machine-1",
         projectId: "project-1",
       }),
     ).resolves.toEqual([draft("share-other")]);

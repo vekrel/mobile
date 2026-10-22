@@ -1,6 +1,6 @@
 import { Button } from "../../components/ui/Button";
 import { AuthSettingsWriteScope } from "@vekrel/contracts";
-import { readEnvironmentScope, useEnvironmentsWithScope } from "../../state/session";
+import { readMachineScope, useMachinesWithScope } from "../../state/session";
 import { AutoSettleDaysField } from "./components/AutoSettleDaysField";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { useAtomSet, useAtomValue } from "@effect/atom-react";
@@ -18,11 +18,11 @@ import { SettingsProjectOverridesSection } from "./components/SettingsProjectOve
 import { SettingsSwitchRow } from "./components/SettingsSwitchRow";
 import { SettingsScreen } from "./components/SettingsScreen";
 import {
-  AndroidSettingsEnvironmentFilter,
-  SettingsEnvironmentFilterHeader,
-} from "./components/SettingsEnvironmentFilterHeader";
+  AndroidSettingsMachineFilter,
+  SettingsMachineFilterHeader,
+} from "./components/SettingsMachineFilterHeader";
 import { planAutoSettleSettingsSync, type AutoSettleSettings } from "./autoSettleSettingsSync";
-import { useSettingsEnvironmentFilter } from "./settings-environment-filter";
+import { useSettingsMachineFilter } from "./settings-machine-filter";
 import { useSettingsWriter } from "./useSettingsWriter";
 import {
   planMobileScopedSettingsClear,
@@ -37,8 +37,8 @@ export function SettingsThreadsRouteScreen() {
 
   return (
     <>
-      <SettingsEnvironmentFilterHeader />
-      <SettingsScreen title="Thread behavior" trailing={<AndroidSettingsEnvironmentFilter />}>
+      <SettingsMachineFilterHeader />
+      <SettingsScreen title="Thread behavior" trailing={<AndroidSettingsMachineFilter />}>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
@@ -58,9 +58,9 @@ export function SettingsThreadsRouteScreen() {
 const AUTO_SETTLE_DEFAULT_DAYS = DEFAULT_SERVER_SETTINGS.sidebarAutoSettleAfterDays ?? 3;
 
 function AutoSettleSettingsRows() {
-  const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsEnvironmentFilter();
+  const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsMachineFilter();
   const selectedProject = projectGroups.find((group) => group.key === selectedProjectKey);
-  const writableEnvironments = useEnvironmentsWithScope(selectedTargets, AuthSettingsWriteScope);
+  const writableMachines = useMachinesWithScope(selectedTargets, AuthSettingsWriteScope);
   const projectSelected = selectedProjectKey !== null;
   const [pendingWrites, setPendingWrites] = useState(0);
   const writeInFlight = useRef(false);
@@ -69,14 +69,14 @@ function AutoSettleSettingsRows() {
   >(null);
   const writeSettings = useSettingsWriter();
 
-  const syncEnvironments = selectedTargets.filter(supportsSharedSettingsSync);
+  const syncMachines = selectedTargets.filter(supportsSharedSettingsSync);
   const syncTargets = resolveMobileSettingsTargets(
-    syncEnvironments,
+    syncMachines,
     projectSelected ? (selectedProject?.members.map((member) => member.project) ?? []) : null,
   );
   const canWriteSettings =
     syncTargets.length > 0 &&
-    syncTargets.every((target) => writableEnvironments.has(target.environment.environmentId));
+    syncTargets.every((target) => writableMachines.has(target.machine.machineId));
   const displayTargets =
     pendingWrites > 0 && pendingTargets !== null ? pendingTargets : syncTargets;
   const reference = displayTargets[0] ?? null;
@@ -95,7 +95,7 @@ function AutoSettleSettingsRows() {
     if (
       writeInFlight.current ||
       !syncTargets.every((target) =>
-        readEnvironmentScope(target.environment.environmentId, AuthSettingsWriteScope),
+        readMachineScope(target.machine.machineId, AuthSettingsWriteScope),
       )
     )
       return;
@@ -113,21 +113,21 @@ function AutoSettleSettingsRows() {
 
   const { patch: autoSettlePatch, mismatches } = planAutoSettleSettingsSync(
     {
-      environmentId: reference.environment.environmentId,
+      machineId: reference.machine.machineId,
       projectId: reference.projectId,
       settings: referenceSettings,
     },
     displayTargets.map((target) => ({
-      environmentId: target.environment.environmentId,
+      machineId: target.machine.machineId,
       projectId: target.projectId,
-      label: target.environment.label,
+      label: target.machine.label,
       settings: target.settings,
     })),
   );
 
   const supportsProjectOverrides = syncTargets.every(
     (target) =>
-      target.environment.serverConfig.environment.capabilities.projectSettingsOverrides === true,
+      target.machine.serverConfig.machine.capabilities.projectSettingsOverrides === true,
   );
   const disabled =
     !canWriteSettings || pendingWrites > 0 || (projectSelected && !supportsProjectOverrides);
@@ -142,7 +142,7 @@ function AutoSettleSettingsRows() {
     if (
       writeInFlight.current ||
       !syncTargets.every((target) =>
-        readEnvironmentScope(target.environment.environmentId, AuthSettingsWriteScope),
+        readMachineScope(target.machine.machineId, AuthSettingsWriteScope),
       )
     )
       return;
@@ -223,7 +223,7 @@ function AutoSettleSettingsRows() {
         ) : null}
       </SettingsSection>
       {pendingWrites === 0 && mismatches.length > 0 ? (
-        <SettingsSection title="Across environments">
+        <SettingsSection title="Across machines">
           <View className="gap-3 p-4">
             <Text className="text-base text-foreground">Auto-settle defaults differ</Text>
             <Text className="text-sm text-foreground-muted">

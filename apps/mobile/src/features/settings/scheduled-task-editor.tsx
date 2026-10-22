@@ -1,5 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import {
   createContext,
   use,
@@ -17,8 +17,8 @@ import {
   hasScheduledTaskDraftChanges,
   type ScheduledTaskDraft,
 } from "./scheduledTaskDraft";
-import { useSettingsEnvironmentFilter } from "./settings-environment-filter";
-import { settingsTargetsForProject } from "./settings-environment-filter.logic";
+import { useSettingsMachineFilter } from "./settings-machine-filter";
+import { settingsTargetsForProject } from "./settings-machine-filter.logic";
 
 import {
   scheduledTaskEditorSessionAtom,
@@ -36,12 +36,12 @@ const ScheduledTaskEditorContext = createContext<{
   readonly startEditor: (editor: ScheduledTaskEditor | null) => void;
   readonly hasChanges: boolean;
   readonly resetEditor: () => void;
-  readonly draftForEnvironment: (environmentId: EnvironmentId) => ScheduledTaskDraft;
+  readonly draftForMachine: (machineId: MachineId) => ScheduledTaskDraft;
 } | null>(null);
 
 /** Keeps the form draft alive while its native picker routes are on top. */
 export function ScheduledTaskEditorProvider({ children }: { readonly children: ReactNode }) {
-  const { selectedTargets, selectedProjectKey, projectGroups } = useSettingsEnvironmentFilter();
+  const { selectedTargets, selectedProjectKey, projectGroups } = useSettingsMachineFilter();
   const selectedGroup = projectGroups.find((group) => group.key === selectedProjectKey);
   const configs = useServerConfigs();
   const projects = useProjects();
@@ -49,36 +49,36 @@ export function ScheduledTaskEditorProvider({ children }: { readonly children: R
     selectedTargets,
     selectedProjectKey === null ? null : selectedGroup,
   )[0];
-  const draftForEnvironment = useCallback(
-    (environmentId: EnvironmentId) => {
-      const environmentProjects = projects.filter(
-        (project) => project.environmentId === environmentId,
+  const draftForMachine = useCallback(
+    (machineId: MachineId) => {
+      const machineProjects = projects.filter(
+        (project) => project.machineId === machineId,
       );
       const project =
-        environmentProjects.find((project) =>
+        machineProjects.find((project) =>
           selectedGroup?.members.some(
             (member) =>
-              member.project.environmentId === environmentId && member.project.id === project.id,
+              member.project.machineId === machineId && member.project.id === project.id,
           ),
-        ) ?? environmentProjects[0];
+        ) ?? machineProjects[0];
       return createDraft(
         project?.id ?? null,
-        scheduledTaskDefaultModel(configs.get(environmentId) ?? null, project ?? null),
+        scheduledTaskDefaultModel(configs.get(machineId) ?? null, project ?? null),
       );
     },
     [configs, projects, selectedGroup],
   );
-  // Direct links can open the new-task form before environments have connected.
+  // Direct links can open the new-task form before machines have connected.
   const defaultEditor = useMemo(
     () =>
       defaultTarget
         ? {
-            environmentId: defaultTarget.environmentId,
-            environmentLabel: defaultTarget.label,
-            draft: draftForEnvironment(defaultTarget.environmentId),
+            machineId: defaultTarget.machineId,
+            machineLabel: defaultTarget.label,
+            draft: draftForMachine(defaultTarget.machineId),
           }
         : null,
-    [defaultTarget, draftForEnvironment],
+    [defaultTarget, draftForMachine],
   );
   const session = useAtomValue(scheduledTaskEditorSessionAtom);
   const voiceOwnerKey = `scheduled-task:${session?.id ?? 0}`;
@@ -87,7 +87,7 @@ export function ScheduledTaskEditorProvider({ children }: { readonly children: R
   const hasChanges = Boolean(
     initial &&
     editor &&
-    (initial.environmentId !== editor.environmentId ||
+    (initial.machineId !== editor.machineId ||
       hasScheduledTaskDraftChanges(initial.draft, editor.draft)),
   );
   const setEditor = useCallback<Dispatch<SetStateAction<ScheduledTaskEditor | null>>>(
@@ -111,7 +111,7 @@ export function ScheduledTaskEditorProvider({ children }: { readonly children: R
       startEditor,
       hasChanges,
       resetEditor,
-      draftForEnvironment,
+      draftForMachine,
     }),
     [
       editor,
@@ -121,7 +121,7 @@ export function ScheduledTaskEditorProvider({ children }: { readonly children: R
       startEditor,
       hasChanges,
       resetEditor,
-      draftForEnvironment,
+      draftForMachine,
     ],
   );
   return <ScheduledTaskEditorContext value={value}>{children}</ScheduledTaskEditorContext>;

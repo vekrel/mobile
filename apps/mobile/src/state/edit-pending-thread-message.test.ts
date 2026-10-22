@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { CommandId, EnvironmentId, MessageId, ThreadId } from "@vekrel/contracts";
+import { CommandId, MachineId, MessageId, ThreadId } from "@vekrel/contracts";
 import type { QueuedThreadMessage } from "./thread-outbox-model";
 
 const state = vi.hoisted(() => ({
@@ -48,7 +48,7 @@ vi.mock("./use-composer-drafts", () => ({
 import { editPendingThreadMessage } from "./edit-pending-thread-message";
 
 const message: QueuedThreadMessage = {
-  environmentId: EnvironmentId.make("env"),
+  machineId: MachineId.make("env"),
   threadId: ThreadId.make("thread"),
   messageId: MessageId.make("message"),
   commandId: CommandId.make("command"),

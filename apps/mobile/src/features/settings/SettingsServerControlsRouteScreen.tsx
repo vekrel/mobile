@@ -1,7 +1,7 @@
 import { useNavigation } from "@react-navigation/native";
 import { SettingsRow } from "./components/SettingsRow";
 import { AuthSettingsWriteScope } from "@vekrel/contracts";
-import { readEnvironmentScope, useEnvironmentsWithScope } from "../../state/session";
+import { readMachineScope, useMachinesWithScope } from "../../state/session";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { AppText as Text } from "../../components/ui/AppText";
 import {
@@ -20,16 +20,16 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { RUNTIME_MODE_CHOICES } from "../threads/thread-settings-options";
 import { SettingsScreen } from "./components/SettingsScreen";
 import {
-  AndroidSettingsEnvironmentFilter,
-  SettingsEnvironmentFilterHeader,
-} from "./components/SettingsEnvironmentFilterHeader";
+  AndroidSettingsMachineFilter,
+  SettingsMachineFilterHeader,
+} from "./components/SettingsMachineFilterHeader";
 import { BranchNamingSettings } from "./components/BranchNamingSettings";
 import { DatabaseStorageNotice } from "./components/DatabaseStorageNotice";
 import { SettingsChoiceRow } from "./components/SettingsChoiceRow";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsSwitchRow } from "./components/SettingsSwitchRow";
 import { SettingsProjectOverridesSection } from "./components/SettingsProjectOverridesSection";
-import { useSettingsEnvironmentFilter } from "./settings-environment-filter";
+import { useSettingsMachineFilter } from "./settings-machine-filter";
 import { useSettingsWriter } from "./useSettingsWriter";
 import {
   planMobileScopedSettingsClear,
@@ -121,28 +121,28 @@ const STREAMING_CHOICES: ReadonlyArray<{
   },
 ];
 
-export function SettingsEnvironmentNewThreadsRouteScreen() {
+export function SettingsMachineNewThreadsRouteScreen() {
   return <ServerSettingsDetail page="new-threads" />;
 }
 
-export function SettingsEnvironmentSourceControlRouteScreen() {
+export function SettingsMachineSourceControlRouteScreen() {
   return <ServerSettingsDetail page="source-control" />;
 }
 
-export function SettingsEnvironmentAgentBehaviorRouteScreen() {
+export function SettingsMachineAgentBehaviorRouteScreen() {
   return <ServerSettingsDetail page="agent-behavior" />;
 }
 
-export function SettingsEnvironmentMaintenanceRouteScreen() {
+export function SettingsMachineMaintenanceRouteScreen() {
   return <ServerSettingsDetail page="maintenance" />;
 }
 
 function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsEnvironmentFilter();
+  const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsMachineFilter();
   const selectedProject = projectGroups.find((group) => group.key === selectedProjectKey);
-  const writableEnvironments = useEnvironmentsWithScope(selectedTargets, AuthSettingsWriteScope);
+  const writableMachines = useMachinesWithScope(selectedTargets, AuthSettingsWriteScope);
   const projectSelected = selectedProjectKey !== null;
   const targets = resolveMobileSettingsTargets(
     selectedTargets,
@@ -154,14 +154,14 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
   // the controls disabled. Those patches run once the current write settles.
   const queuedPatch = useRef<{ key: string; patch: ServerSettingsPatch } | null>(null);
   const targetsKey = targets
-    .map((target) => `${target.environment.environmentId}:${target.projectId}`)
+    .map((target) => `${target.machine.machineId}:${target.projectId}`)
     .join(",");
   const [pendingTargets, setPendingTargets] = useState<
     readonly ScopedMobileSettingsTarget[] | null
   >(null);
   const canWriteSettings =
     targets.length > 0 &&
-    targets.every((target) => writableEnvironments.has(target.environment.environmentId));
+    targets.every((target) => writableMachines.has(target.machine.machineId));
   const displayTargets = pendingWrites > 0 && pendingTargets !== null ? pendingTargets : targets;
   const hasConnectedSelection = targets.length > 0;
   const reference = displayTargets[0] ?? null;
@@ -184,7 +184,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
     if (
       !hasConnectedSelection ||
       !targets.every((target) =>
-        readEnvironmentScope(target.environment.environmentId, AuthSettingsWriteScope),
+        readMachineScope(target.machine.machineId, AuthSettingsWriteScope),
       )
     )
       return;
@@ -208,7 +208,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
     if (
       writeInFlight.current ||
       !targets.every((target) =>
-        readEnvironmentScope(target.environment.environmentId, AuthSettingsWriteScope),
+        readMachineScope(target.machine.machineId, AuthSettingsWriteScope),
       )
     )
       return;
@@ -227,7 +227,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
   };
   const supportsProjectOverrides = targets.every(
     (target) =>
-      target.environment.serverConfig.environment.capabilities.projectSettingsOverrides === true,
+      target.machine.serverConfig.machine.capabilities.projectSettingsOverrides === true,
   );
   const disabled =
     !canWriteSettings ||
@@ -236,7 +236,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
     (projectSelected && !supportsProjectOverrides);
   const supportsContinuation = targets.every(
     (target) =>
-      target.environment.serverConfig.environment.capabilities.threadRestartContinuation === true,
+      target.machine.serverConfig.machine.capabilities.threadRestartContinuation === true,
   );
   const disabledFor = (key: string) =>
     disabled ||
@@ -247,10 +247,10 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
 
   return (
     <>
-      <SettingsEnvironmentFilterHeader />
+      <SettingsMachineFilterHeader />
       <SettingsScreen
         title={PAGE_TITLES[props.page]}
-        trailing={<AndroidSettingsEnvironmentFilter />}
+        trailing={<AndroidSettingsMachineFilter />}
       >
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
@@ -262,8 +262,8 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
           {!hasConnectedSelection || reference === null ? (
             <Text className="px-2 text-base text-foreground-muted">
               {projectSelected
-                ? "Select a project with a checkout on a connected environment."
-                : "Use the filter above to select a connected environment."}
+                ? "Select a project with a checkout on a connected machine."
+                : "Use the filter above to select a connected machine."}
             </Text>
           ) : (
             <>
@@ -438,15 +438,15 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                     <DatabaseStorageNotice
                       targets={selectedTargets.filter(
                         (target) =>
-                          target.serverConfig.environment.capabilities.databaseStorage === true,
+                          target.serverConfig.machine.capabilities.databaseStorage === true,
                       )}
                     />
                   ) : null}
                   {!projectSelected ? (
-                    <SettingsSection title="Manage environments">
+                    <SettingsSection title="Manage machines">
                       {selectedTargets.map((target) => (
                         <SettingsRow
-                          key={target.environmentId}
+                          key={target.machineId}
                           icon="server.rack"
                           label={target.label}
                           value="Server and provider updates"
@@ -454,8 +454,8 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                             navigation.navigate("SettingsSheet", {
                               screen: "SettingsContent",
                               params: {
-                                screen: "SettingsEnvironmentDetail",
-                                params: { environmentId: target.environmentId },
+                                screen: "SettingsMachineDetail",
+                                params: { machineId: target.machineId },
                               },
                             })
                           }
@@ -469,7 +469,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
                       label="Check provider updates"
                       subtitle={
                         projectSelected
-                          ? "Environment-wide setting. Select All projects to change it."
+                          ? "Machine-wide setting. Select All projects to change it."
                           : "Check installed provider CLIs for newer versions and fetch model catalog updates. When off, new models may not appear."
                       }
                       value={uniform("enableProviderUpdateChecks")}
@@ -511,7 +511,7 @@ function MixedValuesLabel(props: { readonly projectSelected: boolean }) {
       accessibilityLabel={
         props.projectSelected
           ? "Selected project checkouts use different values"
-          : "Selected environments use different values"
+          : "Selected machines use different values"
       }
       className="px-2 text-sm text-foreground-muted android:px-4"
     >

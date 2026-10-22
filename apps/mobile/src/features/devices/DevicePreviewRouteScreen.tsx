@@ -7,7 +7,7 @@ import {
   deviceToolUpdatePolicy,
 } from "@vekrel/client-runtime/state/device";
 import { useIsFocused, useNavigation, type StaticScreenProps } from "@react-navigation/native";
-import { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import { MachineId, ThreadId } from "@vekrel/contracts";
 import * as Cause from "effect/Cause";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import * as Haptics from "expo-haptics";
@@ -29,8 +29,8 @@ import {
 import type { AppBarMenuItem } from "../../components/ui/AppBar.types";
 import { deriveBottomControlInsets } from "../../lib/reserved-regions";
 import { useNativeColumnLayoutMetrics } from "../../native/native-layout-metrics";
-import { deviceEnvironment, refreshDeviceHubAccess, useDeviceHubAccess } from "../../state/device";
-import { useEnvironmentQuery } from "../../state/query";
+import { deviceMachine, refreshDeviceHubAccess, useDeviceHubAccess } from "../../state/device";
+import { useMachineQuery } from "../../state/query";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { DeviceStreamWebView, type DeviceStreamRef } from "./DeviceStreamWebView";
@@ -45,22 +45,22 @@ const OVERLAY_ENTERING = FadeIn.duration(160).reduceMotion(ReduceMotion.System);
 const OVERLAY_EXITING = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
 
 type DevicePreviewRouteScreenProps = StaticScreenProps<{
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly threadId: string;
 }>;
 
 export function DevicePreviewRouteScreen({ route }: DevicePreviewRouteScreenProps) {
   const navigation = useNavigation();
   const onClose = () => navigation.goBack();
-  const { environmentId, threadId } = route.params;
-  const isBlankLink = environmentId.trim().length === 0 || threadId.trim().length === 0;
+  const { machineId, threadId } = route.params;
+  const isBlankLink = machineId.trim().length === 0 || threadId.trim().length === 0;
   useEffect(() => {
     if (isBlankLink) onClose();
   }, [isBlankLink, onClose]);
   if (isBlankLink) return null;
   return (
     <DevicePreviewScreen
-      environmentId={EnvironmentId.make(environmentId)}
+      machineId={MachineId.make(machineId)}
       threadId={ThreadId.make(threadId)}
       onClose={onClose}
     />
@@ -68,11 +68,11 @@ export function DevicePreviewRouteScreen({ route }: DevicePreviewRouteScreenProp
 }
 
 function DevicePreviewScreen({
-  environmentId,
+  machineId,
   threadId,
   onClose,
 }: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly onClose: () => void;
 }) {
@@ -87,10 +87,10 @@ function DevicePreviewScreen({
   const [streamAttempt, setStreamAttempt] = useState(0);
   const [shuttingDown, setShuttingDown] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const retryHost = useAtomCommand(deviceEnvironment.list);
-  const shutdown = useAtomCommand(deviceEnvironment.shutdown, { reportFailure: false });
+  const retryHost = useAtomCommand(deviceMachine.list);
+  const shutdown = useAtomCommand(deviceMachine.shutdown, { reportFailure: false });
   const streamRef = useRef<DeviceStreamRef>(null);
-  const state = useEnvironmentQuery(deviceEnvironment.state({ environmentId, input: {} }));
+  const state = useMachineQuery(deviceMachine.state({ machineId, input: {} }));
   const previews = threadDevicePreviews(state.data, threadId);
   const preview = selectedThreadDevicePreview(previews, selectedKey);
   const onInputConnected = async (connected: boolean) => {
@@ -130,7 +130,7 @@ function DevicePreviewScreen({
     if (!preview || shuttingDown) return;
     setShuttingDown(true);
     const result = await shutdown({
-      environmentId,
+      machineId,
       input: {
         hostId: preview.session.hostId,
         deviceId: preview.session.deviceId,
@@ -153,7 +153,7 @@ function DevicePreviewScreen({
         title: `Retry ${host.label}`,
         icon: "arrow.clockwise" as const,
         onPress: () => {
-          void retryHost({ environmentId, input: { retryHostId: host.id } });
+          void retryHost({ machineId, input: { retryHostId: host.id } });
         },
       })) ?? []),
     ...(state.data?.supportsToolInspection
@@ -163,7 +163,7 @@ function DevicePreviewScreen({
             title: "Check device tool versions",
             icon: "arrow.clockwise" as const,
             onPress: () => {
-              void retryHost({ environmentId, input: { inspectOnly: true } });
+              void retryHost({ machineId, input: { inspectOnly: true } });
             },
           },
         ]
@@ -264,7 +264,7 @@ function DevicePreviewScreen({
       {preview && focused && foreground ? (
         <OpenDevicePreview
           key={`${preview.key}:${streamAttempt}`}
-          environmentId={environmentId}
+          machineId={machineId}
           preview={preview}
           streamRef={streamRef}
           onInputConnected={onInputConnected}
@@ -358,24 +358,24 @@ function DeviceOptionsMenu({ items }: { readonly items: ReadonlyArray<AppBarMenu
 }
 
 function OpenDevicePreview({
-  environmentId,
+  machineId,
   preview,
   streamRef,
   onInputConnected,
 }: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly preview: ThreadDevicePreview;
   readonly streamRef: RefObject<DeviceStreamRef | null>;
   readonly onInputConnected: (connected: boolean) => Promise<void>;
 }) {
   const { session } = preview;
   const { themeVariables } = useAppearancePreferences();
-  const { access, error, refresh } = useDeviceHubAccess(environmentId, session.hostId);
-  const onUnauthorized = async () => refreshDeviceHubAccess(environmentId);
+  const { access, error, refresh } = useDeviceHubAccess(machineId, session.hostId);
+  const onUnauthorized = async () => refreshDeviceHubAccess(machineId);
   useEffect(() => {
-    refreshDeviceHubAccess(environmentId);
+    refreshDeviceHubAccess(machineId);
     return () => void onInputConnected(false);
-  }, [environmentId, onInputConnected]);
+  }, [machineId, onInputConnected]);
   return access ? (
     <DeviceStreamWebView
       ref={streamRef}

@@ -3,7 +3,7 @@ import type { FilePreviewItem, FilePreviewSource } from "../components/FilePrevi
 export function filePreviewKey(source: FilePreviewItem): string {
   if ("resource" in source)
     return JSON.stringify([
-      source.environmentId,
+      source.machineId,
       Object.entries(source.resource)
         .filter(([key]) => key !== "mimeType" && key !== "fileName")
         .sort(([a], [b]) => a.localeCompare(b)),

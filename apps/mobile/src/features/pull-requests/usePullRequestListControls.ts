@@ -10,38 +10,38 @@ export function usePullRequestListControls() {
   const saved = AsyncResult.isSuccess(preferences)
     ? preferences.value.pullRequestListFilters
     : undefined;
-  const environmentId = saved?.environmentId ?? null;
-  const controlsFor = (environment: string | null) =>
-    saved?.controls[environment ?? ""] ?? DEFAULT_PR_LIST_CONTROLS;
-  const setEnvironmentId = (next: string | null) =>
+  const machineId = saved?.machineId ?? null;
+  const controlsFor = (machine: string | null) =>
+    saved?.controls[machine ?? ""] ?? DEFAULT_PR_LIST_CONTROLS;
+  const setMachineId = (next: string | null) =>
     savePreferences({
       transform: (current) => ({
         pullRequestListFilters: {
           controls: current.pullRequestListFilters?.controls ?? {},
-          environmentId: next,
+          machineId: next,
         },
       }),
     });
-  const setControls = (environment: string | null, controls: PullRequestListControls) =>
+  const setControls = (machine: string | null, controls: PullRequestListControls) =>
     savePreferences({
       transform: (current) => ({
         pullRequestListFilters: {
-          environmentId: current.pullRequestListFilters?.environmentId ?? null,
-          controls: withEnvironmentControls(
+          machineId: current.pullRequestListFilters?.machineId ?? null,
+          controls: withMachineControls(
             current.pullRequestListFilters?.controls,
-            environment ?? "",
+            machine ?? "",
             controls,
           ),
         },
       }),
     });
-  return { environmentId, controlsFor, setEnvironmentId, setControls } as const;
+  return { machineId, controlsFor, setMachineId, setControls } as const;
 }
 
-function withEnvironmentControls(
+function withMachineControls(
   saved: Readonly<Record<string, PullRequestListControls>> | undefined,
-  environment: string,
+  machine: string,
   controls: PullRequestListControls,
 ): Record<string, PullRequestListControls> {
-  return { ...saved, [environment]: controls };
+  return { ...saved, [machine]: controls };
 }

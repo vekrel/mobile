@@ -1,4 +1,4 @@
-import type { EnvironmentId, RunId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, RunId, ThreadId } from "@vekrel/contracts";
 import { assistantCitationsToPlainText } from "@vekrel/shared/assistantCitations";
 
 export const REMOVE_QUEUED_MESSAGE_ACCESSIBILITY_LABEL = "Remove queued message";
@@ -43,18 +43,18 @@ export function resolveThreadQueueRowControls(input: {
 }
 
 export function buildCancelQueuedRunCommand(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly runId: RunId;
   readonly threadId: ThreadId;
 }): {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly input: {
     readonly runId: RunId;
     readonly threadId: ThreadId;
   };
 } {
   return {
-    environmentId: input.environmentId,
+    machineId: input.machineId,
     input: {
       runId: input.runId,
       threadId: input.threadId,

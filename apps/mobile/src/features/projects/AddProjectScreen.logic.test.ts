@@ -1,22 +1,22 @@
-import type { EnvironmentConnectionPhase } from "@vekrel/client-runtime/connection";
-import { EnvironmentId } from "@vekrel/contracts";
+import type { MachineConnectionPhase } from "@vekrel/client-runtime/connection";
+import { MachineId } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { resolveAddProjectEnvironment } from "./AddProjectScreen.logic";
+import { resolveAddProjectMachine } from "./AddProjectScreen.logic";
 
-const ENVIRONMENT_A = EnvironmentId.make("environment-a");
-const ENVIRONMENT_B = EnvironmentId.make("environment-b");
+const MACHINE_A = MachineId.make("machine-a");
+const MACHINE_B = MachineId.make("machine-b");
 
-function environment(environmentId: EnvironmentId, connectionState: EnvironmentConnectionPhase) {
-  return { environmentId, connectionState };
+function machine(machineId: MachineId, connectionState: MachineConnectionPhase) {
+  return { machineId, connectionState };
 }
 
-describe("resolveAddProjectEnvironment", () => {
-  it("does not redirect an explicit unavailable environment to another environment", () => {
+describe("resolveAddProjectMachine", () => {
+  it("does not redirect an explicit unavailable machine to another machine", () => {
     expect(
-      resolveAddProjectEnvironment(
-        [environment(ENVIRONMENT_A, "offline"), environment(ENVIRONMENT_B, "connected")],
-        ENVIRONMENT_A,
+      resolveAddProjectMachine(
+        [machine(MACHINE_A, "offline"), machine(MACHINE_B, "connected")],
+        MACHINE_A,
       ),
     ).toBeNull();
   });

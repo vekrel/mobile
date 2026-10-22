@@ -1,4 +1,4 @@
-import type { EnvironmentId, SidebarProjectGroupingMode } from "@vekrel/contracts";
+import type { MachineId, SidebarProjectGroupingMode } from "@vekrel/contracts";
 import { DEFAULT_SIDEBAR_PROJECT_SORT_ORDER } from "@vekrel/contracts";
 import { useAtomSet } from "@effect/atom-react";
 import {
@@ -18,7 +18,7 @@ import { updateMobilePreferencesAtom } from "../../state/preferences";
 import type { HomeProjectSortOrder } from "./homeThreadList";
 
 export interface HomeListOptions {
-  readonly selectedEnvironmentId: EnvironmentId | null;
+  readonly selectedMachineId: MachineId | null;
   readonly selectedProjectKey: string | null;
   readonly projectSortOrder: HomeProjectSortOrder;
 }
@@ -29,7 +29,7 @@ export interface ResolvedHomeListOptions extends HomeListOptions {
 
 function defaultHomeListOptions(filters?: ThreadListFilters): HomeListOptions {
   return {
-    selectedEnvironmentId: filters?.environmentId ?? null,
+    selectedMachineId: filters?.machineId ?? null,
     selectedProjectKey: filters?.projectKey ?? null,
     projectSortOrder:
       DEFAULT_SIDEBAR_PROJECT_SORT_ORDER === "manual"
@@ -57,41 +57,41 @@ export function HomeListOptionsProvider({
   const [options, setOptions] = useState(() => defaultHomeListOptions(savedFilters));
   const savePreferences = useAtomSet(updateMobilePreferencesAtom);
   const saved = useRef(savedFilters);
-  const { selectedEnvironmentId: environmentId, selectedProjectKey: projectKey } = options;
+  const { selectedMachineId: machineId, selectedProjectKey: projectKey } = options;
   useEffect(() => {
     if (
-      (saved.current?.environmentId ?? null) === environmentId &&
+      (saved.current?.machineId ?? null) === machineId &&
       (saved.current?.projectKey ?? null) === projectKey
     )
       return;
-    saved.current = { environmentId, projectKey };
+    saved.current = { machineId, projectKey };
     savePreferences({ threadListFilters: saved.current });
-  }, [environmentId, projectKey, savePreferences]);
+  }, [machineId, projectKey, savePreferences]);
   const value = { options, setOptions, projectGroupingMode };
   return createElement(HomeListOptionsContext, { value }, children);
 }
 
-export function useHomeListOptions(availableEnvironmentIds: ReadonlySet<EnvironmentId>) {
+export function useHomeListOptions(availableMachineIds: ReadonlySet<MachineId>) {
   const shared = useContext(HomeListOptionsContext);
   const [localOptions, setLocalOptions] = useState<HomeListOptions>(defaultHomeListOptions);
   const options = shared?.options ?? localOptions;
   const setOptions = shared?.setOptions ?? setLocalOptions;
-  const selectedEnvironmentId =
-    options.selectedEnvironmentId !== null &&
-    availableEnvironmentIds.has(options.selectedEnvironmentId)
-      ? options.selectedEnvironmentId
+  const selectedMachineId =
+    options.selectedMachineId !== null &&
+    availableMachineIds.has(options.selectedMachineId)
+      ? options.selectedMachineId
       : null;
   const availableOptions =
-    selectedEnvironmentId === options.selectedEnvironmentId
+    selectedMachineId === options.selectedMachineId
       ? options
-      : { ...options, selectedEnvironmentId };
+      : { ...options, selectedMachineId };
   const resolvedOptions: ResolvedHomeListOptions = {
     ...availableOptions,
     projectGroupingMode: shared?.projectGroupingMode ?? "repository",
   };
 
-  const setSelectedEnvironmentId = (value: EnvironmentId | null) => {
-    setOptions((current) => ({ ...current, selectedEnvironmentId: value }));
+  const setSelectedMachineId = (value: MachineId | null) => {
+    setOptions((current) => ({ ...current, selectedMachineId: value }));
   };
   const setSelectedProjectKey = (value: string | null) => {
     setOptions((current) => ({ ...current, selectedProjectKey: value }));
@@ -101,7 +101,7 @@ export function useHomeListOptions(availableEnvironmentIds: ReadonlySet<Environm
   };
   return {
     options: resolvedOptions,
-    setSelectedEnvironmentId,
+    setSelectedMachineId,
     setSelectedProjectKey,
     setProjectSortOrder,
   } as const;

@@ -1,14 +1,14 @@
 import { useMemo } from "react";
 
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import {
   normalizeProviderAccentColor,
   resolveProviderInstanceDisplayName,
   shouldShowInstanceBadge,
 } from "@vekrel/client-runtime/state/provider-instance-display";
-import type { EnvironmentId, ProviderDriverKind } from "@vekrel/contracts";
+import type { MachineId, ProviderDriverKind } from "@vekrel/contracts";
 
-import type { ThreadListProvider } from "../../state/thread-list-environments";
+import type { ThreadListProvider } from "../../state/thread-list-machines";
 export interface ThreadRowProviderInstance {
   readonly driverKind: ProviderDriverKind;
   readonly displayName: string;
@@ -18,12 +18,12 @@ export interface ThreadRowProviderInstance {
 
 /**
  * Resolve the provider instance a thread runs on, scoped to the thread's own
- * environment: default instance ids are the driver slug, so the same id
+ * machine: default instance ids are the driver slug, so the same id
  * names a different account on every server.
  */
 export function resolveThreadProviderInstance(
   providers: ReadonlyArray<ThreadListProvider> | undefined,
-  thread: EnvironmentThreadShell,
+  thread: MachineThreadShell,
 ): ThreadRowProviderInstance | null {
   if (providers === undefined) return null;
   const instanceId = thread.runtime?.providerInstanceId ?? thread.modelSelection.instanceId;
@@ -46,21 +46,21 @@ export function resolveThreadProviderInstance(
 /**
  * `resolveThreadProviderInstance` builds a fresh object per call, which breaks
  * the memoized row's props comparison on every parent render — the result only
- * depends on (environment, instance id), so one cache per provider-list
+ * depends on (machine, instance id), so one cache per provider-list
  * generation keeps each row's `providerInstance` prop stable until the instance
  * behind the row actually changes.
  */
 export function createThreadRowProviderInstanceResolver(
-  providersByEnvironmentId: ReadonlyMap<EnvironmentId, ReadonlyArray<ThreadListProvider>>,
-): (thread: EnvironmentThreadShell) => ThreadRowProviderInstance | null {
+  providersByMachineId: ReadonlyMap<MachineId, ReadonlyArray<ThreadListProvider>>,
+): (thread: MachineThreadShell) => ThreadRowProviderInstance | null {
   const cache = new Map<string, ThreadRowProviderInstance | null>();
   return (thread) => {
     const instanceId = thread.runtime?.providerInstanceId ?? thread.modelSelection.instanceId;
-    const cacheKey = `${thread.environmentId}|${instanceId ?? ""}`;
+    const cacheKey = `${thread.machineId}|${instanceId ?? ""}`;
     const cached = cache.get(cacheKey);
     if (cached !== undefined) return cached;
     const resolved = resolveThreadProviderInstance(
-      providersByEnvironmentId.get(thread.environmentId),
+      providersByMachineId.get(thread.machineId),
       thread,
     );
     cache.set(cacheKey, resolved);
@@ -69,10 +69,10 @@ export function createThreadRowProviderInstanceResolver(
 }
 
 export function useThreadRowProviderInstanceResolver(
-  providersByEnvironmentId: ReadonlyMap<EnvironmentId, ReadonlyArray<ThreadListProvider>>,
-): (thread: EnvironmentThreadShell) => ThreadRowProviderInstance | null {
+  providersByMachineId: ReadonlyMap<MachineId, ReadonlyArray<ThreadListProvider>>,
+): (thread: MachineThreadShell) => ThreadRowProviderInstance | null {
   return useMemo(
-    () => createThreadRowProviderInstanceResolver(providersByEnvironmentId),
-    [providersByEnvironmentId],
+    () => createThreadRowProviderInstanceResolver(providersByMachineId),
+    [providersByMachineId],
   );
 }

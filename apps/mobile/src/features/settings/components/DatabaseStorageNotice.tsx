@@ -3,8 +3,8 @@ import { AsyncResult } from "effect/reactivity";
 
 import { copyTextWithHaptic } from "../../../lib/copyTextWithHaptic";
 import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../../../state/preferences";
-import { serverEnvironment } from "../../../state/server";
-import type { SettingsTarget } from "../settings-environment-filter";
+import { serverMachine } from "../../../state/server";
+import type { SettingsTarget } from "../settings-machine-filter";
 import { SettingsActionRow } from "./SettingsActionRow";
 import { SettingsSection } from "./SettingsSection";
 
@@ -15,8 +15,8 @@ export function DatabaseStorageNotice({
   readonly targets: readonly SettingsTarget[];
 }) {
   const recommendations = useAtomValue(
-    serverEnvironment.databaseCompactionRecommendations(
-      JSON.stringify(targets.map((target) => target.environmentId)),
+    serverMachine.databaseCompactionRecommendations(
+      JSON.stringify(targets.map((target) => target.machineId)),
     ),
   );
   const preferences = useAtomValue(mobilePreferencesAtom);
@@ -25,19 +25,19 @@ export function DatabaseStorageNotice({
     ? (preferences.value.dismissedDatabaseStorageNotices ?? [])
     : [];
   const visible = recommendations.filter(
-    (recommendation) => !dismissed.includes(recommendation.environmentId),
+    (recommendation) => !dismissed.includes(recommendation.machineId),
   );
   if (visible.length === 0) return null;
   return (
     <SettingsSection
       title="Reclaim database space"
-      footer="Old history is cleaned up automatically, but these databases still hold the freed space. Run the command on each machine to return it to disk; it pauses and restarts the background service. Quit the desktop app first if it hosts the environment."
+      footer="Old history is cleaned up automatically, but these databases still hold the freed space. Run the command on each machine to return it to disk; it pauses and restarts the background service. Quit the desktop app first if it hosts the machine."
     >
-      {visible.map(({ environmentId, status }) => (
+      {visible.map(({ machineId, status }) => (
         <SettingsActionRow
-          key={environmentId}
+          key={machineId}
           icon="doc.on.doc"
-          label={targets.find((target) => target.environmentId === environmentId)?.label ?? ""}
+          label={targets.find((target) => target.machineId === machineId)?.label ?? ""}
           description={status.compactCommand}
           detail={`${(status.reclaimableBytes / 1024 ** 3).toFixed(1)} GiB`}
           onPress={() => copyTextWithHaptic(status.compactCommand, { target: "command" })}
@@ -52,7 +52,7 @@ export function DatabaseStorageNotice({
               dismissedDatabaseStorageNotices: [
                 ...new Set([
                   ...(current.dismissedDatabaseStorageNotices ?? []),
-                  ...visible.map((recommendation) => recommendation.environmentId),
+                  ...visible.map((recommendation) => recommendation.machineId),
                 ]),
               ],
             }),

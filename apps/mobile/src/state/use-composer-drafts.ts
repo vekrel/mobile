@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import {
-  EnvironmentId as EnvironmentIdSchema,
+  MachineId as MachineIdSchema,
   ModelSelection as ModelSelectionSchema,
   ComposerContextId,
   ComposerContextRecord,
@@ -12,7 +12,7 @@ import {
   ProviderInteractionMode as ProviderInteractionModeSchema,
   ProviderOptionSelection as ProviderOptionSelectionSchema,
   RuntimeMode as RuntimeModeSchema,
-  type EnvironmentId,
+  type MachineId,
   type ModelSelection,
   type ProjectId,
   type ProviderInteractionMode,
@@ -24,10 +24,10 @@ import * as Schema from "effect/Schema";
 import { useEffect } from "react";
 import { AsyncResult, Atom, type AtomRegistry } from "effect/reactivity";
 import * as Option from "effect/Option";
-import { parseScopedThreadKey, scopedThreadKey } from "@vekrel/client-runtime/environment";
+import { parseScopedThreadKey, scopedThreadKey } from "@vekrel/client-runtime/machine";
 import type {
-  EnvironmentShellState,
-  EnvironmentThreadShell,
+  MachineShellState,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import { draftModelPickMatchesThread } from "@vekrel/shared/model";
 
@@ -66,7 +66,7 @@ import {
   type QueuedThreadMessage,
 } from "./thread-outbox-model";
 import { flushThreadOutbox, threadOutboxManager } from "./thread-outbox";
-import { composerDraftEnvironmentId } from "../lib/composerAttachmentUploadQueue";
+import { composerDraftMachineId } from "../lib/composerAttachmentUploadQueue";
 
 const COMPOSER_DRAFTS_SCHEMA_VERSION = 1;
 const COMPOSER_DRAFTS_DIRECTORY = "composer-drafts";
@@ -236,7 +236,7 @@ export function createComposerDraftContextHistory() {
         const saved = files.get(record.attachmentId)?.attachment;
         liveIds.add(record.attachmentId);
         return saved
-          ? [{ ...saved, uploadedAttachmentId: undefined, uploadEnvironmentId: undefined }]
+          ? [{ ...saved, uploadedAttachmentId: undefined, uploadMachineId: undefined }]
           : [];
       });
       return { context, attachments };
@@ -344,7 +344,7 @@ export interface ComposerDraft {
 }
 
 export interface ComposerDraftProject {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly projectId: ProjectId;
   readonly createdAt: string;
 }
@@ -378,7 +378,7 @@ const ComposerDraftWorkspaceSelectionSchema = Schema.Struct({
 });
 
 const ComposerDraftProjectSchema = Schema.Struct({
-  environmentId: EnvironmentIdSchema,
+  machineId: MachineIdSchema,
   projectId: ProjectIdSchema,
   createdAt: Schema.String,
 });
@@ -605,7 +605,7 @@ export function migrateLegacyNewTaskDraft(
     {
       ...restored,
       project: {
-        environmentId: EnvironmentIdSchema.make(legacy.environmentId),
+        machineId: MachineIdSchema.make(legacy.machineId),
         projectId: ProjectIdSchema.make(legacy.projectId),
         createdAt: now,
       },
@@ -795,19 +795,19 @@ function signedOutAttachmentOwners() {
 }
 
 export function findLocalComposerClipboardAttachment(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   id: string,
 ): DraftComposerAttachment | undefined {
   const queuedMessages = Object.values(
     appAtomRegistry.get(threadOutboxManager.queuedMessagesByThreadKeyAtom),
   ).flat();
   for (const [key, draft] of Object.entries(appAtomRegistry.get(composerDraftsAtom))) {
-    if (composerDraftEnvironmentId(key, queuedMessages, draft) !== environmentId) continue;
+    if (composerDraftMachineId(key, queuedMessages, draft) !== machineId) continue;
     const attachment = draft.attachments.find((entry) => entry.id === id);
     if (attachment) return attachment;
   }
   return queuedMessages
-    .filter((message) => message.environmentId === environmentId)
+    .filter((message) => message.machineId === machineId)
     .flatMap((message) => message.attachments)
     .find((attachment) => attachment.id === id);
 }
@@ -831,7 +831,7 @@ function isComposerAttachmentFileReferenced(fileUri: string): boolean {
 }
 
 function isComposerAttachmentUploadReferenced(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   attachmentId: string,
 ): boolean {
   const drafts = Object.values(appAtomRegistry.get(composerDraftsAtom));
@@ -841,7 +841,7 @@ function isComposerAttachmentUploadReferenced(
   return [...drafts, ...queuedMessages, ...signedOutAttachmentOwners()].some((owner) =>
     owner.attachments.some(
       (attachment) =>
-        attachment.uploadEnvironmentId === environmentId &&
+        attachment.uploadMachineId === machineId &&
         attachment.uploadedAttachmentId === attachmentId,
     ),
   );
@@ -855,17 +855,17 @@ export async function releaseUnusedComposerAttachmentFiles(
       attachment.fileUri !== undefined ? [attachment.fileUri] : [],
     ),
   );
-  const uploadCandidates = new Map<EnvironmentId, Set<string>>();
+  const uploadCandidates = new Map<MachineId, Set<string>>();
   for (const attachment of attachments) {
     if (
-      attachment.uploadEnvironmentId === undefined ||
+      attachment.uploadMachineId === undefined ||
       attachment.uploadedAttachmentId === undefined
     ) {
       continue;
     }
-    const ids = uploadCandidates.get(attachment.uploadEnvironmentId) ?? new Set<string>();
+    const ids = uploadCandidates.get(attachment.uploadMachineId) ?? new Set<string>();
     ids.add(attachment.uploadedAttachmentId);
-    uploadCandidates.set(attachment.uploadEnvironmentId, ids);
+    uploadCandidates.set(attachment.uploadMachineId, ids);
   }
   if (candidates.size === 0 && uploadCandidates.size === 0) {
     return;
@@ -884,9 +884,9 @@ export async function releaseUnusedComposerAttachmentFiles(
   await flushThreadOutbox();
 
   const allFilesReferenced = [...candidates].every(isComposerAttachmentFileReferenced);
-  const allUploadsReferenced = [...uploadCandidates].every(([environmentId, attachmentIds]) =>
+  const allUploadsReferenced = [...uploadCandidates].every(([machineId, attachmentIds]) =>
     [...attachmentIds].every((attachmentId) =>
-      isComposerAttachmentUploadReferenced(environmentId, attachmentId),
+      isComposerAttachmentUploadReferenced(machineId, attachmentId),
     ),
   );
   if (allFilesReferenced && allUploadsReferenced) {
@@ -926,18 +926,18 @@ export async function releaseUnusedComposerAttachmentFiles(
 
   if (uploadCandidates.size > 0) {
     const { releasePendingAttachmentUploads } = await import("../lib/attachmentUpload");
-    for (const [environmentId, attachmentIds] of uploadCandidates) {
+    for (const [machineId, attachmentIds] of uploadCandidates) {
       for (const attachmentId of attachmentIds) {
-        if (isComposerAttachmentUploadReferenced(environmentId, attachmentId)) {
+        if (isComposerAttachmentUploadReferenced(machineId, attachmentId)) {
           continue;
         }
         try {
-          await releasePendingAttachmentUploads(environmentId, [attachmentId]);
+          await releasePendingAttachmentUploads(machineId, [attachmentId]);
         } catch (error) {
           // The server expires stale pending uploads. Local discard must still
-          // complete when the environment is disconnected or deletion fails.
+          // complete when the machine is disconnected or deletion fails.
           console.warn("[composer-attachments] could not remove pending upload", {
-            environmentId,
+            machineId,
             attachmentId,
             error,
           });
@@ -1056,7 +1056,7 @@ export async function getComposerCloudAccountId(): Promise<string | null> {
 
 export async function archiveCloudComposerDrafts(
   accountId: string | null,
-  environmentIds: ReadonlySet<EnvironmentId>,
+  machineIds: ReadonlySet<MachineId>,
 ): Promise<void> {
   await waitForComposerDraftsLoaded();
   if (!(await threadOutboxManager.load())) throw new Error("Could not preserve queued messages.");
@@ -1071,8 +1071,8 @@ export async function archiveCloudComposerDrafts(
   const remaining = { ...current };
   const savedDrafts = { ...cloud.signedOut[owner]?.drafts };
   for (const [key, draft] of Object.entries(current)) {
-    const environmentId = composerDraftEnvironmentId(key, queued, draft);
-    if (environmentId !== null && environmentIds.has(environmentId)) {
+    const machineId = composerDraftMachineId(key, queued, draft);
+    if (machineId !== null && machineIds.has(machineId)) {
       savedDrafts[key] = draft;
       delete remaining[key];
     }
@@ -1081,7 +1081,7 @@ export async function archiveCloudComposerDrafts(
     (cloud.signedOut[owner]?.queuedMessages ?? []).map((message) => [message.messageId, message]),
   );
   for (const message of queued) {
-    if (environmentIds.has(message.environmentId)) savedMessages.set(message.messageId, message);
+    if (machineIds.has(message.machineId)) savedMessages.set(message.messageId, message);
   }
   appAtomRegistry.set(composerDraftsAtom, remaining);
   appAtomRegistry.set(composerCloudDraftsAtom, {
@@ -1118,7 +1118,7 @@ export async function removeDeliveredCloudQueuedMessage(
   for (const [accountId, saved] of Object.entries(signedOut)) {
     const archived = saved.queuedMessages.find(
       (candidate) =>
-        candidate.environmentId === message.environmentId &&
+        candidate.machineId === message.machineId &&
         candidate.messageId === message.messageId,
     );
     if (
@@ -1432,7 +1432,7 @@ export function setComposerDraftAttachmentUpload(
     if (!draft || !previous) return current;
     if (
       previous.uploadedAttachmentId === attachment.uploadedAttachmentId &&
-      previous.uploadEnvironmentId === attachment.uploadEnvironmentId
+      previous.uploadMachineId === attachment.uploadMachineId
     )
       return current;
     return {
@@ -1444,7 +1444,7 @@ export function setComposerDraftAttachmentUpload(
             ? {
                 ...candidate,
                 uploadedAttachmentId: attachment.uploadedAttachmentId,
-                uploadEnvironmentId: attachment.uploadEnvironmentId,
+                uploadMachineId: attachment.uploadMachineId,
               }
             : candidate,
         ),
@@ -1471,10 +1471,10 @@ export function updateComposerDraftSettings(
 export function subscribeComposerDraftModelReconciliation(input: {
   readonly registry: AtomRegistry.AtomRegistry;
   readonly threadRefsAtom: Atom.Atom<ReadonlyArray<ScopedThreadRef>>;
-  readonly threadShellAtom: (ref: ScopedThreadRef) => Atom.Atom<EnvironmentThreadShell | null>;
+  readonly threadShellAtom: (ref: ScopedThreadRef) => Atom.Atom<MachineThreadShell | null>;
   readonly shellStateAtom: (
-    environmentId: EnvironmentId,
-  ) => Atom.Atom<AsyncResult.AsyncResult<EnvironmentShellState, unknown>>;
+    machineId: MachineId,
+  ) => Atom.Atom<AsyncResult.AsyncResult<MachineShellState, unknown>>;
 }): () => void {
   const draftsAtom = Atom.make(appAtomRegistry.get(composerDraftsAtom));
   const unsubscribeDrafts = appAtomRegistry.subscribe(composerDraftsAtom, (drafts) =>
@@ -1496,7 +1496,7 @@ export function subscribeComposerDraftModelReconciliation(input: {
         continue;
       // Status and selection must come from the same emission; derived atoms can update apart.
       const shell = Option.getOrNull(
-        AsyncResult.value(get(input.shellStateAtom(ref.environmentId))),
+        AsyncResult.value(get(input.shellStateAtom(ref.machineId))),
       );
       if (shell?.status !== "live") continue;
       const authoritativeThread = Option.getOrNull(shell.snapshot)?.threads.find(
@@ -1590,7 +1590,7 @@ export function restoreComposerDraftSnapshotState(
 function stripAttachmentUploadReference(
   attachment: DraftComposerAttachment,
 ): DraftComposerAttachment {
-  const { uploadedAttachmentId: _id, uploadEnvironmentId: _environmentId, ...rest } = attachment;
+  const { uploadedAttachmentId: _id, uploadMachineId: _machineId, ...rest } = attachment;
   return rest;
 }
 
@@ -1860,26 +1860,26 @@ export function clearComposerDraft(
   }
 }
 
-export function removeComposerDraftsForEnvironment(
+export function removeComposerDraftsForMachine(
   drafts: Record<string, ComposerDraft>,
-  environmentId: EnvironmentId,
+  machineId: MachineId,
 ): Record<string, ComposerDraft> {
-  const environmentPrefix = `${environmentId}:`;
+  const machinePrefix = `${machineId}:`;
   return Object.fromEntries(
     Object.entries(drafts).filter(
       ([draftKey, draft]) =>
-        !draftKey.startsWith(environmentPrefix) && draft.project?.environmentId !== environmentId,
+        !draftKey.startsWith(machinePrefix) && draft.project?.machineId !== machineId,
     ),
   );
 }
 
 export function createNewTaskDraft(project: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly projectId: ProjectId;
 }): string {
   const draftKey = newTaskDraftKey(newDraftId());
   const stamp: ComposerDraftProject = {
-    environmentId: project.environmentId,
+    machineId: project.machineId,
     projectId: project.projectId,
     createdAt: new Date().toISOString(),
   };
@@ -1892,26 +1892,26 @@ export function createNewTaskDraft(project: {
 
 export function retargetNewTaskDraft(
   draftKey: string,
-  project: { readonly environmentId: EnvironmentId; readonly projectId: ProjectId },
+  project: { readonly machineId: MachineId; readonly projectId: ProjectId },
 ): void {
   updateComposerDrafts((current) => {
     const existing = current[draftKey];
     const stamp = existing?.project;
     if (
       stamp !== undefined &&
-      stamp.environmentId === project.environmentId &&
+      stamp.machineId === project.machineId &&
       stamp.projectId === project.projectId
     ) {
       return current;
     }
     const { workspaceSelection: _workspaceSelection, ...retained } = normalizeDraft(existing);
-    // Pending uploads live on one server. Crossing environments keeps the
-    // local bytes (the upload worker re-sends them to the new environment)
-    // but drops the old stamp, so it cannot pin the source environment's
+    // Pending uploads live on one server. Crossing machines keeps the
+    // local bytes (the upload worker re-sends them to the new machine)
+    // but drops the old stamp, so it cannot pin the source machine's
     // pending upload alive from the moved draft.
     const attachments = retained.attachments.map((attachment) =>
-      attachment.uploadEnvironmentId !== undefined &&
-      attachment.uploadEnvironmentId !== project.environmentId
+      attachment.uploadMachineId !== undefined &&
+      attachment.uploadMachineId !== project.machineId
         ? stripAttachmentUploadReference(attachment)
         : attachment,
     );
@@ -1921,7 +1921,7 @@ export function retargetNewTaskDraft(
         ...retained,
         attachments,
         project: {
-          environmentId: project.environmentId,
+          machineId: project.machineId,
           projectId: project.projectId,
           createdAt: stamp?.createdAt ?? new Date().toISOString(),
         },
@@ -1932,13 +1932,13 @@ export function retargetNewTaskDraft(
 
 export function findNewTaskDraftKeys(
   drafts: Readonly<Record<string, ComposerDraft>>,
-  project: { readonly environmentId: EnvironmentId; readonly projectId: ProjectId },
+  project: { readonly machineId: MachineId; readonly projectId: ProjectId },
 ): ReadonlyArray<string> {
   return Object.entries(drafts)
     .filter(
       ([key, draft]) =>
         isNewTaskDraftKey(key) &&
-        draft.project?.environmentId === project.environmentId &&
+        draft.project?.machineId === project.machineId &&
         draft.project.projectId === project.projectId,
     )
     .sort(([, left], [, right]) =>
@@ -1947,14 +1947,14 @@ export function findNewTaskDraftKeys(
     .map(([key]) => key);
 }
 
-export async function clearComposerDraftsEnvironment(environmentId: EnvironmentId): Promise<void> {
+export async function clearComposerDraftsMachine(machineId: MachineId): Promise<void> {
   ensureComposerDraftsLoaded();
   if (loadPromise !== null) {
     await loadPromise;
   }
 
   const current = appAtomRegistry.get(composerDraftsAtom);
-  const next = removeComposerDraftsForEnvironment(current, environmentId);
+  const next = removeComposerDraftsForMachine(current, machineId);
   const removedAttachments = Object.entries(current)
     .filter(([draftKey]) => next[draftKey] === undefined)
     .flatMap(([, draft]) => draft.attachments);

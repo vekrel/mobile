@@ -12,7 +12,7 @@ import { Pressable, View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
-import { environmentCatalog } from "../../connection/catalog";
+import { machineCatalog } from "../../connection/catalog";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { SettingsSection } from "../settings/components/SettingsSection";
 
@@ -21,23 +21,23 @@ const options: ReadonlyArray<{
   label: string;
   description: string;
 }> = [
-  { value: "off", label: "Off", description: "Keep GitHub requests on this environment." },
+  { value: "off", label: "Off", description: "Keep GitHub requests on this machine." },
   {
     value: "read",
     label: "Read PRs",
-    description: "Share PR data with other enabled environments.",
+    description: "Share PR data with other enabled machines.",
   },
   {
     value: "read-write",
     label: "Read and act",
-    description: "Actions may use broader GitHub permissions than the original environment.",
+    description: "Actions may use broader GitHub permissions than the original machine.",
   },
 ];
 
 export function GitHubRoutingSettings() {
-  const catalog = useAtomValue(environmentCatalog.catalogValueAtom);
-  const permissions = useAtomValue(environmentCatalog.githubRoutingPermissionsValueAtom);
-  const update = useAtomCommand(environmentCatalog.setGitHubRoutingPermission);
+  const catalog = useAtomValue(machineCatalog.catalogValueAtom);
+  const permissions = useAtomValue(machineCatalog.githubRoutingPermissionsValueAtom);
+  const update = useAtomCommand(machineCatalog.setGitHubRoutingPermission);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   if (catalog.entries.size === 0) return null;
@@ -46,17 +46,17 @@ export function GitHubRoutingSettings() {
     <View className="mt-5 gap-3">
       <SettingsSection title="GitHub routing">
         {[...catalog.entries.values()].map((entry) => {
-          const environmentId = entry.target.environmentId;
+          const machineId = entry.target.machineId;
           const selected = gitHubRoutingPermissionFor(entry, permissions);
           const disabled = !catalog.isReady || saving || gitHubRoutingConnectionKey(entry) === null;
           return (
-            <View key={environmentId}>
+            <View key={machineId}>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={`${entry.target.label} GitHub routing`}
-                accessibilityState={{ expanded: expanded === environmentId }}
+                accessibilityState={{ expanded: expanded === machineId }}
                 className="flex-row items-center gap-3 p-4"
-                onPress={() => setExpanded(expanded === environmentId ? null : environmentId)}
+                onPress={() => setExpanded(expanded === machineId ? null : machineId)}
               >
                 <View className="min-w-0 flex-1 gap-0.5">
                   <Text className="text-base font-t3-bold text-foreground">
@@ -70,12 +70,12 @@ export function GitHubRoutingSettings() {
                   {options.find((option) => option.value === selected)?.label}
                 </Text>
                 <SymbolView
-                  name={expanded === environmentId ? "chevron.up" : "chevron.down"}
+                  name={expanded === machineId ? "chevron.up" : "chevron.down"}
                   size={12}
                   tintColorClassName="accent-icon-muted"
                 />
               </Pressable>
-              {expanded === environmentId
+              {expanded === machineId
                 ? options.map((option) => (
                     <ListChoiceRow
                       key={option.value}
@@ -85,7 +85,7 @@ export function GitHubRoutingSettings() {
                       disabled={disabled}
                       onPress={() => {
                         setSaving(true);
-                        void update({ environmentId, permission: option.value }).then((result) => {
+                        void update({ machineId, permission: option.value }).then((result) => {
                           setSaving(false);
                           if (result._tag === "Failure")
                             Dialog.alert(
@@ -102,8 +102,8 @@ export function GitHubRoutingSettings() {
         })}
       </SettingsSection>
       <Text className="px-2 text-sm text-foreground-muted">
-        Choose environments you trust to share PR data and use each other's GitHub access. Enable
-        both environments. This applies only to this client.
+        Choose machines you trust to share PR data and use each other's GitHub access. Enable
+        both machines. This applies only to this client.
       </Text>
     </View>
   );

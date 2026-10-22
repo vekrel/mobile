@@ -1,4 +1,4 @@
-import { ApprovalRequestId, EnvironmentId, ThreadId } from "@vekrel/contracts";
+import { ApprovalRequestId, MachineId, ThreadId } from "@vekrel/contracts";
 import { describe, expect, it, vi } from "vite-plus/test";
 import {
   questionAttachmentDraftKey,
@@ -10,16 +10,16 @@ import {
   composerAttachmentUploadBlockReason,
   composerAttachmentsStillUploading,
   composerAttachmentUploadKey,
-  composerDraftEnvironmentId,
+  composerDraftMachineId,
   createComposerAttachmentUploadQueue,
   type ComposerAttachmentUploadRequest,
   type ComposerAttachmentUploadState,
 } from "./composerAttachmentUploadQueue";
 
-const environmentId = EnvironmentId.make("environment-1");
-function request(id: string, environment = environmentId): ComposerAttachmentUploadRequest {
+const machineId = MachineId.make("machine-1");
+function request(id: string, machine = machineId): ComposerAttachmentUploadRequest {
   return {
-    environmentId: environment,
+    machineId: machine,
     attachment: {
       id,
       type: "file",
@@ -98,7 +98,7 @@ describe("composer attachment upload queue", () => {
     queue.sync([local]);
     await queue.settled();
     expect(upload.mock.calls[1]?.[0]).toBe(local);
-    expect(states[composerAttachmentUploadKey(environmentId, local.attachment.id)]).toEqual({
+    expect(states[composerAttachmentUploadKey(machineId, local.attachment.id)]).toEqual({
       status: "ready",
     });
     expect(local.attachment).toMatchObject({ fileUri: "file:///documents/offline-draft.pdf" });
@@ -115,7 +115,7 @@ describe("composer attachment upload queue", () => {
       },
     });
     const local = request("failed-upload");
-    const key = composerAttachmentUploadKey(environmentId, local.attachment.id);
+    const key = composerAttachmentUploadKey(machineId, local.attachment.id);
     queue.sync([local]);
     await queue.settled();
     expect(states[key]?.status).toBe("failed");
@@ -130,7 +130,7 @@ describe("composer attachment upload queue", () => {
     queue.dispose();
   });
 
-  it("ignores a late completion after removal or environment switch", async () => {
+  it("ignores a late completion after removal or machine switch", async () => {
     const gate = Promise.withResolvers<boolean>();
     const started = Promise.withResolvers<void>();
     let states: Readonly<Record<string, ComposerAttachmentUploadState>> = {};
@@ -147,7 +147,7 @@ describe("composer attachment upload queue", () => {
     queue.sync([request("photo")]);
     await started.promise;
     upload.mockResolvedValueOnce(true);
-    const other = EnvironmentId.make("environment-2");
+    const other = MachineId.make("machine-2");
     queue.sync([request("photo", other)]);
     gate.resolve(true);
     await queue.settled();
@@ -191,7 +191,7 @@ describe("composer attachment upload queue", () => {
     expect(upload).toHaveBeenCalledTimes(2);
     secondSettled.resolve(true);
     await queue.settled();
-    expect(states[composerAttachmentUploadKey(environmentId, local.attachment.id)]).toEqual({
+    expect(states[composerAttachmentUploadKey(machineId, local.attachment.id)]).toEqual({
       status: "ready",
     });
     queue.dispose();
@@ -216,7 +216,7 @@ describe("composer attachment upload queue", () => {
       upload,
       onChange: (next) => {
         states = next;
-        const state = next[composerAttachmentUploadKey(environmentId, "file")];
+        const state = next[composerAttachmentUploadKey(machineId, "file")];
         if (state?.status === "uploading") progress.push(state.progress);
       },
     });
@@ -224,15 +224,15 @@ describe("composer attachment upload queue", () => {
     await queue.settled();
     queue.sync([request("file")]);
     expect(upload).toHaveBeenCalledOnce();
-    expect(states[composerAttachmentUploadKey(environmentId, "file")]).toEqual({
+    expect(states[composerAttachmentUploadKey(machineId, "file")]).toEqual({
       status: "failed",
       reason: "Server unavailable",
     });
     expect(progress).toEqual([0, 0.1, 1]);
     upload.mockImplementationOnce(async () => true);
-    queue.retry(environmentId, "file");
+    queue.retry(machineId, "file");
     await queue.settled();
-    expect(states[composerAttachmentUploadKey(environmentId, "file")]).toEqual({ status: "ready" });
+    expect(states[composerAttachmentUploadKey(machineId, "file")]).toEqual({ status: "ready" });
     queue.dispose();
   });
 
@@ -247,63 +247,63 @@ describe("composer attachment upload queue", () => {
 });
 
 describe("draft upload scope and offline submission", () => {
-  it("uploads question drafts in their environment without matching other thread prefixes", () => {
+  it("uploads question drafts in their machine without matching other thread prefixes", () => {
     const requestId = ApprovalRequestId.make("request:1");
-    for (const environment of [environmentId, EnvironmentId.make("remote:server")]) {
+    for (const machine of [machineId, MachineId.make("remote:server")]) {
       const threadId = ThreadId.make("thread:1");
-      const prefix = questionAttachmentDraftPrefix(environment, threadId);
-      const key = questionAttachmentDraftKey(environment, threadId, requestId, "question:1");
-      expect(composerDraftEnvironmentId(key, [])).toBe(environment);
+      const prefix = questionAttachmentDraftPrefix(machine, threadId);
+      const key = questionAttachmentDraftKey(machine, threadId, requestId, "question:1");
+      expect(composerDraftMachineId(key, [])).toBe(machine);
       expect(key.startsWith(prefix)).toBe(true);
       for (const suffix of ["-extra", ":extra", "/extra", "%extra"]) {
         const otherKey = questionAttachmentDraftKey(
-          environment,
+          machine,
           ThreadId.make(`${threadId}${suffix}`),
           requestId,
           "question:1",
         );
         expect(otherKey.startsWith(prefix)).toBe(false);
-        expect(composerDraftEnvironmentId(otherKey, [])).toBe(environment);
+        expect(composerDraftMachineId(otherKey, [])).toBe(machine);
       }
     }
   });
-  it("resolves thread, new-task, and queued-task drafts without crossing environments", () => {
-    expect(composerDraftEnvironmentId("environment-1:thread", [])).toBe(environmentId);
-    expect(composerDraftEnvironmentId("new-task:environment-1:project", [])).toBe(environmentId);
+  it("resolves thread, new-task, and queued-task drafts without crossing machines", () => {
+    expect(composerDraftMachineId("machine-1:thread", [])).toBe(machineId);
+    expect(composerDraftMachineId("new-task:machine-1:project", [])).toBe(machineId);
     expect(
-      composerDraftEnvironmentId("pending-task:message", [{ messageId: "message", environmentId }]),
-    ).toBe(environmentId);
-    expect(composerDraftEnvironmentId("pending-task:missing", [])).toBeNull();
-    const colonEnvironment = EnvironmentId.make("a:vcs-status:b");
-    expect(composerDraftEnvironmentId(`${colonEnvironment}:thread`, [])).toBe(colonEnvironment);
-    expect(composerDraftEnvironmentId(`new-task:${colonEnvironment}:project`, [])).toBe(
-      colonEnvironment,
+      composerDraftMachineId("pending-task:message", [{ messageId: "message", machineId }]),
+    ).toBe(machineId);
+    expect(composerDraftMachineId("pending-task:missing", [])).toBeNull();
+    const colonMachine = MachineId.make("a:vcs-status:b");
+    expect(composerDraftMachineId(`${colonMachine}:thread`, [])).toBe(colonMachine);
+    expect(composerDraftMachineId(`new-task:${colonMachine}:project`, [])).toBe(
+      colonMachine,
     );
   });
 
-  it("reads an id-keyed new-task draft's environment from its project stamp", () => {
+  it("reads an id-keyed new-task draft's machine from its project stamp", () => {
     const stamped = {
       project: {
-        environmentId,
+        machineId,
         projectId: "project" as never,
         createdAt: "2026-09-05T00:00:00.000Z",
       },
     };
-    expect(composerDraftEnvironmentId("new-task:abc123-def456", [], stamped)).toBe(environmentId);
-    expect(composerDraftEnvironmentId("new-task:abc123-def456", [])).toBeNull();
-    expect(composerDraftEnvironmentId("new-task:environment-2:project", [], stamped)).toBe(
-      environmentId,
+    expect(composerDraftMachineId("new-task:abc123-def456", [], stamped)).toBe(machineId);
+    expect(composerDraftMachineId("new-task:abc123-def456", [])).toBeNull();
+    expect(composerDraftMachineId("new-task:machine-2:project", [], stamped)).toBe(
+      machineId,
     );
   });
 
   it("only a failed upload blocks sending; an in-flight one queues instead", () => {
-    const key = composerAttachmentUploadKey(environmentId, "file");
+    const key = composerAttachmentUploadKey(machineId, "file");
     const input = {
-      environmentId,
+      machineId,
       attachments: [request("file").attachment],
       connected: true,
       serverConfig: {
-        environment: {
+        machine: {
           capabilities: { attachmentUploads: true, fileAttachments: { maxUploadBytes: 1024 } },
         },
       },

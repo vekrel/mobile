@@ -1,4 +1,4 @@
-import type { EnvironmentId, ProjectId, ServerSettings } from "@vekrel/contracts";
+import type { MachineId, ProjectId, ServerSettings } from "@vekrel/contracts";
 
 export type AutoSettleSettings = Pick<
   ServerSettings,
@@ -6,7 +6,7 @@ export type AutoSettleSettings = Pick<
 >;
 
 interface AutoSettleSyncTarget {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly projectId?: ProjectId | null;
   readonly label: string;
   readonly settings: AutoSettleSettings | null;
@@ -14,7 +14,7 @@ interface AutoSettleSyncTarget {
 
 export function planAutoSettleSettingsSync(
   reference: {
-    readonly environmentId: EnvironmentId;
+    readonly machineId: MachineId;
     readonly projectId?: ProjectId | null;
     readonly settings: AutoSettleSettings;
   },
@@ -26,7 +26,7 @@ export function planAutoSettleSettingsSync(
   };
   const mismatches = targets.filter(
     (target) =>
-      (target.environmentId !== reference.environmentId ||
+      (target.machineId !== reference.machineId ||
         target.projectId !== reference.projectId) &&
       target.settings !== null &&
       (target.settings.sidebarAutoSettleAfterDays !== patch.sidebarAutoSettleAfterDays ||

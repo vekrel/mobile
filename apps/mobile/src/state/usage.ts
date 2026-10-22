@@ -2,24 +2,24 @@ import { useAtomValue } from "@effect/atom-react";
 import {
   AuthDiagnosticsReadScope,
   USAGE_CONTRACT_VERSION,
-  type EnvironmentId,
+  type MachineId,
   type UsageSummary,
   type UsageSummaryInput,
 } from "@vekrel/contracts";
 import { needsCursorKeychainAccess, refreshUsage } from "@vekrel/client-runtime/state/usage";
 import { resolveUsageAccess } from "@vekrel/client-runtime/state/usage-access";
-import { mergeUsage, type EnvironmentUsage, type MergedUsage } from "@vekrel/shared/usageMerge";
+import { mergeUsage, type MachineUsage, type MergedUsage } from "@vekrel/shared/usageMerge";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/reactivity";
 import { useCallback, useMemo } from "react";
 
 import { appAtomRegistry } from "./atom-registry";
-import { environmentPresentations } from "./presentation";
-import { serverEnvironment } from "./server";
-import { environmentSession, readEnvironmentScope } from "./session";
+import { machinePresentations } from "./presentation";
+import { serverMachine } from "./server";
+import { machineSession, readMachineScope } from "./session";
 
-export interface EnvironmentUsageStatus {
-  readonly environmentId: EnvironmentId;
+export interface MachineUsageStatus {
+  readonly machineId: MachineId;
   readonly label: string;
   readonly isPending: boolean;
   readonly isConnected: boolean;
@@ -31,16 +31,16 @@ export interface EnvironmentUsageStatus {
 
 /**
  * Keyed by the serialised window so switching ranges does not thrash the atom cache, and so
- * each environment's query is shared with any other reader of the same window.
+ * each machine's query is shared with any other reader of the same window.
  */
 const usageByWindowAtom = Atom.family((windowKey: string) =>
-  Atom.make((get): readonly EnvironmentUsageStatus[] => {
+  Atom.make((get): readonly MachineUsageStatus[] => {
     const input = JSON.parse(windowKey) as UsageSummaryInput;
-    const presentations = get(environmentPresentations.presentationsAtom);
+    const presentations = get(machinePresentations.presentationsAtom);
 
-    const statuses: EnvironmentUsageStatus[] = [];
-    for (const [environmentId, presentation] of presentations) {
-      const sessionResult = get(environmentSession.sessionStateAtom(environmentId));
+    const statuses: MachineUsageStatus[] = [];
+    for (const [machineId, presentation] of presentations) {
+      const sessionResult = get(machineSession.sessionStateAtom(machineId));
       const access = resolveUsageAccess({
         connectionPhase: presentation.connection.phase,
         session: Option.getOrNull(AsyncResult.value(sessionResult)),
@@ -48,7 +48,7 @@ const usageByWindowAtom = Atom.family((windowKey: string) =>
       });
       if (!access.canReadDiagnostics) {
         statuses.push({
-          environmentId,
+          machineId,
           label: presentation.entry.target.label,
           isConnected: presentation.connection.phase === "connected",
           ...access,
@@ -57,19 +57,19 @@ const usageByWindowAtom = Atom.family((windowKey: string) =>
         });
         continue;
       }
-      const result = get(serverEnvironment.usageSummary({ environmentId, input }));
+      const result = get(serverMachine.usageSummary({ machineId, input }));
       const summary = Option.getOrNull(AsyncResult.value(result));
       statuses.push({
-        environmentId,
+        machineId,
         label: presentation.entry.target.label,
         isPending: result.waiting,
         isConnected: presentation.connection.phase === "connected",
         canReadDiagnostics: true,
-        error: result._tag === "Failure" ? "This environment could not report usage." : null,
+        error: result._tag === "Failure" ? "This machine could not report usage." : null,
         summary,
         needsCursorKeychainAccess: needsCursorKeychainAccess(
           summary,
-          get(serverEnvironment.providersValueAtom(environmentId)),
+          get(serverMachine.providersValueAtom(machineId)),
         ),
       });
     }
@@ -79,8 +79,8 @@ const usageByWindowAtom = Atom.family((windowKey: string) =>
 
 export interface UsageView {
   readonly merged: MergedUsage;
-  readonly environments: readonly EnvironmentUsageStatus[];
-  readonly selectedEnvironments: readonly EnvironmentUsageStatus[];
+  readonly machines: readonly MachineUsageStatus[];
+  readonly selectedMachines: readonly MachineUsageStatus[];
 
   readonly isPending: boolean;
 
@@ -90,7 +90,7 @@ export interface UsageView {
 
 export function useUsage(
   input: UsageSummaryInput,
-  selectedEnvironmentIds: ReadonlySet<EnvironmentId> | null = null,
+  selectedMachineIds: ReadonlySet<MachineId> | null = null,
 ): UsageView {
   const windowKey = useMemo(
     () =>
@@ -112,60 +112,60 @@ export function useUsage(
     ],
   );
   const atom = usageByWindowAtom(windowKey);
-  const environments = useAtomValue(atom);
-  const selectedEnvironments = useMemo(
+  const machines = useAtomValue(atom);
+  const selectedMachines = useMemo(
     () =>
-      selectedEnvironmentIds === null
-        ? environments
-        : environments.filter(({ environmentId }) => selectedEnvironmentIds.has(environmentId)),
-    [environments, selectedEnvironmentIds],
+      selectedMachineIds === null
+        ? machines
+        : machines.filter(({ machineId }) => selectedMachineIds.has(machineId)),
+    [machines, selectedMachineIds],
   );
 
   const refresh = useCallback(
     (nextInput?: UsageSummaryInput) =>
       refreshUsage({
         registry: appAtomRegistry,
-        server: serverEnvironment,
-        presentations: environmentPresentations,
+        server: serverMachine,
+        presentations: machinePresentations,
 
-        environmentIds: selectedEnvironments
+        machineIds: selectedMachines
           .filter(
-            (environment) =>
-              environment.canReadDiagnostics &&
-              readEnvironmentScope(environment.environmentId, AuthDiagnosticsReadScope),
+            (machine) =>
+              machine.canReadDiagnostics &&
+              readMachineScope(machine.machineId, AuthDiagnosticsReadScope),
           )
-          .map(({ environmentId }) => environmentId),
+          .map(({ machineId }) => machineId),
         input: nextInput ?? (JSON.parse(windowKey) as UsageSummaryInput),
       }),
-    [selectedEnvironments, windowKey],
+    [selectedMachines, windowKey],
   );
 
   const merged = useMemo(() => {
-    const answered: EnvironmentUsage[] = selectedEnvironments.flatMap((environment) =>
-      environment.summary === null
+    const answered: MachineUsage[] = selectedMachines.flatMap((machine) =>
+      machine.summary === null
         ? []
         : [
             {
-              environmentId: environment.environmentId,
-              label: environment.label,
-              summary: environment.summary,
+              machineId: machine.machineId,
+              label: machine.label,
+              summary: machine.summary,
             },
           ],
     );
     return mergeUsage(answered, USAGE_CONTRACT_VERSION);
-  }, [selectedEnvironments]);
+  }, [selectedMachines]);
 
-  const answeredCount = selectedEnvironments.filter(
-    (environment) => environment.summary !== null,
+  const answeredCount = selectedMachines.filter(
+    (machine) => machine.summary !== null,
   ).length;
-  const stillReporting = selectedEnvironments.filter(
-    (environment) => environment.summary === null && environment.error === null,
+  const stillReporting = selectedMachines.filter(
+    (machine) => machine.summary === null && machine.error === null,
   ).length;
 
   return {
     merged,
-    environments,
-    selectedEnvironments,
+    machines,
+    selectedMachines,
     isPending: answeredCount === 0 && stillReporting > 0,
     isPartial: answeredCount > 0 && stillReporting > 0,
     refresh,

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vite-plus/test";
 
 import { appAtomRegistry } from "./atom-registry";
 import {
-  clearThreadComposerErrorsForEnvironment,
+  clearThreadComposerErrorsForMachine,
   setThreadComposerError,
   threadComposerErrorsAtom,
 } from "./thread-composer-error";
@@ -12,15 +12,15 @@ afterEach(() => {
 });
 
 describe("thread composer errors", () => {
-  it("clears every thread's error for a removed environment and no others", () => {
-    setThreadComposerError("environment-1:thread-1", "one");
-    setThreadComposerError("environment-1:thread-2", "two");
-    setThreadComposerError("environment-10:thread-1", "other environment");
+  it("clears every thread's error for a removed machine and no others", () => {
+    setThreadComposerError("machine-1:thread-1", "one");
+    setThreadComposerError("machine-1:thread-2", "two");
+    setThreadComposerError("machine-10:thread-1", "other machine");
 
-    clearThreadComposerErrorsForEnvironment("environment-1");
+    clearThreadComposerErrorsForMachine("machine-1");
 
     expect(Object.keys(appAtomRegistry.get(threadComposerErrorsAtom))).toEqual([
-      "environment-10:thread-1",
+      "machine-10:thread-1",
     ]);
   });
 });

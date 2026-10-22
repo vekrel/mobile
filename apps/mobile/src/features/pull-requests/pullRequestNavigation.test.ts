@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
 import { nativePullRequestDestination } from "../../lib/pullRequestNavigation";
-const context = { environmentId: "remote", projectId: "project" };
+const context = { machineId: "remote", projectId: "project" };
 describe("native PR entry points", () => {
-  it("keeps a thread link in its own environment and handles renamed host path shapes", () => {
+  it("keeps a thread link in its own machine and handles renamed host path shapes", () => {
     expect(
       nativePullRequestDestination("https://github.com/org/repo/pull/12/files#diff", context),
     ).toEqual({ ...context, host: "github.com", repository: "org/repo", number: 12 });

@@ -1,6 +1,6 @@
 import { resolveFilesystemReadAccess } from "@vekrel/client-runtime/state/filesystem";
-import { environmentSession } from "../../state/session";
-import type { EnvironmentId } from "@vekrel/contracts";
+import { machineSession } from "../../state/session";
+import type { MachineId } from "@vekrel/contracts";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { ScreenContent } from "../../components/ui/ScreenContent";
 import { useCallback, useMemo, useState, type ComponentProps } from "react";
@@ -17,8 +17,8 @@ import { AppText as Text, AppTextInput as TextInput } from "../../components/ui/
 import { FilesHeader } from "./FilesHeader";
 import { nativeHeaderScrollEdgeEffects } from "../../native/StackHeader";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
-import { useEnvironmentQuery } from "../../state/query";
-import { useEnvironmentPresentation } from "../../state/presentation";
+import { useMachineQuery } from "../../state/query";
+import { useMachinePresentation } from "../../state/presentation";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { FileTreeBrowser } from "./FileTreeBrowser";
 import { NativeInspectorContent } from "../../native/NativeInspectorContent";
@@ -28,7 +28,7 @@ import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 
 export function ThreadFileNavigatorPane(props: {
   readonly cwd: string;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly headerInset: number;
   readonly projectName: string;
   readonly selectedPath: string | null;
@@ -41,19 +41,19 @@ export function ThreadFileNavigatorPane(props: {
   const foregroundColor = theme["--color-foreground"];
   const sheetColor = theme["--color-sheet"];
   const headerScrollEdgeEffects = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
-  const fileAccessSession = useEnvironmentQuery(
-    environmentSession.sessionStateAtom(props.environmentId),
+  const fileAccessSession = useMachineQuery(
+    machineSession.sessionStateAtom(props.machineId),
   );
-  const fileEnvironment = useEnvironmentPresentation(props.environmentId);
+  const fileMachine = useMachinePresentation(props.machineId);
   const fileAccess = resolveFilesystemReadAccess({
-    isCatalogReady: fileEnvironment.isReady,
-    connection: fileEnvironment.presentation?.connection ?? null,
+    isCatalogReady: fileMachine.isReady,
+    connection: fileMachine.presentation?.connection ?? null,
     session: fileAccessSession.data,
     sessionError: fileAccessSession.error,
   });
   const { canReadFiles } = fileAccess;
   const entriesQuery = useFileTreeEntries({
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     cwd: canReadFiles ? props.cwd : null,
     searchQuery,
   });
@@ -61,12 +61,12 @@ export function ThreadFileNavigatorPane(props: {
     (relativePath: string) => {
       preloadWorkspaceFileContents({
         cwd: props.cwd,
-        environmentId: props.environmentId,
+        machineId: props.machineId,
         relativePath,
         theme: highlightTheme,
       });
     },
-    [highlightTheme, props.cwd, props.environmentId],
+    [highlightTheme, props.cwd, props.machineId],
   );
   const nativeHeaderRightBarButtonItems = useMemo(
     () =>
@@ -86,7 +86,7 @@ export function ThreadFileNavigatorPane(props: {
 
   const fileTree = (
     <FileTreeBrowser
-      key={JSON.stringify([props.environmentId, props.cwd])}
+      key={JSON.stringify([props.machineId, props.cwd])}
       entries={entriesQuery.entries}
       loadingDirectories={entriesQuery.loadingDirectories}
       onLoadDirectory={entriesQuery.loadDirectory}

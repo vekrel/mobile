@@ -46,8 +46,8 @@ type ShowcaseResetRoute = PartialState<NavigationState>["routes"][number];
 
 function sceneFromPathname(pathname: string): ShowcaseScene | null {
   const routePath = pathname.split(/[?#]/u, 1)[0] ?? pathname;
-  if (routePath === "/settings" || routePath.endsWith("/settings/environments")) {
-    return "environments";
+  if (routePath === "/settings" || routePath.endsWith("/settings/machines")) {
+    return "machines";
   }
   if (routePath.endsWith("/terminal")) return "terminal";
   if (routePath.endsWith("/review")) return "review";
@@ -183,8 +183,8 @@ function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string })
   const scene =
     requestedScene === "agent-activity" && routeScene === "threads" ? "agent-activity" : routeScene;
   const hasServerFixture =
-    workspace.state.hasReadyEnvironment &&
-    workspace.environments.length >= 3 &&
+    workspace.state.hasReadyMachine &&
+    workspace.machines.length >= 3 &&
     projects.length >= 3 &&
     threads.some((thread) => String(thread.id) === SHOWCASE_THREAD_ID);
   const hasFixture = hasServerFixture && pendingTasksReady;
@@ -226,7 +226,7 @@ function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string })
     if (scene === requestedScene) return;
 
     const params = {
-      environmentId: String(showcaseThread.environmentId),
+      machineId: String(showcaseThread.machineId),
       threadId: SHOWCASE_THREAD_ID,
     };
     if (requestedScene === "threads") {
@@ -238,7 +238,7 @@ function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string })
       return;
     }
     const routes: ShowcaseResetRoute[] = [{ name: "Home" }];
-    if (requestedScene === "environments") {
+    if (requestedScene === "machines") {
       routes.push({
         name: "SettingsSheet",
         state: {
@@ -248,7 +248,7 @@ function EnabledShowcaseCaptureCoordinator(props: { readonly pathname: string })
               name: "SettingsContent",
               state: {
                 index: 1,
-                routes: [{ name: "Settings" }, { name: "SettingsEnvironments" }],
+                routes: [{ name: "Settings" }, { name: "SettingsMachines" }],
               },
             },
           ],

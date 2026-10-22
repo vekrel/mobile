@@ -5,7 +5,7 @@ import { createNativeHeaderMenu } from "../../components/ui/nativeHeaderMenu.ios
 import type { AppBarMenu } from "../../components/ui/AppBar.types";
 import {
   AuthSourceControlWriteScope,
-  EnvironmentId,
+  MachineId,
   type GitRunStackedActionResult,
   type ProjectScript,
   ThreadId,
@@ -18,7 +18,7 @@ import {
 } from "@vekrel/client-runtime/state/vcs";
 import { useNavigation } from "@react-navigation/native";
 
-import { useEnvironmentScope } from "../../state/session";
+import { useMachineScope } from "../../state/session";
 import { PullRequestGlyph } from "../pull-requests/pullRequestGlyphs";
 import {
   basename,
@@ -83,7 +83,7 @@ type QuickActionIcon =
   | "arrow.up.circle";
 
 export type ThreadGitMenuProps = {
-  readonly environmentId: EnvironmentId | string;
+  readonly machineId: MachineId | string;
   readonly threadId: ThreadId | string;
   readonly currentBranch: string | null;
   readonly hasThread?: boolean;
@@ -116,9 +116,9 @@ type ThreadGitControlsProps = ThreadGitMenuProps & {
 function useThreadGitControlModel(props: ThreadGitMenuProps) {
   const navigation = useNavigation();
   const openPullRequest = useOpenPullRequest();
-  const environmentId = props.environmentId;
-  const canWriteSourceControl = useEnvironmentScope(
-    environmentId ? EnvironmentId.make(String(environmentId)) : null,
+  const machineId = props.machineId;
+  const canWriteSourceControl = useMachineScope(
+    machineId ? MachineId.make(String(machineId)) : null,
     AuthSourceControlWriteScope,
   );
   const threadId = props.threadId;
@@ -199,7 +199,7 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
         return;
       }
       navigation.navigate("GitConfirm", {
-        environmentId: String(environmentId),
+        machineId: String(machineId),
         threadId: String(threadId),
         confirmAction: confirmableAction,
         branchName,
@@ -232,14 +232,14 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
       return;
     }
     navigation.navigate("ThreadFiles", {
-      environmentId: String(environmentId),
+      machineId: String(machineId),
       threadId: String(threadId),
     });
   };
 
   const openReview = () => {
     navigation.navigate("ThreadReview", {
-      environmentId: EnvironmentId.make(String(environmentId)),
+      machineId: MachineId.make(String(machineId)),
       threadId: ThreadId.make(String(threadId)),
     });
   };
@@ -250,7 +250,7 @@ function useThreadGitControlModel(props: ThreadGitMenuProps) {
       return;
     }
     navigation.navigate("GitOverview", {
-      environmentId: String(environmentId),
+      machineId: String(machineId),
       threadId: String(threadId),
     });
   };

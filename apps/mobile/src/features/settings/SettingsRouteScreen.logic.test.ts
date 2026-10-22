@@ -1,29 +1,29 @@
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import { resolveAutoSettleReferenceEnvironmentId } from "./SettingsRouteScreen.logic";
+import { resolveAutoSettleReferenceMachineId } from "./SettingsRouteScreen.logic";
 
-describe("resolveAutoSettleReferenceEnvironmentId", () => {
-  const firstId = EnvironmentId.make("first");
-  const secondId = EnvironmentId.make("second");
+describe("resolveAutoSettleReferenceMachineId", () => {
+  const firstId = MachineId.make("first");
+  const secondId = MachineId.make("second");
 
   it("waits for an earlier grant before exposing a later writable reference", () => {
-    const second = { environmentId: secondId, canWriteSettings: true };
+    const second = { machineId: secondId, canWriteSettings: true };
     expect(
-      resolveAutoSettleReferenceEnvironmentId([
-        { environmentId: firstId, canWriteSettings: null },
+      resolveAutoSettleReferenceMachineId([
+        { machineId: firstId, canWriteSettings: null },
         second,
       ]),
     ).toBeNull();
     expect(
-      resolveAutoSettleReferenceEnvironmentId([
-        { environmentId: firstId, canWriteSettings: false },
+      resolveAutoSettleReferenceMachineId([
+        { machineId: firstId, canWriteSettings: false },
         second,
       ]),
     ).toBe(secondId);
     expect(
-      resolveAutoSettleReferenceEnvironmentId([
-        { environmentId: firstId, canWriteSettings: true },
+      resolveAutoSettleReferenceMachineId([
+        { machineId: firstId, canWriteSettings: true },
         second,
       ]),
     ).toBe(firstId);
@@ -31,15 +31,15 @@ describe("resolveAutoSettleReferenceEnvironmentId", () => {
 
   it("waits before showing a read-only fallback until all grants are resolved", () => {
     expect(
-      resolveAutoSettleReferenceEnvironmentId([
-        { environmentId: firstId, canWriteSettings: false },
-        { environmentId: secondId, canWriteSettings: null },
+      resolveAutoSettleReferenceMachineId([
+        { machineId: firstId, canWriteSettings: false },
+        { machineId: secondId, canWriteSettings: null },
       ]),
     ).toBeNull();
     expect(
-      resolveAutoSettleReferenceEnvironmentId([
-        { environmentId: firstId, canWriteSettings: false },
-        { environmentId: secondId, canWriteSettings: false },
+      resolveAutoSettleReferenceMachineId([
+        { machineId: firstId, canWriteSettings: false },
+        { machineId: secondId, canWriteSettings: false },
       ]),
     ).toBe(firstId);
   });

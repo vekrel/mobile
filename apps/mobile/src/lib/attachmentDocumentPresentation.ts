@@ -3,12 +3,12 @@ import type { FilePreviewKind } from "@vekrel/shared/filePreview";
 export function attachmentDocumentPresentation(input: {
   kind: FilePreviewKind;
   hasTable: boolean;
-  hasEnvironment: boolean;
+  hasMachine: boolean;
   rendered: boolean;
 }) {
   const renderedMode = input.hasTable
     ? "table"
-    : input.kind === "markdown" && input.hasEnvironment
+    : input.kind === "markdown" && input.hasMachine
       ? "markdown"
       : input.kind === "html"
         ? "html"

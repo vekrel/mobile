@@ -1,7 +1,7 @@
 import { useComposerAttachmentActions } from "./use-composer-attachment-actions";
 import * as Dialog from "../components/ui/Dialog";
 import { AuthOrchestrationOperateScope } from "@vekrel/contracts";
-import { readEnvironmentScope } from "./session";
+import { readMachineScope } from "./session";
 import { useAtomValue } from "@effect/atom-react";
 import { threadRuntimeIsActive } from "@vekrel/client-runtime/state/shell";
 import type { ThreadCheckpointSummary } from "@vekrel/client-runtime/state/thread-checkpoints";
@@ -21,7 +21,7 @@ import {
   MessageId,
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
-  type EnvironmentId,
+  type MachineId,
   type ModelSelection,
   type ProviderInteractionMode,
   type RuntimeMode,
@@ -90,7 +90,7 @@ import { settlePromise, squashAtomCommandFailure } from "@vekrel/client-runtime/
 import { prepareTurnAttachments } from "../lib/attachmentUpload";
 import { DEFAULT_FOLLOW_UP_BEHAVIOR } from "../lib/followUpBehavior";
 import { mobilePreferencesAtom } from "./preferences";
-import { environmentThreadDetails } from "./threads";
+import { machineThreadDetails } from "./threads";
 import {
   endQueuedRunEdit,
   getQueuedRunEdit,
@@ -99,7 +99,7 @@ import {
   resolveQueuedEditPayload,
   useQueuedRunEdit,
 } from "./queued-run-edit";
-import { setPendingConnectionError } from "../state/use-remote-environment-registry";
+import { setPendingConnectionError } from "../state/use-remote-machine-registry";
 import { clearThreadComposerError, setThreadComposerError } from "./thread-composer-error";
 import {
   useSelectedThreadProjection,
@@ -108,7 +108,7 @@ import {
 import { useThreadSelection } from "../state/use-thread-selection";
 import { enqueueThreadOutboxMessage } from "./thread-outbox";
 import { dispatchingQueuedMessageIdAtom, useThreadOutboxMessages } from "./use-thread-outbox";
-import { threadEnvironment } from "./threads";
+import { threadMachine } from "./threads";
 import { useAtomCommand } from "./use-atom-command";
 
 const EMPTY_QUEUE_WORKFLOW_ATOM = Atom.make<null>(null).pipe(
@@ -117,12 +117,12 @@ const EMPTY_QUEUE_WORKFLOW_ATOM = Atom.make<null>(null).pipe(
 const EMPTY_CHECKPOINT_SUMMARIES_ATOM = Atom.make<ReadonlyArray<ThreadCheckpointSummary>>([]);
 
 export function appendReviewCommentToDraft(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly text: string;
   readonly attachments?: ReadonlyArray<DraftComposerImageAttachment>;
 }): void {
-  const threadKey = scopedThreadKey(input.environmentId, input.threadId);
+  const threadKey = scopedThreadKey(input.machineId, input.threadId);
   const upgraded = upgradeLegacyContextMessage(input.text);
   if (
     !insertComposerDraftContext(
@@ -150,21 +150,21 @@ export function appendReviewCommentToDraft(input: {
  * edit began still writes to the right place.
  */
 function activeComposerDraftKey(thread: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly id: ThreadId;
 }): string {
-  const threadKey = scopedThreadKey(thread.environmentId, thread.id);
+  const threadKey = scopedThreadKey(thread.machineId, thread.id);
   const edit = getQueuedRunEdit(threadKey);
   return edit === null ? threadKey : queuedEditDraftKey(threadKey, edit.runId);
 }
 
 export function useThreadDraftForThread(input: {
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly threadId?: ThreadId;
 }) {
   const threadKey =
-    input.environmentId && input.threadId
-      ? scopedThreadKey(input.environmentId, input.threadId)
+    input.machineId && input.threadId
+      ? scopedThreadKey(input.machineId, input.threadId)
       : null;
   const draft = useComposerDraft(threadKey);
 
@@ -179,7 +179,7 @@ export function useThreadComposerState() {
     selectedThread: selectedThreadShell,
     selectedThreadCreation,
     selectedThreadDetailRef,
-    selectedEnvironmentRuntime,
+    selectedMachineRuntime,
   } = useThreadSelection();
   const selectedThreadProjection = useSelectedThreadProjection();
   const selectedThreadVisibleTurnItems = useSelectedThreadVisibleTurnItems();
@@ -189,10 +189,10 @@ export function useThreadComposerState() {
   const [feedbackSubmissionsByThreadKey, setFeedbackSubmissionsByThreadKey] = useState<
     Record<string, ReadonlyArray<CodexFeedbackSubmission>>
   >({});
-  const uploadThreadFeedback = useAtomCommand(threadEnvironment.uploadFeedback, {
+  const uploadThreadFeedback = useAtomCommand(threadMachine.uploadFeedback, {
     reportFailure: false,
   });
-  const editQueuedRun = useAtomCommand(threadEnvironment.editQueuedRun, {
+  const editQueuedRun = useAtomCommand(threadMachine.editQueuedRun, {
     label: "edit queued message",
     reportFailure: false,
   });
@@ -218,7 +218,7 @@ export function useThreadComposerState() {
   }, []);
 
   const selectedThreadKey = selectedThreadShell
-    ? scopedThreadKey(selectedThreadShell.environmentId, selectedThreadShell.id)
+    ? scopedThreadKey(selectedThreadShell.machineId, selectedThreadShell.id)
     : null;
   const selectedThreadQueuedMessages = selectedThreadKey
     ? (queuedMessagesByThreadKey[selectedThreadKey] ?? []).filter(
@@ -241,7 +241,7 @@ export function useThreadComposerState() {
   const checkpointSummaries = useAtomValue(
     selectedThreadDetailRef === null
       ? EMPTY_CHECKPOINT_SUMMARIES_ATOM
-      : environmentThreadDetails.checkpointSummariesAtom(selectedThreadDetailRef),
+      : machineThreadDetails.checkpointSummariesAtom(selectedThreadDetailRef),
   );
   // A thread whose creation has not delivered its turn yet: the prompt only
   // exists in the outbox, so it is appended to whatever the server has. The
@@ -264,7 +264,7 @@ export function useThreadComposerState() {
     });
     const pendingAcknowledgments = acknowledgedMessages.filter(
       (message) =>
-        scopedThreadKey(message.environmentId, message.threadId) === selectedThreadKey &&
+        scopedThreadKey(message.machineId, message.threadId) === selectedThreadKey &&
         !selectedThreadQueuedMessages.some((queued) => queued.messageId === message.messageId),
     );
     if (pendingAcknowledgments.length === 0) return feed;
@@ -291,7 +291,7 @@ export function useThreadComposerState() {
   const queueWorkflow = useAtomValue(
     selectedThreadDetailRef === null
       ? EMPTY_QUEUE_WORKFLOW_ATOM
-      : environmentThreadDetails.queueWorkflowAtom(selectedThreadDetailRef),
+      : machineThreadDetails.queueWorkflowAtom(selectedThreadDetailRef),
   );
   const queuedRunEdit = useQueuedRunEdit(selectedThreadKey);
   const composerDraftKey =
@@ -304,7 +304,7 @@ export function useThreadComposerState() {
   const selectedThreadQueueCount = selectedThreadQueuedMessages.length;
   const selectedThread = selectedThreadShell;
   const modelSelection = selectedDraft.modelSelection ?? selectedThread?.modelSelection ?? null;
-  const serverConfig = selectedEnvironmentRuntime?.serverConfig;
+  const serverConfig = selectedMachineRuntime?.serverConfig;
   const pendingHandoff = resolvePendingHandoff(
     selectedThreadProjection?.projection,
     isModelSelectionUnavailable(serverConfig, modelSelection, selectedThread?.projectId ?? null)
@@ -313,7 +313,7 @@ export function useThreadComposerState() {
     serverConfig?.providers ?? [],
   );
   const runtimeMode = selectedDraft.runtimeMode ?? selectedThread?.runtimeMode ?? null;
-  const selectedProvider = selectedEnvironmentRuntime?.serverConfig?.providers.find(
+  const selectedProvider = selectedMachineRuntime?.serverConfig?.providers.find(
     (provider) => provider.instanceId === modelSelection?.instanceId,
   );
   const interactionMode = selectedThread
@@ -447,7 +447,7 @@ export function useThreadComposerState() {
   const saveQueuedRunEdit = async () => {
     const thread = selectedThreadShell;
     if (!thread || savingQueuedEditRef.current) return;
-    const threadKey = scopedThreadKey(thread.environmentId, thread.id);
+    const threadKey = scopedThreadKey(thread.machineId, thread.id);
     const edit = getQueuedRunEdit(threadKey);
     if (edit === null) return;
     const draft = getComposerDraftSnapshot(queuedEditDraftKey(threadKey, edit.runId));
@@ -469,10 +469,10 @@ export function useThreadComposerState() {
     }
     savingQueuedEditRef.current = true;
     setIsSavingQueuedEdit(true);
-    const capabilities = selectedEnvironmentRuntime?.serverConfig?.environment.capabilities;
+    const capabilities = selectedMachineRuntime?.serverConfig?.machine.capabilities;
     const prepared = await settlePromise(() =>
       prepareTurnAttachments({
-        environmentId: thread.environmentId,
+        machineId: thread.machineId,
         attachments: draft.attachments,
         supportsImageUploads: capabilities?.attachmentUploads === true,
       }),
@@ -499,7 +499,7 @@ export function useThreadComposerState() {
       uploaded: prepared.value.attachments,
     });
     const result = await editQueuedRun({
-      environmentId: thread.environmentId,
+      machineId: thread.machineId,
       input: {
         threadId: thread.id,
         runId: edit.runId,
@@ -530,8 +530,8 @@ export function useThreadComposerState() {
   ) => {
     if (
       selectedThreadShell &&
-      selectedEnvironmentRuntime?.connectionState === "connected" &&
-      !readEnvironmentScope(selectedThreadShell.environmentId, AuthOrchestrationOperateScope)
+      selectedMachineRuntime?.connectionState === "connected" &&
+      !readMachineScope(selectedThreadShell.machineId, AuthOrchestrationOperateScope)
     )
       return null;
     if (!selectedThreadShell) {
@@ -544,13 +544,13 @@ export function useThreadComposerState() {
       return null;
     }
 
-    const editKey = scopedThreadKey(selectedThreadShell.environmentId, selectedThreadShell.id);
+    const editKey = scopedThreadKey(selectedThreadShell.machineId, selectedThreadShell.id);
     if (getQueuedRunEdit(editKey) !== null) {
       await saveQueuedRunEdit();
       return null;
     }
 
-    const threadKey = scopedThreadKey(selectedThreadShell.environmentId, selectedThreadShell.id);
+    const threadKey = scopedThreadKey(selectedThreadShell.machineId, selectedThreadShell.id);
     const draft = getComposerDraftSnapshot(threadKey);
     if (appAtomRegistry.get(composerContextImportsAtom)[threadKey]) return null;
     const thread = selectedThreadShell;
@@ -558,10 +558,10 @@ export function useThreadComposerState() {
     const attachments = draft.attachments;
     if (
       composerAttachmentUploadBlockReason({
-        environmentId: selectedThreadShell.environmentId,
+        machineId: selectedThreadShell.machineId,
         attachments,
-        connected: selectedEnvironmentRuntime?.connectionState === "connected",
-        serverConfig: selectedEnvironmentRuntime?.serverConfig ?? null,
+        connected: selectedMachineRuntime?.connectionState === "connected",
+        serverConfig: selectedMachineRuntime?.serverConfig ?? null,
         states: appAtomRegistry.get(composerAttachmentUploadsAtom),
       }) !== null
     )
@@ -588,9 +588,9 @@ export function useThreadComposerState() {
     }
 
     const modelSelection = draft.modelSelection ?? thread.modelSelection;
-    const serverConfig = selectedEnvironmentRuntime?.serverConfig;
+    const serverConfig = selectedMachineRuntime?.serverConfig;
     if (
-      selectedEnvironmentRuntime?.connectionState === "connected" &&
+      selectedMachineRuntime?.connectionState === "connected" &&
       isModelSelectionUnavailable(serverConfig, modelSelection, thread.projectId)
     ) {
       const { title, detail } = describeUnavailableModelSelection(
@@ -609,7 +609,7 @@ export function useThreadComposerState() {
         ? parseCodexFeedbackCommand(text)
         : null;
     if (feedbackCommand) {
-      if (!readEnvironmentScope(selectedThreadShell.environmentId, AuthOrchestrationOperateScope))
+      if (!readMachineScope(selectedThreadShell.machineId, AuthOrchestrationOperateScope))
         return null;
       if (thread.activeProviderThreadId === null) {
         Dialog.alert("Start a Codex thread first", "Send a message before you submit feedback.");
@@ -637,7 +637,7 @@ export function useThreadComposerState() {
         },
         upload: () =>
           uploadThreadFeedback({
-            environmentId: thread.environmentId,
+            machineId: thread.machineId,
             input: { threadId: thread.id, ...feedbackCommand },
           }),
       });
@@ -689,7 +689,7 @@ export function useThreadComposerState() {
     const messageId = MessageId.make(metadata.messageId);
     clearThreadComposerError(threadKey);
     const enqueuePromise = enqueueThreadOutboxMessage({
-      environmentId: selectedThreadShell.environmentId,
+      machineId: selectedThreadShell.machineId,
       threadId: selectedThreadShell.id,
       messageId,
       commandId: CommandId.make(metadata.commandId),
@@ -740,7 +740,7 @@ export function useThreadComposerState() {
   const { onPickDraftMedia, onPickDraftFiles, onNativePasteImages, onNativePasteText } =
     useComposerAttachmentActions({
       draftKey: selectedThreadShell ? activeComposerDraftKey(selectedThreadShell) : null,
-      serverConfig: selectedEnvironmentRuntime?.serverConfig,
+      serverConfig: selectedMachineRuntime?.serverConfig,
     });
 
   const onPasteIntoDraft = async () => {
@@ -760,7 +760,7 @@ export function useThreadComposerState() {
     if (result.text) {
       const currentDraft = getComposerDraftSnapshot(threadKey);
       const currentAttachments = currentDraft.attachments;
-      const capabilities = selectedEnvironmentRuntime?.serverConfig?.environment.capabilities;
+      const capabilities = selectedMachineRuntime?.serverConfig?.machine.capabilities;
       const advertisedMax =
         capabilities?.attachmentUploads === true
           ? capabilities.fileAttachments?.maxUploadBytes
@@ -845,7 +845,7 @@ export function useThreadComposerState() {
     if (!selectedThreadKey) {
       return;
     }
-    const provider = selectedEnvironmentRuntime?.serverConfig?.providers.find(
+    const provider = selectedMachineRuntime?.serverConfig?.providers.find(
       (candidate) => candidate.instanceId === value.instanceId,
     );
     updateComposerDraftSettings(selectedThreadKey, {
@@ -869,7 +869,7 @@ export function useThreadComposerState() {
     }
     const modelSelection =
       getComposerDraftSnapshot(selectedThreadKey).modelSelection ?? selectedThread?.modelSelection;
-    const provider = selectedEnvironmentRuntime?.serverConfig?.providers.find(
+    const provider = selectedMachineRuntime?.serverConfig?.providers.find(
       (candidate) => candidate.instanceId === modelSelection?.instanceId,
     );
     updateComposerDraftSettings(selectedThreadKey, {

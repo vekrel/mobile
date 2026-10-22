@@ -81,7 +81,7 @@ import { isForegroundHandoffActive } from "./foreground-handoff";
 const NOW = 1_787_990_400_000;
 const DAY_MS = 24 * 60 * 60_000;
 const input = {
-  url: "https://chosen-environment.example/api/assets/signed-token/report.pdf",
+  url: "https://chosen-machine.example/api/assets/signed-token/report.pdf",
   attachment: { name: "report.pdf", mimeType: "application/pdf" },
 };
 
@@ -114,7 +114,7 @@ afterEach(() => {
 });
 
 describe("downloadAndShareAttachment", () => {
-  it("downloads the chosen environment's signed URL and shares the local file", async () => {
+  it("downloads the chosen machine's signed URL and shares the local file", async () => {
     const controller = new AbortController();
     await downloadAndShareAttachment({ ...input, signal: controller.signal });
 

@@ -1,49 +1,49 @@
 import { useAtomValue } from "@effect/atom-react";
 import {
-  createEnvironmentThreadDetailAtoms,
-  createEnvironmentThreadShellAtoms,
-  createEnvironmentThreadStateAtoms,
-  EMPTY_ENVIRONMENT_THREAD_STATE,
-  type EnvironmentThreadState,
-  createThreadEnvironmentAtoms,
+  createMachineThreadDetailAtoms,
+  createMachineThreadShellAtoms,
+  createMachineThreadStateAtoms,
+  EMPTY_MACHINE_THREAD_STATE,
+  type MachineThreadState,
+  createThreadMachineAtoms,
 } from "@vekrel/client-runtime/state/threads";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/reactivity";
 
-import { environmentCatalog } from "../connection/catalog";
+import { machineCatalog } from "../connection/catalog";
 import { connectionAtomRuntime } from "../connection/runtime";
-import { environmentSnapshotAtom } from "./shell";
+import { machineSnapshotAtom } from "./shell";
 
-export const threadEnvironment = createThreadEnvironmentAtoms(
+export const threadMachine = createThreadMachineAtoms(
   connectionAtomRuntime,
-  environmentSnapshotAtom,
+  machineSnapshotAtom,
 );
-export const environmentThreads = createEnvironmentThreadStateAtoms(connectionAtomRuntime);
-export const environmentThreadDetails = createEnvironmentThreadDetailAtoms(
-  environmentThreads.stateAtom,
+export const machineThreads = createMachineThreadStateAtoms(connectionAtomRuntime);
+export const machineThreadDetails = createMachineThreadDetailAtoms(
+  machineThreads.stateAtom,
 );
-export const environmentThreadShells = createEnvironmentThreadShellAtoms({
-  catalogValueAtom: environmentCatalog.catalogValueAtom,
-  snapshotAtom: threadEnvironment.snapshotAtom,
+export const machineThreadShells = createMachineThreadShellAtoms({
+  catalogValueAtom: machineCatalog.catalogValueAtom,
+  snapshotAtom: threadMachine.snapshotAtom,
 });
 
-const EMPTY_THREAD_STATE_ATOM = Atom.make(AsyncResult.success(EMPTY_ENVIRONMENT_THREAD_STATE)).pipe(
-  Atom.withLabel("mobile-environment-thread:empty"),
+const EMPTY_THREAD_STATE_ATOM = Atom.make(AsyncResult.success(EMPTY_MACHINE_THREAD_STATE)).pipe(
+  Atom.withLabel("mobile-machine-thread:empty"),
 );
 
-export function useEnvironmentThread(
-  environmentId: EnvironmentId | null,
+export function useMachineThread(
+  machineId: MachineId | null,
   threadId: ThreadId | null,
-): EnvironmentThreadState {
+): MachineThreadState {
   const result = useAtomValue(
-    environmentId !== null && threadId !== null
-      ? environmentThreads.stateAtom(environmentId, threadId)
+    machineId !== null && threadId !== null
+      ? machineThreads.stateAtom(machineId, threadId)
       : EMPTY_THREAD_STATE_ATOM,
   );
   const state = Option.getOrElse(
     AsyncResult.value(result),
-    () => EMPTY_ENVIRONMENT_THREAD_STATE,
-  ) as EnvironmentThreadState;
+    () => EMPTY_MACHINE_THREAD_STATE,
+  ) as MachineThreadState;
   return state;
 }

@@ -1,4 +1,4 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import {
   CHATGPT_USAGE_LIMIT_CODE,
   CHATGPT_USAGE_URL,
@@ -12,7 +12,7 @@ import { ProviderIcon } from "../../components/ProviderIcon";
 import { AppText as Text } from "../../components/ui/AppText";
 import { Button } from "../../components/ui/Button";
 
-export function ChatGptUsageLimitNotice({ thread }: { thread: EnvironmentThreadShell }) {
+export function ChatGptUsageLimitNotice({ thread }: { thread: MachineThreadShell }) {
   const [status, setStatus] = useState<"copied" | "copy-failed" | "open-failed" | null>(null);
   const code = thread.runtime?.lastErrorCode;
   const workspaceLimit = code === CHATGPT_WORKSPACE_USAGE_LIMIT_CODE;

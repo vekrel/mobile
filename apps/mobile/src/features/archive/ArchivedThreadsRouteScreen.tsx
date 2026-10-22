@@ -1,70 +1,70 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import * as Arr from "effect/Array";
 import * as Order from "effect/Order";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback, useMemo, useState } from "react";
 
-import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
+import { useSavedRemoteConnections } from "../../state/use-remote-machine-registry";
 import { useArchivedThreadListActions } from "../home/useThreadListActions";
 import {
   ArchivedThreadsScreen,
-  type ArchivedThreadsHeaderEnvironment,
+  type ArchivedThreadsHeaderMachine,
 } from "./ArchivedThreadsScreen";
 import { buildArchivedThreadGroups, type ArchivedThreadSortOrder } from "./archivedThreadList";
 import {
-  refreshArchivedThreadsForEnvironment,
+  refreshArchivedThreadsForMachine,
   useArchivedThreadSnapshots,
 } from "./useArchivedThreadSnapshots";
 
 export function ArchivedThreadsRouteScreen() {
   const { savedConnectionsById } = useSavedRemoteConnections();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState<EnvironmentId | null>(null);
+  const [selectedMachineId, setSelectedMachineId] = useState<MachineId | null>(null);
   const [sortOrder, setSortOrder] = useState<ArchivedThreadSortOrder>("newest");
-  const environments = useMemo<ReadonlyArray<ArchivedThreadsHeaderEnvironment>>(
+  const machines = useMemo<ReadonlyArray<ArchivedThreadsHeaderMachine>>(
     () =>
       Arr.sort(
         Object.values(savedConnectionsById).map((connection) => ({
-          environmentId: connection.environmentId,
-          label: connection.environmentLabel,
+          machineId: connection.machineId,
+          label: connection.machineLabel,
         })),
-        Order.mapInput(Order.String, (environment: ArchivedThreadsHeaderEnvironment) =>
-          environment.label.toLocaleLowerCase(),
+        Order.mapInput(Order.String, (machine: ArchivedThreadsHeaderMachine) =>
+          machine.label.toLocaleLowerCase(),
         ),
       ),
     [savedConnectionsById],
   );
-  const environmentIds = useMemo(
-    () => environments.map((environment) => environment.environmentId),
-    [environments],
+  const machineIds = useMemo(
+    () => machines.map((machine) => machine.machineId),
+    [machines],
   );
-  const environmentLabels = useMemo(
+  const machineLabels = useMemo(
     () =>
       Object.fromEntries(
-        environments.map((environment) => [environment.environmentId, environment.label]),
+        machines.map((machine) => [machine.machineId, machine.label]),
       ),
-    [environments],
+    [machines],
   );
-  const { error, isLoading, refresh, snapshots } = useArchivedThreadSnapshots(environmentIds);
+  const { error, isLoading, refresh, snapshots } = useArchivedThreadSnapshots(machineIds);
   const groups = useMemo(
     () =>
       buildArchivedThreadGroups({
         snapshots,
-        environmentLabels,
-        environmentId: selectedEnvironmentId,
+        machineLabels,
+        machineId: selectedMachineId,
         searchQuery,
         sortOrder,
       }),
-    [environmentLabels, searchQuery, selectedEnvironmentId, snapshots, sortOrder],
+    [machineLabels, searchQuery, selectedMachineId, snapshots, sortOrder],
   );
-  const refreshChangedEnvironment = useCallback(
-    (thread: { readonly environmentId: EnvironmentId }) => {
-      refreshArchivedThreadsForEnvironment(thread.environmentId);
+  const refreshChangedMachine = useCallback(
+    (thread: { readonly machineId: MachineId }) => {
+      refreshArchivedThreadsForMachine(thread.machineId);
     },
     [],
   );
   const { unarchiveThread, confirmDeleteThread } =
-    useArchivedThreadListActions(refreshChangedEnvironment);
+    useArchivedThreadListActions(refreshChangedMachine);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,18 +74,18 @@ export function ArchivedThreadsRouteScreen() {
 
   return (
     <ArchivedThreadsScreen
-      environments={environments}
+      machines={machines}
       error={error}
       groups={groups}
       isLoading={isLoading}
       onDeleteThread={confirmDeleteThread}
-      onEnvironmentChange={setSelectedEnvironmentId}
+      onMachineChange={setSelectedMachineId}
       onRefresh={refresh}
       onSearchQueryChange={setSearchQuery}
       onSortOrderChange={setSortOrder}
       onUnarchiveThread={unarchiveThread}
       searchQuery={searchQuery}
-      selectedEnvironmentId={selectedEnvironmentId}
+      selectedMachineId={selectedMachineId}
       sortOrder={sortOrder}
     />
   );

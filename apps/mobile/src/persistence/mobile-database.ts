@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -6,7 +6,8 @@ import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import type { SQLiteDatabase } from "expo-sqlite";
 
-const DATABASE_NAME = "vekrel-client.db";
+// shortcut: db name bump instead of migration, no installed users; upgrade to a real migration before the first public build
+const DATABASE_NAME = "vekrel-client-v2.db";
 const DATABASE_SCHEMA_VERSION = 1;
 const LEGACY_CACHE_DIRECTORIES = [
   "connection-shell-snapshots",
@@ -27,7 +28,7 @@ export const ClientCacheKind = Schema.Literals([
 export type ClientCacheKind = typeof ClientCacheKind.Type;
 
 export interface ClientCacheSummaryRow {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly kind: ClientCacheKind;
   readonly recordCount: number;
   readonly payloadBytes: number;
@@ -40,7 +41,7 @@ export interface StoredPreferencesJson {
 
 const ClientCacheSummaryRows = Schema.Array(
   Schema.Struct({
-    environmentId: Schema.String,
+    machineId: Schema.String,
     kind: ClientCacheKind,
     recordCount: Schema.Number,
     payloadBytes: Schema.Number,
@@ -55,7 +56,7 @@ const MobileDatabaseOperation = Schema.Literals([
   "save-cache",
   "remove-cache",
   "clear-cache-kind",
-  "clear-environment-cache",
+  "clear-machine-cache",
   "clear-all-caches",
   "inspect-caches",
   "load-preferences",
@@ -79,7 +80,7 @@ function databaseError(operation: typeof MobileDatabaseOperation.Type) {
 }
 
 interface LegacyCacheRecord {
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly kind: ClientCacheKind;
   readonly cacheKey: string;
   readonly schemaVersion: number;
@@ -102,7 +103,7 @@ export function decodeLegacyCacheRecord(
   }
   if (
     parsed === null ||
-    typeof parsed.environmentId !== "string" ||
+    typeof parsed.machineId !== "string" ||
     typeof parsed.schemaVersion !== "number"
   ) {
     return null;
@@ -112,7 +113,7 @@ export function decodeLegacyCacheRecord(
     case "connection-shell-snapshots":
     case "shell-snapshots":
       return {
-        environmentId: parsed.environmentId,
+        machineId: parsed.machineId,
         kind: "shell",
         cacheKey: "snapshot",
         schemaVersion: parsed.schemaVersion,
@@ -121,7 +122,7 @@ export function decodeLegacyCacheRecord(
     case "connection-thread-snapshots":
       return typeof parsed.threadId === "string"
         ? {
-            environmentId: parsed.environmentId,
+            machineId: parsed.machineId,
             kind: "thread",
             cacheKey: parsed.threadId,
             schemaVersion: parsed.schemaVersion,
@@ -130,7 +131,7 @@ export function decodeLegacyCacheRecord(
         : null;
     case "connection-server-configs":
       return {
-        environmentId: parsed.environmentId,
+        machineId: parsed.machineId,
         kind: "server-config",
         cacheKey: "config",
         schemaVersion: parsed.schemaVersion,
@@ -139,7 +140,7 @@ export function decodeLegacyCacheRecord(
     case "connection-vcs-refs":
       return typeof parsed.cwd === "string"
         ? {
-            environmentId: parsed.environmentId,
+            machineId: parsed.machineId,
             kind: "vcs-refs",
             cacheKey: parsed.cwd,
             schemaVersion: parsed.schemaVersion,
@@ -168,10 +169,10 @@ async function migrateLegacyFileCaches(database: SQLiteDatabase): Promise<boolea
           if (record === null) continue;
           await database.runAsync(
             `INSERT INTO client_cache
-              (environment_id, kind, cache_key, schema_version, payload, updated_at)
+              (machine_id, kind, cache_key, schema_version, payload, updated_at)
              VALUES (?, ?, ?, ?, ?, ?)
-             ON CONFLICT (environment_id, kind, cache_key) DO NOTHING`,
-            record.environmentId,
+             ON CONFLICT (machine_id, kind, cache_key) DO NOTHING`,
+            record.machineId,
             record.kind,
             record.cacheKey,
             record.schemaVersion,
@@ -196,7 +197,7 @@ export class MobileDatabase extends Context.Service<
   MobileDatabase,
   {
     readonly loadCache: (
-      environmentId: EnvironmentId,
+      machineId: MachineId,
       kind: ClientCacheKind,
       cacheKey: string,
     ) => Effect.Effect<Option.Option<string>, MobileDatabaseError>;
@@ -204,23 +205,23 @@ export class MobileDatabase extends Context.Service<
       kind: ClientCacheKind,
     ) => Effect.Effect<ReadonlyArray<string>, MobileDatabaseError>;
     readonly saveCache: (
-      environmentId: EnvironmentId,
+      machineId: MachineId,
       kind: ClientCacheKind,
       cacheKey: string,
       schemaVersion: number,
       payload: string,
     ) => Effect.Effect<void, MobileDatabaseError>;
     readonly removeCache: (
-      environmentId: EnvironmentId,
+      machineId: MachineId,
       kind: ClientCacheKind,
       cacheKey: string,
     ) => Effect.Effect<void, MobileDatabaseError>;
     readonly clearCacheKind: (
-      environmentId: EnvironmentId,
+      machineId: MachineId,
       kind: ClientCacheKind,
     ) => Effect.Effect<void, MobileDatabaseError>;
-    readonly clearEnvironmentCache: (
-      environmentId: EnvironmentId,
+    readonly clearMachineCache: (
+      machineId: MachineId,
     ) => Effect.Effect<void, MobileDatabaseError>;
     readonly clearAllCaches: Effect.Effect<void, MobileDatabaseError>;
     readonly inspectCaches: Effect.Effect<
@@ -259,17 +260,17 @@ const makeAvailable = Effect.gen(function* () {
       await database.withExclusiveTransactionAsync(async (transaction) => {
         await transaction.execAsync(`
               CREATE TABLE IF NOT EXISTS client_cache (
-                environment_id TEXT NOT NULL,
+                machine_id TEXT NOT NULL,
                 kind TEXT NOT NULL,
                 cache_key TEXT NOT NULL,
                 schema_version INTEGER NOT NULL,
                 payload TEXT NOT NULL,
                 updated_at INTEGER NOT NULL,
-                PRIMARY KEY (environment_id, kind, cache_key)
+                PRIMARY KEY (machine_id, kind, cache_key)
               ) WITHOUT ROWID;
 
-              CREATE INDEX IF NOT EXISTS client_cache_environment_updated
-                ON client_cache (environment_id, updated_at DESC);
+              CREATE INDEX IF NOT EXISTS client_cache_machine_updated
+                ON client_cache (machine_id, updated_at DESC);
 
               CREATE TABLE IF NOT EXISTS client_preferences (
                 singleton INTEGER PRIMARY KEY NOT NULL CHECK (singleton = 1),
@@ -289,15 +290,15 @@ const makeAvailable = Effect.gen(function* () {
   });
 
   return MobileDatabase.of({
-    loadCache: Effect.fn("MobileDatabase.loadCache")((environmentId, kind, cacheKey) =>
+    loadCache: Effect.fn("MobileDatabase.loadCache")((machineId, kind, cacheKey) =>
       Effect.tryPromise({
         try: () =>
           database.getFirstAsync<{ readonly payload: string }>(
             `SELECT payload
                      FROM client_cache
-                     WHERE environment_id = ? AND kind = ? AND cache_key = ?
+                     WHERE machine_id = ? AND kind = ? AND cache_key = ?
                        AND (kind != 'pull-request' OR updated_at >= ?)`,
-            environmentId,
+            machineId,
             kind,
             cacheKey,
             Date.now() - 30 * 24 * 60 * 60_000,
@@ -316,11 +317,11 @@ const makeAvailable = Effect.gen(function* () {
       }).pipe(Effect.map((rows) => rows.map((row) => row.payload))),
     ),
     saveCache: Effect.fn("MobileDatabase.saveCache")(
-      (environmentId, kind, cacheKey, schemaVersion, payload) =>
+      (machineId, kind, cacheKey, schemaVersion, payload) =>
         Effect.tryPromise({
           try: async () => {
             // Diffs can be large. Keep the offline PR cache within 32 MiB and 256
-            // responses per environment, and don't let one huge diff evict it all.
+            // responses per machine, and don't let one huge diff evict it all.
             if (
               kind === "pull-request" &&
               new TextEncoder().encode(payload).length > 4 * 1024 * 1024
@@ -329,13 +330,13 @@ const makeAvailable = Effect.gen(function* () {
             const save = async (transaction: SQLiteDatabase) => {
               await transaction.runAsync(
                 `INSERT INTO client_cache
-                  (environment_id, kind, cache_key, schema_version, payload, updated_at)
+                  (machine_id, kind, cache_key, schema_version, payload, updated_at)
                  VALUES (?, ?, ?, ?, ?, ?)
-                 ON CONFLICT (environment_id, kind, cache_key) DO UPDATE SET
+                 ON CONFLICT (machine_id, kind, cache_key) DO UPDATE SET
                    schema_version = excluded.schema_version,
                    payload = excluded.payload,
                    updated_at = excluded.updated_at`,
-                environmentId,
+                machineId,
                 kind,
                 cacheKey,
                 schemaVersion,
@@ -344,7 +345,7 @@ const makeAvailable = Effect.gen(function* () {
               );
               if (kind === "pull-request") {
                 await transaction.runAsync(
-                  `DELETE FROM client_cache WHERE environment_id = ? AND kind = 'pull-request'
+                  `DELETE FROM client_cache WHERE machine_id = ? AND kind = 'pull-request'
                    AND cache_key IN (
                      SELECT cache_key FROM (
                        SELECT cache_key, updated_at,
@@ -352,11 +353,11 @@ const makeAvailable = Effect.gen(function* () {
                          SUM(LENGTH(CAST(payload AS BLOB))) OVER (
                            ORDER BY updated_at DESC, cache_key
                          ) AS total_bytes
-                       FROM client_cache WHERE environment_id = ? AND kind = 'pull-request'
+                       FROM client_cache WHERE machine_id = ? AND kind = 'pull-request'
                      ) WHERE position > 256 OR total_bytes > 33554432 OR updated_at < ?
                    )`,
-                  environmentId,
-                  environmentId,
+                  machineId,
+                  machineId,
                   Date.now() - 30 * 24 * 60 * 60_000,
                 );
               }
@@ -366,35 +367,35 @@ const makeAvailable = Effect.gen(function* () {
           catch: databaseError("save-cache"),
         }).pipe(Effect.asVoid),
     ),
-    removeCache: Effect.fn("MobileDatabase.removeCache")((environmentId, kind, cacheKey) =>
+    removeCache: Effect.fn("MobileDatabase.removeCache")((machineId, kind, cacheKey) =>
       Effect.tryPromise({
         try: () =>
           database.runAsync(
             `DELETE FROM client_cache
-                     WHERE environment_id = ? AND kind = ? AND cache_key = ?`,
-            environmentId,
+                     WHERE machine_id = ? AND kind = ? AND cache_key = ?`,
+            machineId,
             kind,
             cacheKey,
           ),
         catch: databaseError("remove-cache"),
       }).pipe(Effect.asVoid),
     ),
-    clearCacheKind: Effect.fn("MobileDatabase.clearCacheKind")((environmentId, kind) =>
+    clearCacheKind: Effect.fn("MobileDatabase.clearCacheKind")((machineId, kind) =>
       Effect.tryPromise({
         try: () =>
           database.runAsync(
-            "DELETE FROM client_cache WHERE environment_id = ? AND kind = ?",
-            environmentId,
+            "DELETE FROM client_cache WHERE machine_id = ? AND kind = ?",
+            machineId,
             kind,
           ),
         catch: databaseError("clear-cache-kind"),
       }).pipe(Effect.asVoid),
     ),
-    clearEnvironmentCache: Effect.fn("MobileDatabase.clearEnvironmentCache")((environmentId) =>
+    clearMachineCache: Effect.fn("MobileDatabase.clearMachineCache")((machineId) =>
       Effect.tryPromise({
         try: () =>
-          database.runAsync("DELETE FROM client_cache WHERE environment_id = ?", environmentId),
-        catch: databaseError("clear-environment-cache"),
+          database.runAsync("DELETE FROM client_cache WHERE machine_id = ?", machineId),
+        catch: databaseError("clear-machine-cache"),
       }).pipe(Effect.asVoid),
     ),
     clearAllCaches: Effect.tryPromise({
@@ -405,13 +406,13 @@ const makeAvailable = Effect.gen(function* () {
       try: () =>
         database.getAllAsync<unknown>(`
                 SELECT
-                  environment_id AS environmentId,
+                  machine_id AS machineId,
                   kind,
                   COUNT(*) AS recordCount,
                   COALESCE(SUM(LENGTH(CAST(payload AS BLOB))), 0) AS payloadBytes
                 FROM client_cache
-                GROUP BY environment_id, kind
-                ORDER BY environment_id, kind
+                GROUP BY machine_id, kind
+                ORDER BY machine_id, kind
               `),
       catch: databaseError("inspect-caches"),
     }).pipe(
@@ -419,7 +420,7 @@ const makeAvailable = Effect.gen(function* () {
       Effect.mapError(databaseError("inspect-caches")),
       Effect.map((rows): ReadonlyArray<ClientCacheSummaryRow> =>
         rows.map((row) => ({
-          environmentId: row.environmentId as EnvironmentId,
+          machineId: row.machineId as MachineId,
           kind: row.kind,
           recordCount: row.recordCount,
           payloadBytes: row.payloadBytes,
@@ -461,7 +462,7 @@ function makeUnavailable(error: MobileDatabaseError): MobileDatabase["Service"] 
     saveCache: () => fail,
     removeCache: () => fail,
     clearCacheKind: () => fail,
-    clearEnvironmentCache: () => fail,
+    clearMachineCache: () => fail,
     clearAllCaches: fail,
     inspectCaches: fail,
     loadPreferencesJson: fail,

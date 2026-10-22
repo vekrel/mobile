@@ -24,7 +24,7 @@ import {
 } from "../agent-awareness/remoteRegistration";
 import { clearConnectOnboardingRequest, requestConnectOnboarding } from "./connectOnboarding";
 import { resolveCloudPublicConfig, resolveRelayClerkTokenOptions } from "./publicConfig";
-import { removeCloudEnvironments } from "./cloud-drafts";
+import { removeCloudMachines } from "./cloud-drafts";
 
 function resetManagedRelayTokenCache() {
   return settleAsyncResult(() =>
@@ -52,7 +52,7 @@ export function activateCloudRelayAccount(
 
 function CloudAuthBridge(props: { readonly children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
-  const removeRelayEnvironments = useAtomCommand(removeCloudEnvironments, {
+  const removeRelayMachines = useAtomCommand(removeCloudMachines, {
     reportFailure: false,
     reportDefect: false,
   });
@@ -75,7 +75,7 @@ function CloudAuthBridge(props: { readonly children: ReactNode }) {
 
     // The request itself is issued after the cleanup transition inside
     // activateSession, so the sheet never lists the previous account's
-    // environments; sign-out drops any not-yet-presented request instead.
+    // machines; sign-out drops any not-yet-presented request instead.
     const isAccountTransition =
       previousObservedAccount !== undefined && previousObservedAccount !== nextAccount;
     if (isAccountTransition && nextAccount === null) {
@@ -89,7 +89,7 @@ function CloudAuthBridge(props: { readonly children: ReactNode }) {
       } | null,
       accountId: string | null,
     ) => {
-      const removal = await removeRelayEnvironments(accountId);
+      const removal = await removeRelayMachines(accountId);
       if (removal._tag !== "Success") throw squashAtomCommandFailure(removal);
       const cleanup = [
         resetManagedRelayTokenCache(),
@@ -172,7 +172,7 @@ function CloudAuthBridge(props: { readonly children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [getToken, isLoaded, isSignedIn, removeRelayEnvironments, userId]);
+  }, [getToken, isLoaded, isSignedIn, removeRelayMachines, userId]);
 
   useEffect(
     () => () => {

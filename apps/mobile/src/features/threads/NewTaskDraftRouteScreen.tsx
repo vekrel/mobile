@@ -18,7 +18,7 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { useProjects } from "../../state/entities";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useWorkspaceState } from "../../state/workspace";
-import { vcsEnvironment } from "../../state/vcs";
+import { vcsMachine } from "../../state/vcs";
 import { checkoutNewTaskBranch } from "./checkout-new-task-branch";
 import { resolveNewTaskBranchWorktreePath } from "./new-task-context-presentation";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
@@ -46,14 +46,14 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
   const projects = useProjects();
   const { state: catalogState } = useWorkspaceState();
   const navigation = useNavigation();
-  const readRefs = useAtomCommand(vcsEnvironment.readRefs, { reportFailure: false });
-  const switchRef = useAtomCommand(vcsEnvironment.switchRef, { reportFailure: false });
+  const readRefs = useAtomCommand(vcsMachine.readRefs, { reportFailure: false });
+  const switchRef = useAtomCommand(vcsMachine.switchRef, { reportFailure: false });
 
   const initialProjectRef = useMemo(
     () => ({
-      environmentId: Array.isArray(params.environmentId)
-        ? params.environmentId[0]
-        : params.environmentId,
+      machineId: Array.isArray(params.machineId)
+        ? params.machineId[0]
+        : params.machineId,
       projectId: Array.isArray(params.projectId) ? params.projectId[0] : params.projectId,
       branch: params.branch,
       worktreePath: params.worktreePath,
@@ -69,10 +69,10 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
   } | null>(null);
   const project = projects.find(
     (candidate) =>
-      candidate.environmentId === initialProjectRef.environmentId &&
+      candidate.machineId === initialProjectRef.machineId &&
       candidate.id === initialProjectRef.projectId,
   );
-  const environmentId = project?.environmentId;
+  const machineId = project?.machineId;
   const workspaceRoot = project?.workspaceRoot;
   const needsPreparation = Boolean(initialProjectRef.branch && !pendingTaskId && !draftId);
 
@@ -83,7 +83,7 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
     !project &&
     (catalogState.isLoadingConnections ||
       (!catalogState.hasLoadedShellSnapshot &&
-        catalogState.hasConnectingEnvironment &&
+        catalogState.hasConnectingMachine &&
         catalogState.connectionError === null));
 
   useEffect(() => {
@@ -104,7 +104,7 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
           isDefault: false,
           worktreePath: initialProjectRef.worktreePath ?? null,
         },
-        project: environmentId && workspaceRoot ? { environmentId, workspaceRoot } : null,
+        project: machineId && workspaceRoot ? { machineId, workspaceRoot } : null,
         workspaceMode: "local",
         readRefs,
         switchRef,
@@ -120,7 +120,7 @@ export function NewTaskDraftRouteScreen({ route }: StaticScreenProps<NewTaskDraf
     };
   }, [
     deferThreadSelectionUntil,
-    environmentId,
+    machineId,
     workspaceRoot,
     initialProjectRef,
     needsPreparation,

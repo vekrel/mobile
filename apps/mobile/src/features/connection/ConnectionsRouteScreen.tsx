@@ -2,40 +2,40 @@ import { Toolbar } from "../../components/ui/Toolbar";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 
 import { useNavigation } from "@react-navigation/native";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { useCallback, useState } from "react";
 import { Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AndroidScreenHeader } from "../../components/ui/AndroidScreenHeader";
-import { useRemoteConnections } from "../../state/use-remote-environment-registry";
-import { LocalEnvironmentList } from "./LocalEnvironmentList";
+import { useRemoteConnections } from "../../state/use-remote-machine-registry";
+import { LocalMachineList } from "./LocalMachineList";
 import { GitHubRoutingSettings } from "./GitHubRoutingSettings";
 
 export function ConnectionsRouteScreen() {
   const {
-    connectedEnvironments,
-    onReconnectEnvironment,
-    onRemoveEnvironmentPress,
-    onSetEnvironmentEnabled,
-    onUpdateEnvironment,
+    connectedMachines,
+    onReconnectMachine,
+    onRemoveMachinePress,
+    onSetMachineEnabled,
+    onUpdateMachine,
   } = useRemoteConnections();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const [expandedId, setExpandedId] = useState<EnvironmentId | null>(null);
-  const handleToggle = useCallback((environmentId: EnvironmentId) => {
-    setExpandedId((prev) => (prev === environmentId ? null : environmentId));
+  const [expandedId, setExpandedId] = useState<MachineId | null>(null);
+  const handleToggle = useCallback((machineId: MachineId) => {
+    setExpandedId((prev) => (prev === machineId ? null : machineId));
   }, []);
 
   return (
     <View collapsable={false} className="flex-1 bg-sheet">
       {Platform.OS === "android" ? (
         <AndroidScreenHeader
-          title="Environments"
+          title="Machines"
           onBack={() => navigation.goBack()}
           actions={[
             {
-              accessibilityLabel: "Add environment",
+              accessibilityLabel: "Add machine",
               icon: "plus",
               onPress: () => navigation.navigate("ConnectionsNew"),
             },
@@ -60,14 +60,14 @@ export function ConnectionsRouteScreen() {
           paddingTop: 16,
         }}
       >
-        <LocalEnvironmentList
-          environments={connectedEnvironments}
+        <LocalMachineList
+          machines={connectedMachines}
           expandedId={expandedId}
           onToggle={handleToggle}
-          onReconnect={onReconnectEnvironment}
-          onRemove={onRemoveEnvironmentPress}
-          onSetEnabled={onSetEnvironmentEnabled}
-          onUpdate={onUpdateEnvironment}
+          onReconnect={onReconnectMachine}
+          onRemove={onRemoveMachinePress}
+          onSetEnabled={onSetMachineEnabled}
+          onUpdate={onUpdateMachine}
         />
         <GitHubRoutingSettings />
       </ScrollView>

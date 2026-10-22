@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vite-plus/test";
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import { filePreviewGallery } from "../../lib/filePreviewGallery";
 import { pullRequestImageSource } from "./pullRequestMediaSource";
 
-const location = { environmentId: EnvironmentId.make("test"), cwd: "/repo" };
+const location = { machineId: MachineId.make("test"), cwd: "/repo" };
 const url = "https://github.com/user-attachments/assets/abc-123";
 
 describe("PR media previews", () => {

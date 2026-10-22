@@ -10,7 +10,7 @@ import {
   type PreviewStreamFileChooser,
   type PreviewStreamInput,
 } from "@vekrel/client-runtime/preview/server-browser-stream";
-import type { EnvironmentId, PreviewStreamHostSetup } from "@vekrel/contracts";
+import type { MachineId, PreviewStreamHostSetup } from "@vekrel/contracts";
 import {
   useEffect,
   useEffectEvent,
@@ -115,11 +115,11 @@ const MAX_REFUSALS = 3;
 export function PreviewStreamWebView(
   props: Omit<PreviewStreamConfiguration, "access"> &
     Omit<NativeStreamBridge, "onUnauthorized"> & {
-      readonly environmentId: EnvironmentId;
+      readonly machineId: MachineId;
       readonly paused?: boolean;
     },
 ) {
-  const { access, error, refresh } = usePreviewStreamAccess(props.environmentId);
+  const { access, error, refresh } = usePreviewStreamAccess(props.machineId);
   if (access && !props.paused) {
     return <AuthorizedPreviewStream {...props} access={access} onUnauthorized={refresh} />;
   }

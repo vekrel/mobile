@@ -12,37 +12,37 @@ import { RowPressable } from "../../components/ui/RowPressable";
 import { CustomSnoozeSheet } from "./CustomSnoozeSheet";
 import { appAtomRegistry } from "../../state/atom-registry";
 import { threadArrangementOpenAtom } from "../../state/thread-order";
-import { threadEnvironment } from "../../state/threads";
+import { threadMachine } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useVisibleSecondClock } from "./use-visible-second-clock";
 import type { ThreadMoveDestination } from "./threadOrder";
 import type {
-  EnvironmentProject,
-  EnvironmentThreadShell,
+  MachineProject,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
-import type { EnvironmentThreadSearchMatch } from "@vekrel/client-runtime/state/thread-search";
+import type { MachineThreadSearchMatch } from "@vekrel/client-runtime/state/thread-search";
 import {
   formatWorkingDurationLabel,
   resolveThreadWorkingStartedAt,
 } from "@vekrel/client-runtime/state/models";
-import { AuthOrchestrationOperateScope, type EnvironmentMachineKind } from "@vekrel/contracts";
+import { AuthOrchestrationOperateScope, type MachineKind } from "@vekrel/contracts";
 import { canSnooze, resolveSnoozePresets } from "@vekrel/client-runtime/state/thread-settled";
 import type { MenuAction } from "@react-native-menu/menu";
 import { memo, useCallback, useEffect, useMemo, useState, type ComponentProps } from "react";
 import { Pressable, useWindowDimensions, View } from "react-native";
 import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSwipeable";
 
-import type { ThreadListProvider } from "../../state/thread-list-environments";
+import type { ThreadListProvider } from "../../state/thread-list-machines";
 import { SymbolView, type AppSymbolName } from "../../components/ui/AppSymbol";
 import { AppText as Text } from "../../components/ui/AppText";
 import { Menu } from "../../components/ui/Menu";
-import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSymbol";
+import { MachineSymbol } from "../../components/MachineSymbol";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { ProviderIcon, ProviderInstanceIcon } from "../../components/ProviderIcon";
 import { cn } from "../../lib/cn";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
-import { useEnvironmentScope } from "../../state/session";
+import { useMachineScope } from "../../state/session";
 import type { PendingNewTask } from "../../state/use-pending-new-tasks";
 import {
   resolveThreadPrBadgeAction,
@@ -315,10 +315,10 @@ const DRAFT_TASK_MENU_ACTIONS: MenuAction[] = [
 export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props: {
   readonly pendingTask: PendingNewTask;
   readonly selected?: boolean;
-  readonly project: EnvironmentProject | null;
+  readonly project: MachineProject | null;
   readonly projectTitle?: string;
-  readonly environmentLabel: string | null;
-  readonly environmentMachine?: EnvironmentMachineKind;
+  readonly machineLabel: string | null;
+  readonly machine?: MachineKind;
   readonly pane?: "screen" | "sidebar";
   readonly showPendingDivider: boolean;
   readonly showTrailingDivider?: boolean;
@@ -367,7 +367,7 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
       <View className="flex-row items-center gap-1.5">
         {props.project ? (
           <ProjectFavicon
-            environmentId={pendingTask.environmentId}
+            machineId={pendingTask.machineId}
             faviconPath={props.project.faviconPath}
             projectIcon={props.project.projectIcon}
             size={15}
@@ -414,7 +414,7 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
       >
         {pendingTask.title}
       </Text>
-      {branch || props.environmentLabel ? (
+      {branch || props.machineLabel ? (
         <View className="mt-1 flex-row items-center gap-1">
           <Text
             className={cn(
@@ -434,21 +434,21 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
                 {branch}
               </Text>
             ) : null}
-            {branch && props.environmentLabel ? "  ·  " : null}
-            {props.environmentLabel ? (
+            {branch && props.machineLabel ? "  ·  " : null}
+            {props.machineLabel ? (
               <Text
                 className={cn(
                   "text-xs text-foreground-tertiary",
                   sidebarPane && "text-drawer-foreground-muted",
                 )}
               >
-                {props.environmentLabel}
+                {props.machineLabel}
               </Text>
             ) : null}
           </Text>
-          {props.environmentLabel && props.environmentMachine ? (
-            <EnvironmentMachineSymbol
-              kind={props.environmentMachine}
+          {props.machineLabel && props.machine ? (
+            <MachineSymbol
+              kind={props.machine}
               size={11}
               tintColorClassName={
                 sidebarPane ? "accent-drawer-foreground-muted" : "accent-foreground-tertiary"
@@ -492,7 +492,7 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
               accessibilityHint={
                 isDraft
                   ? `Opens the draft in the new task composer. Swipe left to ${deleteLabel.toLowerCase()}.`
-                  : `Sends when the environment reconnects. Opens the task for editing. Swipe left to ${deleteLabel.toLowerCase()}.`
+                  : `Sends when the machine reconnects. Opens the task for editing. Swipe left to ${deleteLabel.toLowerCase()}.`
               }
               accessibilityLabel={pendingTask.title}
               accessibilityRole="button"
@@ -523,7 +523,7 @@ export const ThreadListV2PendingRow = memo(function ThreadListV2PendingRow(props
 });
 
 export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
-  readonly thread: EnvironmentThreadShell;
+  readonly thread: MachineThreadShell;
   readonly variant: "card" | "slim";
   readonly hasQueuedMessages?: boolean;
   readonly snoozed?: boolean;
@@ -532,33 +532,33 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   readonly snoozeWakeLabelText?: string;
   readonly timeLabel: string;
   readonly snoozePresetMinute: string;
-  readonly project: EnvironmentProject | null;
+  readonly project: MachineProject | null;
   readonly projectTitle?: string;
   readonly providers: ReadonlyArray<ThreadListProvider> | undefined;
   readonly providerInstance: ThreadRowProviderInstance | null;
-  readonly environmentLabel: string | null;
-  readonly environmentMachine?: EnvironmentMachineKind;
+  readonly machineLabel: string | null;
+  readonly machine?: MachineKind;
   readonly pane?: "screen" | "sidebar";
   readonly showTrailingDivider?: boolean;
   readonly selected?: boolean;
   readonly fullSwipeWidth?: number;
-  readonly onSelectThread: (thread: EnvironmentThreadShell) => void;
+  readonly onSelectThread: (thread: MachineThreadShell) => void;
   readonly onOpenThreadPullRequests: (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     pr: ThreadPrPresentation,
   ) => void;
-  readonly onDeleteThread: (thread: EnvironmentThreadShell) => void;
-  readonly onNewThreadOnBranch: (thread: EnvironmentThreadShell) => void;
-  readonly onRenameThread: (thread: EnvironmentThreadShell) => void;
-  readonly onRegenerateThreadTitle: (thread: EnvironmentThreadShell) => void;
-  readonly onSettleThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly onSnoozeThread: (thread: EnvironmentThreadShell, snoozedUntil: string) => void;
-  readonly onUnsnoozeThread: (thread: EnvironmentThreadShell) => void;
-  readonly onUnsettleThread: (thread: EnvironmentThreadShell) => void;
-  readonly onArchiveThread: (thread: EnvironmentThreadShell) => void;
-  readonly onPinThread: (thread: EnvironmentThreadShell) => void;
-  readonly onUnpinThread: (thread: EnvironmentThreadShell) => void;
-  readonly onSetThreadAutoSettle: (thread: EnvironmentThreadShell, enabled: boolean) => void;
+  readonly onDeleteThread: (thread: MachineThreadShell) => void;
+  readonly onNewThreadOnBranch: (thread: MachineThreadShell) => void;
+  readonly onRenameThread: (thread: MachineThreadShell) => void;
+  readonly onRegenerateThreadTitle: (thread: MachineThreadShell) => void;
+  readonly onSettleThread: (thread: MachineThreadShell) => Promise<boolean>;
+  readonly onSnoozeThread: (thread: MachineThreadShell, snoozedUntil: string) => void;
+  readonly onUnsnoozeThread: (thread: MachineThreadShell) => void;
+  readonly onUnsettleThread: (thread: MachineThreadShell) => void;
+  readonly onArchiveThread: (thread: MachineThreadShell) => void;
+  readonly onPinThread: (thread: MachineThreadShell) => void;
+  readonly onUnpinThread: (thread: MachineThreadShell) => void;
+  readonly onSetThreadAutoSettle: (thread: MachineThreadShell, enabled: boolean) => void;
   readonly settlementSupported: boolean;
   readonly snoozeSupported: boolean;
   readonly pinningSupported: boolean;
@@ -566,7 +566,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   readonly titleRegenerationSupported: boolean;
   readonly reorderSupported?: boolean;
   readonly onMoveThread?: (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     direction: ThreadMoveDestination,
   ) => void;
   readonly canMoveUp?: boolean;
@@ -574,7 +574,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   readonly onSwipeableWillOpen: (methods: SwipeableMethods) => void;
   readonly onSwipeableClose: (methods: SwipeableMethods) => void;
   readonly activationKey?: string;
-  readonly searchMatch?: EnvironmentThreadSearchMatch;
+  readonly searchMatch?: MachineThreadSearchMatch;
   readonly searchQuery?: string;
   readonly simultaneousSwipeGesture?: ComponentProps<typeof ThreadSwipeable>["simultaneousWith"];
 }) {
@@ -637,14 +637,14 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   const recede = shouldRecedeThreadRow({ status, selected });
   const timeLabel = props.timeLabel;
 
-  const visitThread = useAtomCommand(threadEnvironment.visit, { reportFailure: false });
+  const visitThread = useAtomCommand(threadMachine.visit, { reportFailure: false });
   const handleAcknowledgeWoke = useCallback(() => {
     if (props.wokeAt === null) return;
     void visitThread({
-      environmentId: thread.environmentId,
+      machineId: thread.machineId,
       input: { threadId: thread.id, visitedAt: props.wokeAt },
     });
-  }, [props.wokeAt, thread.environmentId, thread.id, visitThread]);
+  }, [props.wokeAt, thread.machineId, thread.id, visitThread]);
   // VoiceOver cannot focus buttons inside the accessible row.
   const rowAccessibilityActions = useMemo(
     () => [
@@ -656,7 +656,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
 
   const handleDelete = useCallback(() => onDeleteThread(thread), [onDeleteThread, thread]);
   const handleRename = useCallback(() => onRenameThread(thread), [onRenameThread, thread]);
-  const canOperateThread = useEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope);
+  const canOperateThread = useMachineScope(thread.machineId, AuthOrchestrationOperateScope);
   const handleRegenerateTitle = useCallback(
     () => onRegenerateThreadTitle(thread),
     [onRegenerateThreadTitle, thread],
@@ -667,7 +667,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   // remounting it, and the render closure stops running while list equality
   // says the item is unchanged — so any row-local UI state must be dismissed
   // when the identity under it changes.
-  const rowIdentity = `${thread.environmentId}:${thread.id}`;
+  const rowIdentity = `${thread.machineId}:${thread.id}`;
   const [boundIdentity, setBoundIdentity] = useState(rowIdentity);
   if (boundIdentity !== rowIdentity) {
     setBoundIdentity(rowIdentity);
@@ -984,7 +984,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       <View className="flex-row items-center gap-1.5">
         {props.project ? (
           <ProjectFavicon
-            environmentId={thread.environmentId}
+            machineId={thread.machineId}
             faviconPath={props.project.faviconPath}
             projectIcon={props.project.projectIcon}
             size={15}
@@ -1115,7 +1115,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           >
             {thread.runtime.lastError}
           </Text>
-        ) : thread.branch || props.environmentLabel ? (
+        ) : thread.branch || props.machineLabel ? (
           <View className="min-w-0 flex-1 flex-row items-center gap-1">
             <Text
               className={cn(
@@ -1139,8 +1139,8 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
                   {thread.branch}
                 </Text>
               ) : null}
-              {thread.branch && props.environmentLabel ? "  ·  " : null}
-              {props.environmentLabel ? (
+              {thread.branch && props.machineLabel ? "  ·  " : null}
+              {props.machineLabel ? (
                 <Text
                   className={cn(
                     "text-xs",
@@ -1149,13 +1149,13 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
                       : rowAppearance.tertiaryForegroundClassName,
                   )}
                 >
-                  {props.environmentLabel}
+                  {props.machineLabel}
                 </Text>
               ) : null}
             </Text>
-            {props.environmentLabel && props.environmentMachine ? (
-              <EnvironmentMachineSymbol
-                kind={props.environmentMachine}
+            {props.machineLabel && props.machine ? (
+              <MachineSymbol
+                kind={props.machine}
                 size={11}
                 tintColorClassName={
                   selected
@@ -1240,7 +1240,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
   const rowContent = (close: () => void) =>
     variant === "card" ? (
       <RowPressable
-        key={`${thread.environmentId}:${thread.id}`}
+        key={`${thread.machineId}:${thread.id}`}
         interactionClassName={rowAppearance.interactionClassName}
         interactionOpacity={rowAppearance.interactionOpacity}
         className={rowAppearance.className}
@@ -1274,7 +1274,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       </RowPressable>
     ) : (
       <RowPressable
-        key={`${thread.environmentId}:${thread.id}`}
+        key={`${thread.machineId}:${thread.id}`}
         interactionClassName={rowAppearance.interactionClassName}
         interactionOpacity={rowAppearance.interactionOpacity}
         accessibilityHint={swipeAccessibilityHint}
@@ -1299,7 +1299,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
           {props.project ? (
             <View className="opacity-40">
               <ProjectFavicon
-                environmentId={thread.environmentId}
+                machineId={thread.machineId}
                 faviconPath={props.project.faviconPath}
                 projectIcon={props.project.projectIcon}
                 size={15}
@@ -1359,7 +1359,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
       )}
       <ThreadSwipeable
         dormant={dormant}
-        threadKey={`${thread.environmentId}:${thread.id}`}
+        threadKey={`${thread.machineId}:${thread.id}`}
         backgroundColor={rowAppearance.swipeBackgroundColor}
         compactActions={variant === "slim"}
         containerStyle={rowAppearance.swipeContainerStyle}
@@ -1371,7 +1371,7 @@ export const ThreadListV2Row = memo(function ThreadListV2Row(props: {
         onSwipeableWillOpen={props.onSwipeableWillOpen}
         primaryAction={primaryAction}
         secondaryAction={secondaryAction}
-        resetKey={`${thread.environmentId}:${thread.id}:${variant}:${snoozedRow}:${thread.settledAt}:${thread.unsettledAt}:${thread.snoozedUntil}:${thread.pinnedAt}`}
+        resetKey={`${thread.machineId}:${thread.id}:${variant}:${snoozedRow}:${thread.settledAt}:${thread.unsettledAt}:${thread.snoozedUntil}:${thread.pinnedAt}`}
         simultaneousWith={props.simultaneousSwipeGesture}
         threadTitle={thread.title}
       >

@@ -2,8 +2,8 @@ import * as Dialog from "../components/ui/Dialog";
 import { useAtomValue } from "@effect/atom-react";
 import {
   threadRuntimeIsActive,
-  type EnvironmentProject,
-  type EnvironmentThreadShell,
+  type MachineProject,
+  type MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import type { AtomCommandResult } from "@vekrel/client-runtime/state/runtime";
 import { deriveThreadTitleSeed } from "@vekrel/client-runtime/operations";
@@ -42,9 +42,9 @@ import {
   pendingThreadCreationOutcomesAtom,
   recordPendingThreadCreationOutcome,
 } from "./pending-thread-creation";
-import { serverEnvironment } from "./server";
-import { gitEnvironment } from "./git";
-import { readEnvironmentScope, useEnvironmentsWithScope } from "./session";
+import { serverMachine } from "./server";
+import { gitMachine } from "./git";
+import { readMachineScope, useMachinesWithScope } from "./session";
 import {
   confirmThreadOutboxMessageQueued,
   threadOutboxManager,
@@ -65,7 +65,7 @@ import {
   type ThreadOutboxCommandStage,
   type ThreadOutboxFailureAction,
 } from "./thread-outbox-model";
-import { environmentThreadShells, threadEnvironment } from "./threads";
+import { machineThreadShells, threadMachine } from "./threads";
 import {
   appendComposerDraftAttachments,
   composerDraftsAtom,
@@ -87,7 +87,7 @@ import {
   useThreadOutboxShellStatuses,
 } from "./use-thread-outbox";
 import { clearThreadComposerError, setThreadComposerError } from "./thread-composer-error";
-import { useRemoteConnectionStatus } from "./use-remote-environment-registry";
+import { useRemoteConnectionStatus } from "./use-remote-machine-registry";
 
 const threadOutboxDebug = createDebugLogger("thread-outbox");
 
@@ -141,7 +141,7 @@ function logThreadOutboxDeliveryFailure(input: {
 
 function logThreadOutboxUploadFailure(queuedMessage: QueuedThreadMessage, error: unknown): void {
   const context = {
-    environmentId: queuedMessage.environmentId,
+    machineId: queuedMessage.machineId,
     threadId: queuedMessage.threadId,
     messageId: queuedMessage.messageId,
   };
@@ -162,22 +162,22 @@ function finishDispatchingQueuedMessage(queuedMessageId: MessageId): void {
 }
 
 function findThread(
-  threads: ReadonlyArray<EnvironmentThreadShell>,
+  threads: ReadonlyArray<MachineThreadShell>,
   message: QueuedThreadMessage,
-): EnvironmentThreadShell | undefined {
+): MachineThreadShell | undefined {
   return threads.find(
     (candidate) =>
-      candidate.environmentId === message.environmentId && candidate.id === message.threadId,
+      candidate.machineId === message.machineId && candidate.id === message.threadId,
   );
 }
 
 function findCreationProject(
-  projects: ReadonlyArray<EnvironmentProject>,
+  projects: ReadonlyArray<MachineProject>,
   message: QueuedThreadMessage,
-): EnvironmentProject | undefined {
+): MachineProject | undefined {
   return projects.find(
     (candidate) =>
-      candidate.environmentId === message.environmentId &&
+      candidate.machineId === message.machineId &&
       candidate.id === message.creation?.projectId,
   );
 }
@@ -201,7 +201,7 @@ export async function prepareQueuedMessageAttachments(
   if (!(await confirmThreadOutboxMessageQueued(queuedMessage))) {
     return { status: "abandoned" };
   }
-  if (!readEnvironmentScope(queuedMessage.environmentId, AuthOrchestrationOperateScope)) {
+  if (!readMachineScope(queuedMessage.machineId, AuthOrchestrationOperateScope)) {
     return { status: "abandoned" };
   }
   const revision = threadOutboxRevision(queuedMessage.messageId);
@@ -211,7 +211,7 @@ export async function prepareQueuedMessageAttachments(
   let persistedMessage = queuedMessage;
   let deliveryRevision = revision;
   const result = await prepareTurnAttachments({
-    environmentId: queuedMessage.environmentId,
+    machineId: queuedMessage.machineId,
     attachments: queuedMessage.attachments,
     supportsImageUploads,
     persistUploadedReferences: async (draftAttachments) => {
@@ -253,7 +253,7 @@ export async function completeQueuedMessageDelivery(
   deliveryRevision: number,
 ): Promise<"removed" | "edited" | "failed"> {
   clearThreadComposerError(
-    scopedThreadKey(queuedMessage.environmentId, queuedMessage.threadId),
+    scopedThreadKey(queuedMessage.machineId, queuedMessage.threadId),
     queuedMessage.messageId,
   );
   try {
@@ -278,7 +278,7 @@ export async function completeQueuedMessageDelivery(
     if (!removed) {
       forgetAcknowledgedThreadMessage(queuedMessage);
       threadOutboxDebug.log("delivered message was edited before cleanup", {
-        environmentId: queuedMessage.environmentId,
+        machineId: queuedMessage.machineId,
         threadId: queuedMessage.threadId,
         messageId: queuedMessage.messageId,
       });
@@ -288,7 +288,7 @@ export async function completeQueuedMessageDelivery(
   } catch (error) {
     forgetAcknowledgedThreadMessage(queuedMessage);
     console.warn("[thread-outbox] failed to remove delivered queued message", {
-      environmentId: queuedMessage.environmentId,
+      machineId: queuedMessage.machineId,
       threadId: queuedMessage.threadId,
       messageId: queuedMessage.messageId,
       error,
@@ -315,7 +315,7 @@ export async function removeAcknowledgedExistingThreadMessage(
     return removed;
   } catch (error) {
     console.warn("[thread-outbox] failed to remove acknowledged queued message", {
-      environmentId: queuedMessage.environmentId,
+      machineId: queuedMessage.machineId,
       threadId: queuedMessage.threadId,
       messageId: queuedMessage.messageId,
       error,
@@ -337,7 +337,7 @@ export async function recoverEditedCreationAfterDelivery(
   if (appAtomRegistry.get(editingQueuedMessageIdsAtom)[kept.messageId]) {
     return true;
   }
-  const draftKey = scopedThreadKey(kept.environmentId, kept.threadId);
+  const draftKey = scopedThreadKey(kept.machineId, kept.threadId);
   try {
     // Merge before removing: the draft's reference keeps the removal sweep
     // from deleting the attachment files. allowOverflow mirrors the
@@ -394,7 +394,7 @@ export async function restoreRejectedQueuedMessage(
   message: string,
 ): Promise<"restored" | "deferred" | "blocked" | "retry"> {
   const draftKey = recoveryDraftKey(queuedMessage);
-  const threadKey = scopedThreadKey(queuedMessage.environmentId, queuedMessage.threadId);
+  const threadKey = scopedThreadKey(queuedMessage.machineId, queuedMessage.threadId);
   let rollback: { readonly snapshot: ComposerDraft; readonly merged: ComposerDraft } | null = null;
   try {
     if (
@@ -531,7 +531,7 @@ export async function restoreRejectedQueuedMessage(
 function recoveryDraftKey(queuedMessage: QueuedThreadMessage): string {
   return queuedMessage.creation
     ? restoredNewTaskDraftKey(queuedMessage.messageId)
-    : scopedThreadKey(queuedMessage.environmentId, queuedMessage.threadId);
+    : scopedThreadKey(queuedMessage.machineId, queuedMessage.threadId);
 }
 
 function stampRecoveryDraftProject(queuedMessage: QueuedThreadMessage, draftKey: string): void {
@@ -540,7 +540,7 @@ function stampRecoveryDraftProject(queuedMessage: QueuedThreadMessage, draftKey:
   }
   updateComposerDraftSettings(draftKey, {
     project: {
-      environmentId: queuedMessage.environmentId,
+      machineId: queuedMessage.machineId,
       projectId: queuedMessage.creation.projectId,
       createdAt: queuedMessage.createdAt,
     },
@@ -565,9 +565,9 @@ async function preserveUploadedAttachmentsForEditor(
     const uploaded = uploadedById.get(attachment.id);
     if (
       !uploaded?.uploadedAttachmentId ||
-      uploaded.uploadEnvironmentId !== originalMessage.environmentId ||
+      uploaded.uploadMachineId !== originalMessage.machineId ||
       (attachment.uploadedAttachmentId === uploaded.uploadedAttachmentId &&
-        attachment.uploadEnvironmentId === uploaded.uploadEnvironmentId)
+        attachment.uploadMachineId === uploaded.uploadMachineId)
     ) {
       return attachment;
     }
@@ -575,7 +575,7 @@ async function preserveUploadedAttachmentsForEditor(
     return {
       ...attachment,
       uploadedAttachmentId: uploaded.uploadedAttachmentId,
-      uploadEnvironmentId: uploaded.uploadEnvironmentId,
+      uploadMachineId: uploaded.uploadMachineId,
     };
   });
   if (changed) {
@@ -585,14 +585,14 @@ async function preserveUploadedAttachmentsForEditor(
 }
 
 export function useThreadOutboxDrain(): void {
-  const startTurn = useAtomCommand(threadEnvironment.startTurn, { reportFailure: false });
-  const preparePullRequest = useAtomCommand(gitEnvironment.preparePullRequestThread, {
+  const startTurn = useAtomCommand(threadMachine.startTurn, { reportFailure: false });
+  const preparePullRequest = useAtomCommand(gitMachine.preparePullRequestThread, {
     reportFailure: false,
   });
-  const setThreadRuntimeMode = useAtomCommand(threadEnvironment.setRuntimeMode, {
+  const setThreadRuntimeMode = useAtomCommand(threadMachine.setRuntimeMode, {
     reportFailure: false,
   });
-  const setThreadInteractionMode = useAtomCommand(threadEnvironment.setInteractionMode, {
+  const setThreadInteractionMode = useAtomCommand(threadMachine.setInteractionMode, {
     reportFailure: false,
   });
   const dispatchingQueuedMessageId = useAtomValue(dispatchingQueuedMessageIdAtom);
@@ -603,9 +603,9 @@ export function useThreadOutboxDrain(): void {
   const creationOutcomes = useAtomValue(pendingThreadCreationOutcomesAtom);
   const projects = useProjects();
   const serverConfigs = useServerConfigs();
-  const { connectedEnvironments } = useRemoteConnectionStatus();
-  const operableEnvironments = useEnvironmentsWithScope(
-    connectedEnvironments,
+  const { connectedMachines } = useRemoteConnectionStatus();
+  const operableMachines = useMachinesWithScope(
+    connectedMachines,
     AuthOrchestrationOperateScope,
   );
   const [retryTick, setRetryTick] = useState(0);
@@ -718,7 +718,7 @@ export function useThreadOutboxDrain(): void {
         error,
         interrupted: Cause.hasInterruptsOnly(commandResult.cause),
         context: {
-          environmentId: queuedMessage.environmentId,
+          machineId: queuedMessage.machineId,
           threadId: queuedMessage.threadId,
           messageId: queuedMessage.messageId,
           cause: commandResult.cause,
@@ -733,12 +733,12 @@ export function useThreadOutboxDrain(): void {
   }, []);
 
   const sendQueuedMessage = useCallback(
-    async (queuedMessage: QueuedThreadMessage, thread: EnvironmentThreadShell) => {
+    async (queuedMessage: QueuedThreadMessage, thread: MachineThreadShell) => {
       const hasAccess = () =>
-        readEnvironmentScope(queuedMessage.environmentId, AuthOrchestrationOperateScope);
+        readMachineScope(queuedMessage.machineId, AuthOrchestrationOperateScope);
       if (!hasAccess()) return true;
       const serverConfig = appAtomRegistry.get(
-        serverEnvironment.configValueAtom(queuedMessage.environmentId),
+        serverMachine.configValueAtom(queuedMessage.machineId),
       );
       if (!serverConfig) return false;
       const settings = resolveQueuedThreadSettings(queuedMessage, thread, serverConfig.providers);
@@ -755,7 +755,7 @@ export function useThreadOutboxDrain(): void {
       if (settings.runtimeMode !== thread.runtimeMode) {
         if (!hasAccess()) return true;
         const runtimeResult = await setThreadRuntimeMode({
-          environmentId: queuedMessage.environmentId,
+          machineId: queuedMessage.machineId,
           input: {
             commandId: settingsCommandId(queuedMessage, "runtime-mode"),
             threadId: queuedMessage.threadId,
@@ -772,7 +772,7 @@ export function useThreadOutboxDrain(): void {
       if (settings.interactionMode !== thread.interactionMode) {
         if (!hasAccess()) return true;
         const interactionResult = await setThreadInteractionMode({
-          environmentId: queuedMessage.environmentId,
+          machineId: queuedMessage.machineId,
           input: {
             commandId: settingsCommandId(queuedMessage, "interaction-mode"),
             threadId: queuedMessage.threadId,
@@ -793,7 +793,7 @@ export function useThreadOutboxDrain(): void {
       try {
         const preparedResult = await prepareQueuedMessageAttachments(
           queuedMessage,
-          serverConfig.environment.capabilities.attachmentUploads === true,
+          serverConfig.machine.capabilities.attachmentUploads === true,
         );
         if (preparedResult.status === "abandoned") {
           return true;
@@ -823,7 +823,7 @@ export function useThreadOutboxDrain(): void {
         return true;
       }
       const currentConfig = appAtomRegistry.get(
-        serverEnvironment.configValueAtom(queuedMessage.environmentId),
+        serverMachine.configValueAtom(queuedMessage.machineId),
       );
       if (!currentConfig) return false;
       if (isModelSelectionUnavailable(currentConfig, settings.modelSelection, thread.projectId)) {
@@ -841,7 +841,7 @@ export function useThreadOutboxDrain(): void {
       );
       if (!hasAccess()) return true;
       const deliveryResult = await startTurn({
-        environmentId: queuedMessage.environmentId,
+        machineId: queuedMessage.machineId,
         input: {
           commandId: queuedMessage.commandId,
           creationSource: "mobile",
@@ -856,7 +856,7 @@ export function useThreadOutboxDrain(): void {
                 queuedMessage.attachments,
                 prepared.attachments,
               ),
-              currentConfig.environment.capabilities.inlineMessageContext === true,
+              currentConfig.machine.capabilities.inlineMessageContext === true,
             ),
             attachments: prepared.attachments,
           },
@@ -903,14 +903,14 @@ export function useThreadOutboxDrain(): void {
       projectCwd: string,
     ) => {
       const hasAccess = () =>
-        readEnvironmentScope(queuedMessage.environmentId, AuthOrchestrationOperateScope);
+        readMachineScope(queuedMessage.machineId, AuthOrchestrationOperateScope);
       if (!hasAccess()) return true;
       const modelSelection = queuedMessage.modelSelection;
       if (modelSelection === undefined) {
         return false;
       }
       const serverConfig = appAtomRegistry.get(
-        serverEnvironment.configValueAtom(queuedMessage.environmentId),
+        serverMachine.configValueAtom(queuedMessage.machineId),
       );
       if (!serverConfig) return false;
       const settings = resolveQueuedThreadSettings(
@@ -936,7 +936,7 @@ export function useThreadOutboxDrain(): void {
       try {
         const preparedResult = await prepareQueuedMessageAttachments(
           queuedMessage,
-          serverConfig.environment.capabilities.attachmentUploads === true,
+          serverConfig.machine.capabilities.attachmentUploads === true,
         );
         if (preparedResult.status === "abandoned") {
           return true;
@@ -966,7 +966,7 @@ export function useThreadOutboxDrain(): void {
         return true;
       }
       const currentConfig = appAtomRegistry.get(
-        serverEnvironment.configValueAtom(queuedMessage.environmentId),
+        serverMachine.configValueAtom(queuedMessage.machineId),
       );
       if (!currentConfig) return false;
       if (isModelSelectionUnavailable(currentConfig, settings.modelSelection, creation.projectId)) {
@@ -987,7 +987,7 @@ export function useThreadOutboxDrain(): void {
       let workspace = creation;
       if (creation.pullRequestReference) {
         const checkout = await preparePullRequest({
-          environmentId: queuedMessage.environmentId,
+          machineId: queuedMessage.machineId,
           input: { cwd: projectCwd, reference: creation.pullRequestReference, mode: "worktree" },
         });
         if (!isQueuedMessagePayloadCurrent(persistedMessage, deliveryRevision) || !hasAccess())
@@ -1011,7 +1011,7 @@ export function useThreadOutboxDrain(): void {
         };
       }
       const deliveryResult = await startTurn({
-        environmentId: queuedMessage.environmentId,
+        machineId: queuedMessage.machineId,
         input: buildProjectThreadStartTurnInput({
           projectId: creation.projectId,
           projectCwd,
@@ -1027,7 +1027,7 @@ export function useThreadOutboxDrain(): void {
               queuedMessage.attachments,
               prepared.attachments,
             ),
-            currentConfig.environment.capabilities.inlineMessageContext === true,
+            currentConfig.machine.capabilities.inlineMessageContext === true,
           ),
           uploadedAttachments: prepared.attachments,
           modelSelection: sendSettings.modelSelection,
@@ -1069,7 +1069,7 @@ export function useThreadOutboxDrain(): void {
         outcome.kind === "delivered" &&
         threads.some(
           (thread) =>
-            scopedThreadKey(thread.environmentId, thread.id) === threadKey &&
+            scopedThreadKey(thread.machineId, thread.id) === threadKey &&
             (thread.latestRun !== null ||
               thread.runtime?.status === "failed" ||
               thread.runtime?.status === "cancelled" ||
@@ -1148,26 +1148,26 @@ export function useThreadOutboxDrain(): void {
       }
 
       const thread = findThread(threads, nextQueuedMessage);
-      if (thread && scopedThreadKey(thread.environmentId, thread.id) !== threadKey) {
+      if (thread && scopedThreadKey(thread.machineId, thread.id) !== threadKey) {
         continue;
       }
 
       const creation = nextQueuedMessage.creation;
-      const environment = connectedEnvironments.find(
-        (candidate) => candidate.environmentId === nextQueuedMessage.environmentId,
+      const machine = connectedMachines.find(
+        (candidate) => candidate.machineId === nextQueuedMessage.machineId,
       );
-      const shellStatus = shellStatuses.get(nextQueuedMessage.environmentId) ?? "empty";
+      const shellStatus = shellStatuses.get(nextQueuedMessage.machineId) ?? "empty";
       const deliveryAction = resolveThreadOutboxDeliveryAction({
         isCreation: creation !== undefined,
         threadExists: thread !== undefined,
         shellStatus,
-        environmentConnected: environment?.connectionState === "connected",
+        machineConnected: machine?.connectionState === "connected",
         threadBusy: threadRuntimeIsActive(thread?.runtime),
       });
-      if (deliveryAction === "send" && !operableEnvironments.has(nextQueuedMessage.environmentId)) {
+      if (deliveryAction === "send" && !operableMachines.has(nextQueuedMessage.machineId)) {
         continue;
       }
-      const serverConfig = serverConfigs.get(nextQueuedMessage.environmentId);
+      const serverConfig = serverConfigs.get(nextQueuedMessage.machineId);
       const dispatchStep = resolveThreadOutboxDispatchStep({
         deliveryAction,
         fileAttachments: nextQueuedMessage.attachments.filter(
@@ -1176,7 +1176,7 @@ export function useThreadOutboxDrain(): void {
         serverConfig: serverConfig
           ? {
               maxFileUploadBytes:
-                serverConfig.environment.capabilities.fileAttachments?.maxUploadBytes,
+                serverConfig.machine.capabilities.fileAttachments?.maxUploadBytes,
             }
           : null,
       });
@@ -1229,7 +1229,7 @@ export function useThreadOutboxDrain(): void {
           () => true,
           (error) => {
             console.warn(warning, {
-              environmentId: nextQueuedMessage.environmentId,
+              machineId: nextQueuedMessage.machineId,
               threadId: nextQueuedMessage.threadId,
               messageId: nextQueuedMessage.messageId,
               error,
@@ -1253,7 +1253,7 @@ export function useThreadOutboxDrain(): void {
         }
         if (deliveryAction === "send") {
           const liveThread = findThread(
-            appAtomRegistry.get(environmentThreadShells.threadShellsAtom),
+            appAtomRegistry.get(machineThreadShells.threadShellsAtom),
             nextQueuedMessage,
           );
           const liveThreadBusy = threadRuntimeIsActive(liveThread?.runtime);
@@ -1261,7 +1261,7 @@ export function useThreadOutboxDrain(): void {
             isCreation: creation !== undefined,
             threadExists: liveThread !== undefined,
             shellStatus,
-            environmentConnected: environment?.connectionState === "connected",
+            machineConnected: machine?.connectionState === "connected",
             threadBusy: liveThreadBusy,
           });
           if (liveDeliveryAction !== "send") {
@@ -1306,10 +1306,10 @@ export function useThreadOutboxDrain(): void {
       return;
     }
   }, [
-    connectedEnvironments,
+    connectedMachines,
     dispatchingQueuedMessageId,
     editingQueuedMessageIds,
-    operableEnvironments,
+    operableMachines,
     projects,
     queuedMessagesByThreadKey,
     retryTick,

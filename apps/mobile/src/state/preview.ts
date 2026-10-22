@@ -1,10 +1,10 @@
 import { useAtomValue } from "@effect/atom-react";
-import { parseScopedThreadKey, scopedThreadKey } from "@vekrel/client-runtime/environment";
+import { parseScopedThreadKey, scopedThreadKey } from "@vekrel/client-runtime/machine";
 import { PREVIEW_STREAM_BASE_PATH } from "@vekrel/client-runtime/preview/server-browser-stream";
-import { createPreviewEnvironmentAtoms } from "@vekrel/client-runtime/state/preview";
+import { createPreviewMachineAtoms } from "@vekrel/client-runtime/state/preview";
 import { resolveDeviceHubAccess } from "@vekrel/client-runtime/state/deviceHubAccess";
 import type {
-  EnvironmentId,
+  MachineId,
   PreviewEvent,
   PreviewListResult,
   PreviewSessionSnapshot,
@@ -16,10 +16,10 @@ import { AsyncResult, Atom } from "effect/reactivity";
 import { useMemo } from "react";
 
 import { connectionAtomRuntime } from "../connection/runtime";
-import { useEnvironmentQuery } from "./query";
-import { environmentSession, usePreparedConnection } from "./session";
+import { useMachineQuery } from "./query";
+import { machineSession, usePreparedConnection } from "./session";
 
-export const previewEnvironment = createPreviewEnvironmentAtoms(connectionAtomRuntime);
+export const previewMachine = createPreviewMachineAtoms(connectionAtomRuntime);
 
 interface ThreadPreviewTabs {
   readonly serverEpoch: string | null;
@@ -68,11 +68,11 @@ function applyEvent(current: ThreadPreviewTabs, event: PreviewEvent): ThreadPrev
 const threadPreviewTabsAtom = Atom.family((threadKey: string) => {
   const ref = parseScopedThreadKey(threadKey);
   if (ref === null) return emptyTabsAtom;
-  const listAtom = previewEnvironment.list({
-    environmentId: ref.environmentId,
+  const listAtom = previewMachine.list({
+    machineId: ref.machineId,
     input: { threadId: ref.threadId },
   });
-  const eventsAtom = previewEnvironment.events({ environmentId: ref.environmentId, input: {} });
+  const eventsAtom = previewMachine.events({ machineId: ref.machineId, input: {} });
   return Atom.make((get) => {
     let disposed = false;
     let state = EMPTY_TABS;
@@ -124,14 +124,14 @@ const threadPreviewTabsAtom = Atom.family((threadKey: string) => {
 });
 
 export function useThreadServerBrowserTabs(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly enabled: boolean;
 }) {
   const tabs = useAtomValue(
     input.enabled
       ? threadPreviewTabsAtom(
-          scopedThreadKey({ environmentId: input.environmentId, threadId: input.threadId }),
+          scopedThreadKey({ machineId: input.machineId, threadId: input.threadId }),
         )
       : emptyTabsAtom,
   );
@@ -142,22 +142,22 @@ export function useThreadServerBrowserTabs(input: {
   return { tabs: sessions, loaded: tabs.listed };
 }
 
-const previewStreamAccessAtom = Atom.family((environmentId: EnvironmentId) =>
+const previewStreamAccessAtom = Atom.family((machineId: MachineId) =>
   connectionAtomRuntime
     .atom((get) => {
       const prepared = Option.getOrNull(
-        get(environmentSession.preparedConnectionValueAtom(environmentId)),
+        get(machineSession.preparedConnectionValueAtom(machineId)),
       );
       return prepared === null
         ? Effect.never
         : resolveDeviceHubAccess({ prepared, hubBasePath: PREVIEW_STREAM_BASE_PATH });
     })
-    .pipe(Atom.setIdleTTL(60_000), Atom.withLabel(`mobile-preview-stream-access:${environmentId}`)),
+    .pipe(Atom.setIdleTTL(60_000), Atom.withLabel(`mobile-preview-stream-access:${machineId}`)),
 );
 
-export function usePreviewStreamAccess(environmentId: EnvironmentId) {
-  const prepared = usePreparedConnection(environmentId);
-  const query = useEnvironmentQuery(previewStreamAccessAtom(environmentId));
+export function usePreviewStreamAccess(machineId: MachineId) {
+  const prepared = usePreparedConnection(machineId);
+  const query = useMachineQuery(previewStreamAccessAtom(machineId));
   const access = query.data && query.error === null && Option.isSome(prepared) ? query.data : null;
   return { access, error: query.error, refresh: query.refresh };
 }

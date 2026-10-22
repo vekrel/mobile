@@ -1,6 +1,6 @@
 import type { Action } from "expo-quick-actions";
 import type { NavigationState } from "@react-navigation/native";
-import { EnvironmentId, ThreadId, type ScopedThreadRef } from "@vekrel/contracts";
+import { MachineId, ThreadId, type ScopedThreadRef } from "@vekrel/contracts";
 
 import type { RecentThreadShortcut } from "../../persistence/imperative";
 
@@ -14,7 +14,7 @@ const SHORTCUT_ICON = "shortcut_icon";
 const THREAD_SHORTCUT_HREF_PATTERN = /^\/threads\/[^/?#]+\/[^/?#]+$/;
 
 function threadShortcutHref(thread: RecentThreadShortcut): string {
-  return `/threads/${encodeURIComponent(thread.environmentId)}/${encodeURIComponent(thread.threadId)}`;
+  return `/threads/${encodeURIComponent(thread.machineId)}/${encodeURIComponent(thread.threadId)}`;
 }
 
 function firstRouteParam(value: string | string[] | undefined): string | null {
@@ -39,18 +39,18 @@ export function activeThreadRef(state: NavigationState): ScopedThreadRef | null 
   try {
     const params = route.params as
       | {
-          readonly environmentId?: string | string[];
+          readonly machineId?: string | string[];
           readonly threadId?: string | string[];
         }
       | undefined;
-    const environmentId = firstRouteParam(params?.environmentId)?.trim();
+    const machineId = firstRouteParam(params?.machineId)?.trim();
     const threadId = firstRouteParam(params?.threadId)?.trim();
-    if (!environmentId || !threadId) {
+    if (!machineId || !threadId) {
       return null;
     }
 
     return {
-      environmentId: EnvironmentId.make(environmentId),
+      machineId: MachineId.make(machineId),
       threadId: ThreadId.make(threadId),
     };
   } catch {
@@ -85,7 +85,7 @@ export function withRecentThreadShortcut(
 ): ReadonlyArray<RecentThreadShortcut> {
   const existing = current.find(
     (thread) =>
-      thread.environmentId === opened.environmentId && thread.threadId === opened.threadId,
+      thread.machineId === opened.machineId && thread.threadId === opened.threadId,
   );
   const title = opened.title.trim().length > 0 ? opened.title : (existing?.title ?? opened.title);
   if (current[0] === existing && existing !== undefined && existing.title === title) {
@@ -93,7 +93,7 @@ export function withRecentThreadShortcut(
   }
 
   return [
-    { environmentId: opened.environmentId, threadId: opened.threadId, title },
+    { machineId: opened.machineId, threadId: opened.threadId, title },
     ...current.filter((thread) => thread !== existing),
   ].slice(0, MAX_RECENT_THREAD_SHORTCUTS);
 }

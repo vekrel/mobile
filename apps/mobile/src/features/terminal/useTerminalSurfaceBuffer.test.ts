@@ -27,7 +27,7 @@ function render(changes: Partial<Input> = {}) {
   return act(() =>
     root.render(
       createElement(BufferProbe, {
-        terminalKey: "environment:thread:term-1",
+        terminalKey: "machine:thread:term-1",
         buffer: "host output",
         readOnly: false,
         ...changes,
@@ -58,7 +58,7 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it.each(["secondary:thread:term-1", "environment:thread:term-2"])(
+it.each(["secondary:thread:term-1", "machine:thread:term-2"])(
   "does not carry history into another terminal target (%s)",
   async (terminalKey) => {
     await render();

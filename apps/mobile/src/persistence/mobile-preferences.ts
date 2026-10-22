@@ -6,7 +6,7 @@ import * as Ref from "effect/Ref";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import {
-  EnvironmentId,
+  MachineId,
   PullRequestInvolvement,
   PullRequestListFilters,
   PullRequestListState,
@@ -30,19 +30,19 @@ export const PullRequestListControls = Schema.Struct({
   involvement: PullRequestInvolvement,
   filters: PullRequestListFilters,
   projectId: Schema.optional(Schema.String),
-  projectEnvironmentId: Schema.optional(Schema.String),
+  projectMachineId: Schema.optional(Schema.String),
   sort: Schema.Literals(["updated", "created", "oldest"]),
 });
 export type PullRequestListControls = typeof PullRequestListControls.Type;
 
 const ThreadListFilters = Schema.Struct({
-  environmentId: Schema.NullOr(EnvironmentId),
+  machineId: Schema.NullOr(MachineId),
   projectKey: Schema.NullOr(Schema.String),
 });
 export type ThreadListFilters = typeof ThreadListFilters.Type;
 
 const PullRequestListPreferences = Schema.Struct({
-  environmentId: Schema.NullOr(Schema.String),
+  machineId: Schema.NullOr(Schema.String),
   controls: Schema.Record(Schema.String, PullRequestListControls),
 });
 export type PullRequestListPreferences = typeof PullRequestListPreferences.Type;
@@ -66,7 +66,7 @@ export interface Preferences {
   readonly mathRenderingEnabled?: boolean;
   readonly connectOnboardingOptOutAccounts?: ReadonlyArray<string>;
   readonly collapsedProjectGroups?: readonly string[];
-  /** Environments whose "reclaim database space" notice was dismissed. */
+  /** Machines whose "reclaim database space" notice was dismissed. */
   readonly dismissedDatabaseStorageNotices?: readonly string[];
   /** What the Return key does in the composer on a hardware keyboard. iOS only. */
   readonly composerEnterBehavior?: ComposerEnterBehavior;

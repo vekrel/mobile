@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import {
-  EnvironmentId,
+  MachineId,
   SourceControlProviderKind,
   type PullRequestListEntry,
   type PullRequestListResult,
@@ -10,7 +10,7 @@ import {
   DEFAULT_PR_LIST_CONTROLS,
   filterPullRequestList,
   mergePullRequestListEntries,
-  mergeEnvironmentPullRequestPages,
+  mergeMachinePullRequestPages,
   nextPullRequestListInput,
   PR_LIST_PAGE_SIZE,
   pullRequestListHead,
@@ -63,15 +63,15 @@ function page(
 describe("recycled PR list rows", () => {
   const scopedEntry = (patch: Partial<PullRequestListEntry> = {}) => ({
     ...entry(1, patch),
-    environmentId: EnvironmentId.make("env-one"),
+    machineId: MachineId.make("env-one"),
   });
 
-  it("updates navigation and commands when a duplicate moves to another environment", () => {
+  it("updates navigation and commands when a duplicate moves to another machine", () => {
     const original = scopedEntry();
     expect(
       pullRequestListRowsAreEqual(original, {
         ...original,
-        environmentId: EnvironmentId.make("env-two"),
+        machineId: MachineId.make("env-two"),
       }),
     ).toBe(false);
   });
@@ -136,15 +136,15 @@ describe("mobile PR list pagination", () => {
   });
 });
 
-describe("all-environment PR list", () => {
-  const cups = EnvironmentId.make("cups");
-  const mbp = EnvironmentId.make("mbp");
+describe("all-machine PR list", () => {
+  const cups = MachineId.make("cups");
+  const mbp = MachineId.make("mbp");
   it("combines independent pages, collapses duplicate PRs, and keeps their source for navigation", () => {
     const first = pullRequestListHead(null, page([entry(3), entry(1)], { repo: "cups-next" }));
     const second = pullRequestListHead(null, page([entry(2), entry(1)], { repo: "mbp-next" }));
-    const merged = mergeEnvironmentPullRequestPages([
-      { environmentId: cups, pages: first },
-      { environmentId: mbp, pages: second },
+    const merged = mergeMachinePullRequestPages([
+      { machineId: cups, pages: first },
+      { machineId: mbp, pages: second },
     ]);
     const rows = filterPullRequestList(
       merged.entries,
@@ -153,7 +153,7 @@ describe("all-environment PR list", () => {
       "",
       merged.localSearchHosts,
     );
-    expect(rows.map((row) => [row.number, row.environmentId])).toEqual([
+    expect(rows.map((row) => [row.number, row.machineId])).toEqual([
       [3, cups],
       [2, mbp],
       [1, cups],
@@ -174,15 +174,15 @@ describe("all-environment PR list", () => {
       repo: "mbp-next",
     });
   });
-  it("uses the viewer account and search support from each environment before deduplicating", () => {
+  it("uses the viewer account and search support from each machine before deduplicating", () => {
     const remote = {
       ...page([entry(1, { author: { login: "other", name: null, avatarUrl: null } })]),
       viewers: { "github.com": "other" },
     };
     const local = page([entry(1), entry(2)]);
-    const merged = mergeEnvironmentPullRequestPages([
-      { environmentId: cups, pages: pullRequestListHead(null, remote) },
-      { environmentId: mbp, pages: pullRequestListHead(null, local) },
+    const merged = mergeMachinePullRequestPages([
+      { machineId: cups, pages: pullRequestListHead(null, remote) },
+      { machineId: mbp, pages: pullRequestListHead(null, local) },
     ]);
     const byMe = filterPullRequestList(
       merged.entries,
@@ -191,7 +191,7 @@ describe("all-environment PR list", () => {
       "",
       merged.localSearchHosts,
     );
-    expect(byMe.map((row) => [row.number, row.environmentId])).toEqual([
+    expect(byMe.map((row) => [row.number, row.machineId])).toEqual([
       [2, mbp],
       [1, cups],
     ]);
@@ -203,24 +203,24 @@ describe("all-environment PR list", () => {
       "body match",
       localOnlySearch,
     );
-    expect(searched.map((row) => [row.number, row.environmentId])).toEqual([
+    expect(searched.map((row) => [row.number, row.machineId])).toEqual([
       [2, mbp],
       [1, mbp],
     ]);
   });
-  it("scopes a project to its owning environment even if another has the same project id", () => {
-    const merged = mergeEnvironmentPullRequestPages([
-      { environmentId: cups, pages: pullRequestListHead(null, page([entry(1)])) },
-      { environmentId: mbp, pages: pullRequestListHead(null, page([entry(2)])) },
+  it("scopes a project to its owning machine even if another has the same project id", () => {
+    const merged = mergeMachinePullRequestPages([
+      { machineId: cups, pages: pullRequestListHead(null, page([entry(1)])) },
+      { machineId: mbp, pages: pullRequestListHead(null, page([entry(2)])) },
     ]);
     expect(
       filterPullRequestList(
         merged.entries,
-        { ...DEFAULT_PR_LIST_CONTROLS, projectId: "project", projectEnvironmentId: mbp },
+        { ...DEFAULT_PR_LIST_CONTROLS, projectId: "project", projectMachineId: mbp },
         merged.viewers,
         "",
         merged.localSearchHosts,
-      ).map((row) => row.environmentId),
+      ).map((row) => row.machineId),
     ).toEqual([mbp]);
   });
 });
@@ -296,14 +296,14 @@ describe("mobile PR scan and filters", () => {
       ),
     ).toHaveLength(0);
   });
-  it("lists a shared repository's row from a connected environment over an offline one", () => {
+  it("lists a shared repository's row from a connected machine over an offline one", () => {
     const rows = [
-      { ...entry(1), environmentId: "laptop" },
-      { ...entry(1), environmentId: "server" },
+      { ...entry(1), machineId: "laptop" },
+      { ...entry(1), machineId: "server" },
     ];
     const pick = (connected: ReadonlySet<string>) =>
       filterPullRequestList(rows, DEFAULT_PR_LIST_CONTROLS, {}, "", new Set(), connected).map(
-        (row) => row.environmentId,
+        (row) => row.machineId,
       );
     expect(pick(new Set(["server"]))).toEqual(["server"]);
     expect(pick(new Set(["laptop", "server"]))).toEqual(["laptop"]);
@@ -313,24 +313,24 @@ describe("mobile PR scan and filters", () => {
 
 describe("withoutScratchProjectScope", () => {
   const projects = [
-    { id: "repo", environmentId: "env-a" },
-    { id: "scratch", environmentId: "env-a", isScratch: true as const },
+    { id: "repo", machineId: "env-a" },
+    { id: "scratch", machineId: "env-a", isScratch: true as const },
   ];
 
   it("reads a scope saved on the Scratch folder as all projects", () => {
     const controls = withoutScratchProjectScope(
-      { ...DEFAULT_PR_LIST_CONTROLS, projectId: "scratch", projectEnvironmentId: "env-a" },
+      { ...DEFAULT_PR_LIST_CONTROLS, projectId: "scratch", projectMachineId: "env-a" },
       projects,
     );
     expect(controls.projectId).toBeUndefined();
-    expect(controls.projectEnvironmentId).toBeUndefined();
+    expect(controls.projectMachineId).toBeUndefined();
   });
 
   it("keeps a repository scope, and one whose projects have not arrived yet", () => {
     const repository = {
       ...DEFAULT_PR_LIST_CONTROLS,
       projectId: "repo",
-      projectEnvironmentId: "env-a",
+      projectMachineId: "env-a",
     };
     expect(withoutScratchProjectScope(repository, projects)).toBe(repository);
     const pending = { ...repository, projectId: "scratch" };
@@ -341,7 +341,7 @@ describe("withoutScratchProjectScope", () => {
     const elsewhere = {
       ...DEFAULT_PR_LIST_CONTROLS,
       projectId: "scratch",
-      projectEnvironmentId: "env-b",
+      projectMachineId: "env-b",
     };
     expect(withoutScratchProjectScope(elsewhere, projects)).toBe(elsewhere);
   });

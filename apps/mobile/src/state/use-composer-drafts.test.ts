@@ -1,10 +1,10 @@
 import { PrimaryConnectionTarget } from "@vekrel/client-runtime/connection";
-import { createEnvironmentThreadShellAtoms } from "@vekrel/client-runtime/state/threads";
+import { createMachineThreadShellAtoms } from "@vekrel/client-runtime/state/threads";
 import {
   applyShellStreamEvent,
-  createEnvironmentSnapshotAtom,
-  type EnvironmentShellState,
-  type EnvironmentShellStatus,
+  createMachineSnapshotAtom,
+  type MachineShellState,
+  type MachineShellStatus,
 } from "@vekrel/client-runtime/state/shell";
 import {
   v2ShellSnapshot,
@@ -16,7 +16,7 @@ import { afterEach, describe, expect, it } from "@effect/vitest";
 import {
   CommandId,
   ComposerContextId,
-  EnvironmentId,
+  MachineId,
   MessageId,
   ProjectId,
   ProviderInstanceId,
@@ -142,11 +142,11 @@ vi.mock("../lib/composerImages", async (importOriginal) => ({
 }));
 
 vi.mock("../lib/uuid", () => ({ uuidv4: () => "uuid", randomHex: () => "0000" }));
-vi.mock("./assets", () => ({ assetEnvironment: {} }));
-vi.mock("./attachments", () => ({ attachmentEnvironment: {} }));
-vi.mock("./session", () => ({ environmentSession: {} }));
+vi.mock("./assets", () => ({ assetMachine: {} }));
+vi.mock("./attachments", () => ({ attachmentMachine: {} }));
+vi.mock("./session", () => ({ machineSession: {} }));
 vi.mock("@vekrel/client-runtime/state/runtime", () => ({
-  createEnvironmentRpcCommand: () => Symbol("rpc-command"),
+  createMachineRpcCommand: () => Symbol("rpc-command"),
   executeAtomQuery: () => {
     throw new Error("Unexpected network query in the inline read test");
   },
@@ -180,7 +180,7 @@ import {
   clearComposerDraftContent,
   clearComposerDraftContentState,
   subscribeComposerDraftModelReconciliation,
-  clearComposerDraftsEnvironment,
+  clearComposerDraftsMachine,
   ComposerDraftPersistenceError,
   composerDraftsAtom,
   composerCloudDraftsAtom,
@@ -197,7 +197,7 @@ import {
   migrateLegacyNewTaskDraft,
   modelOptionMemoryAtom,
   releaseUnusedComposerAttachmentFiles,
-  removeComposerDraftsForEnvironment,
+  removeComposerDraftsForMachine,
   replaceComposerDraftAttachments,
   resetComposerDraftsLoadState,
   restoreComposerDraftSnapshotState,
@@ -260,9 +260,9 @@ function contextDraft(start: number, count: number): ComposerDraft {
 }
 
 function modelReconciliationHarness(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   threadId: ThreadId,
-  initialStatus: EnvironmentShellStatus = "live",
+  initialStatus: MachineShellStatus = "live",
 ) {
   const tasks: Array<() => void> = [];
   const registry = AtomRegistry.make({
@@ -283,22 +283,22 @@ function modelReconciliationHarness(
       { ...v2ThreadShell, id: selectedThreadId },
     ],
   };
-  const shellStateAtom = Atom.make<EnvironmentShellState>({
+  const shellStateAtom = Atom.make<MachineShellState>({
     snapshot: Option.some(initialSnapshot),
     status: initialStatus,
     error: Option.none(),
   });
   const shellResultAtom = Atom.map(shellStateAtom, AsyncResult.success);
-  const snapshotAtom = createEnvironmentSnapshotAtom(() => shellResultAtom)(environmentId);
+  const snapshotAtom = createMachineSnapshotAtom(() => shellResultAtom)(machineId);
   const catalogValueAtom = Atom.make({
     isReady: true,
     entries: new Map([
       [
-        environmentId,
+        machineId,
         {
           target: new PrimaryConnectionTarget({
-            environmentId,
-            label: "Environment",
+            machineId,
+            label: "Machine",
             httpBaseUrl: "https://example.test",
             wsBaseUrl: "wss://example.test",
           }),
@@ -308,11 +308,11 @@ function modelReconciliationHarness(
       ],
     ]),
   });
-  const shells = createEnvironmentThreadShellAtoms({
+  const shells = createMachineThreadShellAtoms({
     catalogValueAtom,
     snapshotAtom: () => snapshotAtom,
   });
-  const selectedShell = shells.threadShellAtom({ environmentId, threadId: selectedThreadId });
+  const selectedShell = shells.threadShellAtom({ machineId, threadId: selectedThreadId });
   onTestFinished(registry.mount(selectedShell));
   onTestFinished(
     subscribeComposerDraftModelReconciliation({
@@ -325,11 +325,11 @@ function modelReconciliationHarness(
   flush();
   return {
     flush,
-    setStatus(status: EnvironmentShellStatus) {
+    setStatus(status: MachineShellStatus) {
       registry.set(shellStateAtom, { ...registry.get(shellStateAtom), status });
       flush();
     },
-    update(changes: Partial<OrchestrationV2ThreadShell>, status?: EnvironmentShellStatus) {
+    update(changes: Partial<OrchestrationV2ThreadShell>, status?: MachineShellStatus) {
       const state = registry.get(shellStateAtom);
       const snapshot = Option.getOrThrow(state.snapshot);
       registry.set(shellStateAtom, {
@@ -347,7 +347,7 @@ function modelReconciliationHarness(
       flush();
       expect(registry.get(selectedShell)?.id).toBe(selectedThreadId);
     },
-    model: () => registry.get(shells.threadShellAtom({ environmentId, threadId }))!.modelSelection,
+    model: () => registry.get(shells.threadShellAtom({ machineId, threadId }))!.modelSelection,
   };
 }
 
@@ -430,7 +430,7 @@ describe("mobile composer drafts", () => {
   it.each([false, true])(
     "restores deleted file chips and releases undo history (uploaded: %s)",
     async (uploaded) => {
-      const key = "environment:undo-file";
+      const key = "machine:undo-file";
       const file = {
         type: "file" as const,
         id: "undo-file",
@@ -441,7 +441,7 @@ describe("mobile composer drafts", () => {
         ...(uploaded
           ? {
               uploadedAttachmentId: "pending-upload",
-              uploadEnvironmentId: EnvironmentId.make("environment"),
+              uploadMachineId: MachineId.make("machine"),
             }
           : {}),
       };
@@ -462,7 +462,7 @@ describe("mobile composer drafts", () => {
         changeText(original.text);
         expect(getComposerDraftSnapshot(key).context).toEqual(original.context);
         expect(getComposerDraftSnapshot(key).attachments).toEqual([
-          { ...file, uploadedAttachmentId: undefined, uploadEnvironmentId: undefined },
+          { ...file, uploadedAttachmentId: undefined, uploadMachineId: undefined },
         ]);
         changeText("");
       } finally {
@@ -474,10 +474,10 @@ describe("mobile composer drafts", () => {
   );
 
   it("retains a pick matching cached state until the live shell confirms it", () => {
-    const environmentId = EnvironmentId.make("environment-1");
+    const machineId = MachineId.make("machine-1");
     const threadId = ThreadId.make("thread-1");
-    const key = `${environmentId}:${threadId}`;
-    const h = modelReconciliationHarness(environmentId, threadId, "cached");
+    const key = `${machineId}:${threadId}`;
+    const h = modelReconciliationHarness(machineId, threadId, "cached");
     const pick = h.model();
     updateComposerDraftSettings(key, { modelSelection: pick });
     h.flush();
@@ -497,9 +497,9 @@ describe("mobile composer drafts", () => {
   });
 
   it("releases an inactive thread pick only after its queued model becomes durable", () => {
-    const environmentId = EnvironmentId.make("environment-1");
+    const machineId = MachineId.make("machine-1");
     const threadId = ThreadId.make("thread-1");
-    const key = `${environmentId}:${threadId}`;
+    const key = `${machineId}:${threadId}`;
     const pick = { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.5" };
     setComposerDraftText(key, "keep this unsent follow-up");
     appendComposerDraftAttachments(
@@ -522,10 +522,10 @@ describe("mobile composer drafts", () => {
       interactionMode: "plan",
     });
     const before = getComposerDraftSnapshot(key);
-    const remoteKey = `environment-remote:${threadId}`;
+    const remoteKey = `machine-remote:${threadId}`;
     updateComposerDraftSettings(remoteKey, { modelSelection: pick });
     const remoteBefore = getComposerDraftSnapshot(remoteKey);
-    const h = modelReconciliationHarness(environmentId, threadId);
+    const h = modelReconciliationHarness(machineId, threadId);
 
     h.update({ status: "queued" });
     expect(getComposerDraftSnapshot(key)).toEqual(before);
@@ -547,9 +547,9 @@ describe("mobile composer drafts", () => {
   });
 
   it("retains an unavailable provider pick through differing durable model updates", () => {
-    const environmentId = EnvironmentId.make("environment-1");
+    const machineId = MachineId.make("machine-1");
     const threadId = ThreadId.make("thread-1");
-    const key = `${environmentId}:${threadId}`;
+    const key = `${machineId}:${threadId}`;
     const pick: ModelSelection = {
       instanceId: ProviderInstanceId.make("codex-secondary"),
       model: "gpt-5.5",
@@ -560,7 +560,7 @@ describe("mobile composer drafts", () => {
     };
     updateComposerDraftSettings(key, { modelSelection: pick });
     const before = getComposerDraftSnapshot(key);
-    const h = modelReconciliationHarness(environmentId, threadId);
+    const h = modelReconciliationHarness(machineId, threadId);
     expect(getComposerDraftSnapshot(key)).toEqual(before);
     for (const modelSelection of [
       { ...pick, instanceId: ProviderInstanceId.make("codex") },
@@ -616,7 +616,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("keeps over-limit recovery context reloadable without losing other drafts", () => {
-    const key = "environment-1:recovery";
+    const key = "machine-1:recovery";
     const merged = mergeComposerDraftContentState(
       { [key]: contextDraft(0, 200), other: DRAFT },
       key,
@@ -648,7 +648,7 @@ describe("mobile composer drafts", () => {
     const load = vi.spyOn(threadOutboxManager, "load").mockResolvedValue(true);
     onTestFinished(() => load.mockRestore());
     await waitForComposerDraftsLoaded();
-    const key = "environment-1:restored";
+    const key = "machine-1:restored";
     appAtomRegistry.set(composerDraftsAtom, { [key]: contextDraft(0, 200) });
     appAtomRegistry.set(composerCloudDraftsAtom, {
       accountId: null,
@@ -674,7 +674,7 @@ describe("mobile composer drafts", () => {
       composerAttachmentCleanupMocks.remove.mockImplementationOnce(async () => {
         cleanup.resolve();
       });
-      const key = "environment-1:remove-context-files";
+      const key = "machine-1:remove-context-files";
       const file = {
         id: "file-1",
         type: "file" as const,
@@ -720,7 +720,7 @@ describe("mobile composer drafts", () => {
     composerAttachmentCleanupMocks.remove.mockImplementationOnce(async () => {
       cleanup.resolve();
     });
-    const key = "environment-1:full-context";
+    const key = "machine-1:full-context";
     const records = Array.from({ length: 200 }, (_, index) => ({
       version: 1 as const,
       contextId: `ctx-${index}` as never,
@@ -757,7 +757,7 @@ describe("mobile composer drafts", () => {
     expect(getComposerDraftSnapshot(key)).toEqual(before);
     await cleanup.promise;
   });
-  it.each(["environment-1:thread", "environment-1:new-task:draft"])(
+  it.each(["machine-1:thread", "machine-1:new-task:draft"])(
     "preserves the captured paste selection across async writes in %s",
     async (key) => {
       const file = {
@@ -785,7 +785,7 @@ describe("mobile composer drafts", () => {
   );
 
   it("preserves edits made while a paste is pending instead of deleting stale offsets", async () => {
-    const key = "environment-1:typing-during-paste";
+    const key = "machine-1:typing-during-paste";
     setComposerDraftText(key, "old selection");
     const insertion = captureComposerDraftInsertion(key, { start: 0, end: 13 });
     const write = Promise.withResolvers<void>();
@@ -806,7 +806,7 @@ describe("mobile composer drafts", () => {
         cleanup.resolve();
         return undefined;
       });
-      const key = "environment-1:replace-file";
+      const key = "machine-1:replace-file";
       const files = Array.from({ length: 100 }, (_, index) => ({
         id: `file-${index}`,
         type: "file" as const,
@@ -876,7 +876,7 @@ describe("mobile composer drafts", () => {
       cleanup.resolve();
       return undefined;
     });
-    const key = "environment-1:concurrent-import";
+    const key = "machine-1:concurrent-import";
     const files = Array.from({ length: 100 }, (_, index) => ({
       id: `existing-${index}`,
       type: "file" as const,
@@ -918,7 +918,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("retains a file when replacing only one of its repeated references", () => {
-    const key = "environment-1:repeat-reference";
+    const key = "machine-1:repeat-reference";
     const file = {
       id: "repeat",
       type: "file" as const,
@@ -942,7 +942,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("inserts context at the saved caret and retains its payload through persistence and restore", () => {
-    const draftKey = "context-environment:context-thread";
+    const draftKey = "context-machine:context-thread";
     const record = {
       version: 1 as const,
       kind: "terminal" as const,
@@ -994,7 +994,7 @@ describe("mobile composer drafts", () => {
       sizeBytes: 42,
       fileUri: `file:///documents/t3-composer-attachments/${id}.mov`,
     });
-    const draftKey = "new-task:environment-1:project-cap";
+    const draftKey = "new-task:machine-1:project-cap";
     const existing = Array.from({ length: 99 }, (_, index) => makeAttachment(`held-${index}`));
     appAtomRegistry.set(composerDraftsAtom, {
       [draftKey]: { text: "send this", attachments: existing },
@@ -1066,7 +1066,7 @@ describe("mobile composer drafts", () => {
       previewUri: "file:///documents/t3-composer-attachments/photo.png",
     };
     appAtomRegistry.set(composerDraftsAtom, {
-      "environment-1:thread-1": { text: "look at this", attachments: [image] },
+      "machine-1:thread-1": { text: "look at this", attachments: [image] },
     });
 
     await releaseUnusedComposerAttachmentFiles([image]);
@@ -1074,9 +1074,9 @@ describe("mobile composer drafts", () => {
 
     appAtomRegistry.set(composerDraftsAtom, {});
     appAtomRegistry.set(threadOutboxManager.queuedMessagesByThreadKeyAtom, {
-      "environment-1:thread-1": [
+      "machine-1:thread-1": [
         {
-          environmentId: EnvironmentId.make("environment-1"),
+          machineId: MachineId.make("machine-1"),
           threadId: ThreadId.make("thread-1"),
           messageId: MessageId.make("queued-image"),
           commandId: CommandId.make("command-image"),
@@ -1120,10 +1120,10 @@ describe("mobile composer drafts", () => {
       imageExists = false;
       removed.resolve();
     });
-    appendComposerDraftAttachments("environment-1:thread-1", [image]);
+    appendComposerDraftAttachments("machine-1:thread-1", [image]);
     await flushComposerDrafts();
     const preparing = prepareTurnAttachments({
-      environmentId: EnvironmentId.make("environment-1"),
+      machineId: MachineId.make("machine-1"),
       attachments: [image],
     });
     onTestFinished(async () => {
@@ -1131,7 +1131,7 @@ describe("mobile composer drafts", () => {
       await preparing.catch(() => undefined);
     });
     await readStarted.promise;
-    clearComposerDraftContent("environment-1:thread-1", { deferAttachmentCleanup: true });
+    clearComposerDraftContent("machine-1:thread-1", { deferAttachmentCleanup: true });
     await releaseUnusedComposerAttachmentFiles([image]);
     expect(imageExists).toBe(true);
 
@@ -1163,10 +1163,10 @@ describe("mobile composer drafts", () => {
       sizeBytes: 42,
       fileUri: "file:///documents/t3-composer-attachments/failed-send.pdf",
       uploadedAttachmentId: "pending-failed-send",
-      uploadEnvironmentId: EnvironmentId.make("environment-1"),
+      uploadMachineId: MachineId.make("machine-1"),
     };
     appAtomRegistry.set(composerDraftsAtom, {
-      "environment-1:thread-1": { text: "Retry this send", attachments: [file] },
+      "machine-1:thread-1": { text: "Retry this send", attachments: [file] },
     });
 
     await releaseUnusedComposerAttachmentFiles([file]);
@@ -1176,7 +1176,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("retains offline image bytes and newer edits when an early upload finishes", async () => {
-    const key = "environment-1:thread-1";
+    const key = "machine-1:thread-1";
     const image = {
       id: "photo",
       type: "image" as const,
@@ -1190,7 +1190,7 @@ describe("mobile composer drafts", () => {
     const uploaded = {
       ...image,
       uploadedAttachmentId: "pending-photo",
-      uploadEnvironmentId: EnvironmentId.make("environment-1"),
+      uploadMachineId: MachineId.make("machine-1"),
     };
     composerDraftFileMocks.setDocument({ schemaVersion: 1, drafts: {} });
     appendComposerDraftAttachments(key, [image]);
@@ -1216,8 +1216,8 @@ describe("mobile composer drafts", () => {
       const load = vi.spyOn(threadOutboxManager, "load").mockResolvedValue(true);
       onTestFinished(() => load.mockRestore());
       await waitForComposerDraftsLoaded();
-      const environmentId = EnvironmentId.make("cloud-environment");
-      const key = `${environmentId}:thread-1`;
+      const machineId = MachineId.make("cloud-machine");
+      const key = `${machineId}:thread-1`;
       const name = type === "image" ? "notes.png" : "notes.pdf";
       const metadata = {
         id: "local-notes",
@@ -1225,7 +1225,7 @@ describe("mobile composer drafts", () => {
         mimeType: type === "image" ? "image/png" : "application/pdf",
         sizeBytes: 42,
         fileUri: `file:///documents/t3-composer-attachments/${name}`,
-        uploadEnvironmentId: environmentId,
+        uploadMachineId: machineId,
         uploadedAttachmentId: "pending-notes",
       };
       const file =
@@ -1233,7 +1233,7 @@ describe("mobile composer drafts", () => {
           ? { ...metadata, type, previewUri: metadata.fileUri }
           : { ...metadata, type };
       const queued = {
-        environmentId,
+        machineId,
         threadId: ThreadId.make("thread-2"),
         messageId: MessageId.make("queued-1"),
         commandId: CommandId.make("command-1"),
@@ -1243,17 +1243,17 @@ describe("mobile composer drafts", () => {
       };
       appAtomRegistry.set(composerDraftsAtom, {
         [key]: { text: "Unsent notes", attachments: [file] },
-        "direct-environment:thread-1": DRAFT,
+        "direct-machine:thread-1": DRAFT,
         "pending-task:queued-1": { text: "Edited queued task", attachments: [file] },
       });
       appAtomRegistry.set(threadOutboxManager.queuedMessagesByThreadKeyAtom, { queued: [queued] });
-      await archiveCloudComposerDrafts("account-a", new Set([environmentId]));
+      await archiveCloudComposerDrafts("account-a", new Set([machineId]));
       expect(appAtomRegistry.get(composerDraftsAtom)).toEqual({
-        "direct-environment:thread-1": DRAFT,
+        "direct-machine:thread-1": DRAFT,
       });
 
       appAtomRegistry.set(threadOutboxManager.queuedMessagesByThreadKeyAtom, {});
-      await clearComposerDraftsEnvironment(environmentId);
+      await clearComposerDraftsMachine(machineId);
       await releaseUnusedComposerAttachmentFiles([file]);
       expect(composerAttachmentCleanupMocks.remove).not.toHaveBeenCalled();
       expect(composerAttachmentCleanupMocks.releaseUploads).not.toHaveBeenCalled();
@@ -1310,22 +1310,22 @@ describe("mobile composer drafts", () => {
     const load = vi.spyOn(threadOutboxManager, "load").mockResolvedValue(true);
     onTestFinished(() => load.mockRestore());
     await waitForComposerDraftsLoaded();
-    appAtomRegistry.set(composerDraftsAtom, { "environment-1:thread-1": DRAFT });
+    appAtomRegistry.set(composerDraftsAtom, { "machine-1:thread-1": DRAFT });
     composerDraftFileMocks.setWriteError(new Error("Storage is full"));
     await expect(
-      archiveCloudComposerDrafts("account-a", new Set([EnvironmentId.make("environment-1")])),
+      archiveCloudComposerDrafts("account-a", new Set([MachineId.make("machine-1")])),
     ).rejects.toThrow();
     expect(
       appAtomRegistry.get(composerCloudDraftsAtom).signedOut["account-a"]?.drafts[
-        "environment-1:thread-1"
+        "machine-1:thread-1"
       ],
     ).toEqual(DRAFT);
     expect(composerAttachmentCleanupMocks.remove).not.toHaveBeenCalled();
     composerDraftFileMocks.setWriteError(null);
-    await archiveCloudComposerDrafts(null, new Set([EnvironmentId.make("environment-1")]));
+    await archiveCloudComposerDrafts(null, new Set([MachineId.make("machine-1")]));
     expect(
       decodePersistedComposerState(JSON.parse(composerDraftFileMocks.getDocument())).cloudDrafts
-        .signedOut["account-a"]?.drafts["environment-1:thread-1"],
+        .signedOut["account-a"]?.drafts["machine-1:thread-1"],
     ).toEqual(DRAFT);
   });
 
@@ -1415,7 +1415,7 @@ describe("mobile composer drafts", () => {
   it("removes an unreferenced local file and its pending upload", async () => {
     const outboxLoad = vi.spyOn(threadOutboxManager, "load").mockResolvedValue(true);
     onTestFinished(() => outboxLoad.mockRestore());
-    const environmentId = EnvironmentId.make("environment-1");
+    const machineId = MachineId.make("machine-1");
     const file = {
       id: "file-discarded",
       type: "file" as const,
@@ -1424,13 +1424,13 @@ describe("mobile composer drafts", () => {
       sizeBytes: 42,
       fileUri: "file:///documents/t3-composer-attachments/discarded.pdf",
       uploadedAttachmentId: "pending-discarded",
-      uploadEnvironmentId: environmentId,
+      uploadMachineId: machineId,
     };
 
     await releaseUnusedComposerAttachmentFiles([file]);
 
     expect(composerAttachmentCleanupMocks.remove).toHaveBeenCalledWith(file.fileUri);
-    expect(composerAttachmentCleanupMocks.releaseUploads).toHaveBeenCalledWith(environmentId, [
+    expect(composerAttachmentCleanupMocks.releaseUploads).toHaveBeenCalledWith(machineId, [
       "pending-discarded",
     ]);
   });
@@ -1438,7 +1438,7 @@ describe("mobile composer drafts", () => {
   it("keeps a pending upload referenced through another local file", async () => {
     const outboxLoad = vi.spyOn(threadOutboxManager, "load").mockResolvedValue(true);
     onTestFinished(() => outboxLoad.mockRestore());
-    const environmentId = EnvironmentId.make("environment-1");
+    const machineId = MachineId.make("machine-1");
     const discarded = {
       id: "file-discarded-copy",
       type: "file" as const,
@@ -1447,7 +1447,7 @@ describe("mobile composer drafts", () => {
       sizeBytes: 42,
       fileUri: "file:///documents/t3-composer-attachments/discarded-copy.pdf",
       uploadedAttachmentId: "pending-shared",
-      uploadEnvironmentId: environmentId,
+      uploadMachineId: machineId,
     };
     const retained = {
       ...discarded,
@@ -1455,7 +1455,7 @@ describe("mobile composer drafts", () => {
       fileUri: "file:///documents/t3-composer-attachments/retained-copy.pdf",
     };
     appAtomRegistry.set(composerDraftsAtom, {
-      "environment-1:thread-1": { text: "Keep this copy", attachments: [retained] },
+      "machine-1:thread-1": { text: "Keep this copy", attachments: [retained] },
     });
 
     await releaseUnusedComposerAttachmentFiles([discarded]);
@@ -1470,7 +1470,7 @@ describe("mobile composer drafts", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     onTestFinished(() => warning.mockRestore());
     composerAttachmentCleanupMocks.releaseUploads.mockRejectedValueOnce(
-      new Error("environment disconnected"),
+      new Error("machine disconnected"),
     );
     const file = {
       id: "file-delete-failed",
@@ -1480,7 +1480,7 @@ describe("mobile composer drafts", () => {
       sizeBytes: 42,
       fileUri: "file:///documents/t3-composer-attachments/delete-failed.pdf",
       uploadedAttachmentId: "pending-delete-failed",
-      uploadEnvironmentId: EnvironmentId.make("environment-1"),
+      uploadMachineId: MachineId.make("machine-1"),
     };
 
     await expect(releaseUnusedComposerAttachmentFiles([file])).resolves.toBeUndefined();
@@ -1502,9 +1502,9 @@ describe("mobile composer drafts", () => {
       fileUri: "file:///documents/t3-composer-attachments/report.pdf",
     };
     appAtomRegistry.set(threadOutboxManager.queuedMessagesByThreadKeyAtom, {
-      "environment-1:thread-1": [
+      "machine-1:thread-1": [
         {
-          environmentId: EnvironmentId.make("environment-1"),
+          machineId: MachineId.make("machine-1"),
           threadId: ThreadId.make("thread-1"),
           messageId: MessageId.make("message-1"),
           commandId: CommandId.make("command-1"),
@@ -1531,9 +1531,9 @@ describe("mobile composer drafts", () => {
     };
     const load = vi.spyOn(threadOutboxManager, "load").mockImplementation(async () => {
       appAtomRegistry.set(threadOutboxManager.queuedMessagesByThreadKeyAtom, {
-        "environment-1:thread-1": [
+        "machine-1:thread-1": [
           {
-            environmentId: EnvironmentId.make("environment-1"),
+            machineId: MachineId.make("machine-1"),
             threadId: ThreadId.make("thread-1"),
             messageId: MessageId.make("message-persisted"),
             commandId: CommandId.make("command-persisted"),
@@ -1633,15 +1633,15 @@ describe("mobile composer drafts", () => {
       if (owner === "draft") {
         composerDraftFileMocks.setDocument({
           schemaVersion: 1,
-          drafts: { "environment-1:thread-1": { text: "Saved draft", attachments: [oldFile] } },
+          drafts: { "machine-1:thread-1": { text: "Saved draft", attachments: [oldFile] } },
         });
         resetComposerDraftsLoadState();
       } else if (owner === "outbox") {
         outboxLoad.mockImplementation(async () => {
           appAtomRegistry.set(threadOutboxManager.queuedMessagesByThreadKeyAtom, {
-            "environment-1:thread-1": [
+            "machine-1:thread-1": [
               {
-                environmentId: EnvironmentId.make("environment-1"),
+                machineId: MachineId.make("machine-1"),
                 threadId: ThreadId.make("thread-1"),
                 messageId: MessageId.make("message-relocated"),
                 commandId: CommandId.make("command-relocated"),
@@ -1689,7 +1689,7 @@ describe("mobile composer drafts", () => {
       sizeBytes: 42,
       fileUri: "file:///documents/t3-composer-attachments/report.pdf",
     };
-    setComposerDraftText("environment-1:thread-1", "Unsaved draft");
+    setComposerDraftText("machine-1:thread-1", "Unsaved draft");
     composerDraftFileMocks.setWriteError(new Error("storage unavailable"));
 
     try {
@@ -1707,7 +1707,7 @@ describe("mobile composer drafts", () => {
       decodePersistedComposerState({
         schemaVersion: 1,
         drafts: {
-          "new-task:environment-1:project-1": {
+          "new-task:machine-1:project-1": {
             text: "",
             attachments: [],
             modelSelection: {
@@ -1746,7 +1746,7 @@ describe("mobile composer drafts", () => {
         worktreePath: null,
       },
       project: {
-        environmentId: "environment-1",
+        machineId: "machine-1",
         projectId: "project-1",
         createdAt: expect.any(String),
       },
@@ -1764,7 +1764,7 @@ describe("mobile composer drafts", () => {
       decodePersistedComposerState({
         schemaVersion: 1,
         drafts: {
-          "new-task:environment-1:project-1": {
+          "new-task:machine-1:project-1": {
             ...receiptDraft,
             modelSelection: {
               instanceId: "codex",
@@ -1779,14 +1779,14 @@ describe("mobile composer drafts", () => {
       text: "",
       attachments: [],
       importedShareIds: ["share-1"],
-      project: { environmentId: "environment-1", projectId: "project-1" },
+      project: { machineId: "machine-1", projectId: "project-1" },
     });
     expect(stripped[0]?.modelSelection).toBeUndefined();
 
     const kept = Object.values(
       decodePersistedComposerState({
         schemaVersion: 1,
-        drafts: { "new-task:environment-1:project-1": receiptDraft },
+        drafts: { "new-task:machine-1:project-1": receiptDraft },
       }).drafts,
     );
     expect(kept).toHaveLength(1);
@@ -1796,7 +1796,7 @@ describe("mobile composer drafts", () => {
   it("migrates project-keyed new-task drafts to id keys with the project stamped in", () => {
     const now = "2026-09-05T12:00:00.000Z";
     const [key, draft] = migrateLegacyNewTaskDraft(
-      "new-task:environment-1:project-1",
+      "new-task:machine-1:project-1",
       { text: "keep me", attachments: [] },
       now,
     );
@@ -1806,7 +1806,7 @@ describe("mobile composer drafts", () => {
       text: "keep me",
       attachments: [],
       project: {
-        environmentId: EnvironmentId.make("environment-1"),
+        machineId: MachineId.make("machine-1"),
         projectId: ProjectId.make("project-1"),
         createdAt: now,
       },
@@ -1816,7 +1816,7 @@ describe("mobile composer drafts", () => {
       text: "x",
       attachments: [],
       project: {
-        environmentId: EnvironmentId.make("environment-1"),
+        machineId: MachineId.make("machine-1"),
         projectId: ProjectId.make("project-1"),
         createdAt: now,
       },
@@ -1825,8 +1825,8 @@ describe("mobile composer drafts", () => {
       "new-task:some-id",
       stamped,
     ]);
-    expect(migrateLegacyNewTaskDraft("environment-1:thread-1", DRAFT, now)).toEqual([
-      "environment-1:thread-1",
+    expect(migrateLegacyNewTaskDraft("machine-1:thread-1", DRAFT, now)).toEqual([
+      "machine-1:thread-1",
       DRAFT,
     ]);
     expect(migrateLegacyNewTaskDraft("pending-task:message-1", DRAFT, now)).toEqual([
@@ -1837,7 +1837,7 @@ describe("mobile composer drafts", () => {
 
   it("keeps a freshly minted new-task draft bound until content arrives, then lists it per project", () => {
     const project = {
-      environmentId: EnvironmentId.make("environment-1"),
+      machineId: MachineId.make("machine-1"),
       projectId: ProjectId.make("project-1"),
     };
     const first = createNewTaskDraft(project);
@@ -1859,11 +1859,11 @@ describe("mobile composer drafts", () => {
 
   it("retargets a new-task draft to another project without losing its text", () => {
     const from = {
-      environmentId: EnvironmentId.make("environment-1"),
+      machineId: MachineId.make("machine-1"),
       projectId: ProjectId.make("project-1"),
     };
     const to = {
-      environmentId: EnvironmentId.make("environment-2"),
+      machineId: MachineId.make("machine-2"),
       projectId: ProjectId.make("project-2"),
     };
     const key = createNewTaskDraft(from);
@@ -1921,7 +1921,7 @@ describe("mobile composer drafts", () => {
     composerDraftFileMocks.setDocument({
       schemaVersion: 1,
       drafts: {
-        "environment-1:thread-1": DRAFT,
+        "machine-1:thread-1": DRAFT,
       },
       stickyModelSelection: {
         instanceId: "codex",
@@ -1934,7 +1934,7 @@ describe("mobile composer drafts", () => {
     ensureComposerDraftsLoaded();
     await Promise.resolve();
 
-    setComposerDraftText("new-task:environment-1:project-1", "New prompt");
+    setComposerDraftText("new-task:machine-1:project-1", "New prompt");
 
     const flush = flushComposerDrafts();
     await vi.advanceTimersByTimeAsync(200);
@@ -1945,8 +1945,8 @@ describe("mobile composer drafts", () => {
     await flush;
 
     const written = JSON.parse(composerDraftFileMocks.getDocument());
-    expect(written.drafts["environment-1:thread-1"]).toEqual(DRAFT);
-    expect(written.drafts["new-task:environment-1:project-1"]).toEqual({
+    expect(written.drafts["machine-1:thread-1"]).toEqual(DRAFT);
+    expect(written.drafts["new-task:machine-1:project-1"]).toEqual({
       text: "New prompt",
       attachments: [],
     });
@@ -1970,7 +1970,7 @@ describe("mobile composer drafts", () => {
       };
       composerDraftFileMocks.setDocument({
         schemaVersion: failure === "decode" ? 999 : 1,
-        drafts: { "environment-1:saved": { text: "Saved draft", attachments: [file] } },
+        drafts: { "machine-1:saved": { text: "Saved draft", attachments: [file] } },
       });
       const original = composerDraftFileMocks.getDocument();
       if (failure === "read") {
@@ -1980,7 +1980,7 @@ describe("mobile composer drafts", () => {
       await expect(releaseUnusedComposerAttachmentFiles([file])).rejects.toMatchObject({
         operation: failure,
       });
-      setComposerDraftText("environment-1:new", "Keep my new edits too");
+      setComposerDraftText("machine-1:new", "Keep my new edits too");
       await expect(flushComposerDrafts()).rejects.toMatchObject({ operation: failure });
 
       expect(composerDraftFileMocks.getDocument()).toBe(original);
@@ -1988,7 +1988,7 @@ describe("mobile composer drafts", () => {
     },
   );
 
-  it("serializes environment cleanup after an older queued write", async () => {
+  it("serializes machine cleanup after an older queued write", async () => {
     vi.useFakeTimers();
     composerDraftFileMocks.setDocument({ schemaVersion: 1, drafts: {} });
     composerDraftFileMocks.resetWrites();
@@ -2008,8 +2008,8 @@ describe("mobile composer drafts", () => {
     });
 
     appAtomRegistry.set(composerDraftsAtom, {
-      "environment-1:thread-1": DRAFT,
-      "environment-2:thread-2": { text: "keep", attachments: [] },
+      "machine-1:thread-1": DRAFT,
+      "machine-2:thread-2": { text: "keep", attachments: [] },
     });
     setStickyComposerModelSelection({
       instanceId: ProviderInstanceId.make("codex"),
@@ -2017,7 +2017,7 @@ describe("mobile composer drafts", () => {
     });
     await vi.advanceTimersByTimeAsync(200);
 
-    const clear = clearComposerDraftsEnvironment(EnvironmentId.make("environment-1"));
+    const clear = clearComposerDraftsMachine(MachineId.make("machine-1"));
     await Promise.resolve();
 
     expect(composerDraftFileMocks.getWrites()).toHaveLength(0);
@@ -2029,7 +2029,7 @@ describe("mobile composer drafts", () => {
     expect(JSON.parse(composerDraftFileMocks.getDocument())).toEqual({
       schemaVersion: 1,
       drafts: {
-        "environment-2:thread-2": { text: "keep", attachments: [] },
+        "machine-2:thread-2": { text: "keep", attachments: [] },
       },
       stickyModelSelection: {
         instanceId: "codex",
@@ -2039,7 +2039,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("clears sent content without clearing the selected model or workspace", () => {
-    const draftKey = "environment-1:thread-1";
+    const draftKey = "machine-1:thread-1";
     const draft: ComposerDraft = {
       text: "send this",
       attachments: [],
@@ -2066,7 +2066,7 @@ describe("mobile composer drafts", () => {
     });
   });
 
-  it("drops another environment's upload stamp when a draft moves across machines", () => {
+  it("drops another machine's upload stamp when a draft moves across machines", () => {
     const uploadedElsewhere: DraftComposerAttachment = {
       id: "image-1",
       type: "image",
@@ -2076,16 +2076,16 @@ describe("mobile composer drafts", () => {
       previewUri: "file:///drafts/screen.png",
       fileUri: "file:///drafts/screen.png",
       uploadedAttachmentId: "upload-1",
-      uploadEnvironmentId: EnvironmentId.make("environment-1"),
+      uploadMachineId: MachineId.make("machine-1"),
     };
     const uploadedOnTarget: DraftComposerAttachment = {
       ...uploadedElsewhere,
       id: "image-2",
       uploadedAttachmentId: "upload-2",
-      uploadEnvironmentId: EnvironmentId.make("environment-2"),
+      uploadMachineId: MachineId.make("machine-2"),
     };
     const key = createNewTaskDraft({
-      environmentId: EnvironmentId.make("environment-1"),
+      machineId: MachineId.make("machine-1"),
       projectId: ProjectId.make("project-1"),
     });
     appAtomRegistry.set(composerDraftsAtom, {
@@ -2098,7 +2098,7 @@ describe("mobile composer drafts", () => {
     });
 
     retargetNewTaskDraft(key, {
-      environmentId: EnvironmentId.make("environment-2"),
+      machineId: MachineId.make("machine-2"),
       projectId: ProjectId.make("project-2"),
     });
 
@@ -2117,7 +2117,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("merges shared content into a project draft without duplicating retries", () => {
-    const draftKey = "new-task:environment-1:project-1";
+    const draftKey = "new-task:machine-1:project-1";
     const sharedAttachment = {
       id: "share-1:image:0",
       type: "image" as const,
@@ -2152,7 +2152,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("shows a shared non-image file as a composer chip", () => {
-    const draftKey = "new-task:environment-1:project-1";
+    const draftKey = "new-task:machine-1:project-1";
     const sharedFile = {
       id: "share-1:file:0",
       type: "file" as const,
@@ -2190,7 +2190,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("preserves existing images when shared content exceeds the draft attachment limit", () => {
-    const draftKey = "new-task:environment-1:project-1";
+    const draftKey = "new-task:machine-1:project-1";
     const image = (id: string) => ({
       id,
       type: "image" as const,
@@ -2215,7 +2215,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("restores the exact draft captured before an interrupted share import", () => {
-    const draftKey = "new-task:environment-1:project-1";
+    const draftKey = "new-task:machine-1:project-1";
     const beforeImport: ComposerDraft = {
       text: "Existing context",
       attachments: [],
@@ -2238,14 +2238,14 @@ describe("mobile composer drafts", () => {
     ).toEqual({});
   });
 
-  it("removes only drafts owned by the selected environment", () => {
-    const environmentId = EnvironmentId.make("environment-cloud");
-    const retainedEnvironmentId = EnvironmentId.make("environment-local");
+  it("removes only drafts owned by the selected machine", () => {
+    const machineId = MachineId.make("machine-cloud");
+    const retainedMachineId = MachineId.make("machine-local");
 
     const cloudDraft: ComposerDraft = {
       ...DRAFT,
       project: {
-        environmentId,
+        machineId,
         projectId: ProjectId.make("project-cloud"),
         createdAt: "2026-09-05T00:00:00.000Z",
       },
@@ -2253,30 +2253,30 @@ describe("mobile composer drafts", () => {
     const localDraft: ComposerDraft = {
       ...DRAFT,
       project: {
-        environmentId: retainedEnvironmentId,
+        machineId: retainedMachineId,
         projectId: ProjectId.make("project-local"),
         createdAt: "2026-09-05T00:00:00.000Z",
       },
     };
 
     expect(
-      removeComposerDraftsForEnvironment(
+      removeComposerDraftsForMachine(
         {
-          [`${environmentId}:thread-cloud`]: DRAFT,
+          [`${machineId}:thread-cloud`]: DRAFT,
           "new-task:cloud-draft": cloudDraft,
-          [`${retainedEnvironmentId}:thread-local`]: DRAFT,
+          [`${retainedMachineId}:thread-local`]: DRAFT,
           "new-task:local-draft": localDraft,
         },
-        environmentId,
+        machineId,
       ),
     ).toEqual({
-      [`${retainedEnvironmentId}:thread-local`]: DRAFT,
+      [`${retainedMachineId}:thread-local`]: DRAFT,
       "new-task:local-draft": localDraft,
     });
   });
 
   it("lands a still-debounced draft write when flushed", async () => {
-    const draftKey = "environment-1:thread-1";
+    const draftKey = "machine-1:thread-1";
     setComposerDraftText(draftKey, "typed right before the restart");
 
     await flushComposerDrafts();
@@ -2287,7 +2287,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("propagates a flush write failure instead of resolving as saved", async () => {
-    const draftKey = "environment-1:thread-1";
+    const draftKey = "machine-1:thread-1";
     setComposerDraftText(draftKey, "unsaved");
     composerDraftFileMocks.setWriteError(new Error("storage unavailable"));
 
@@ -2299,7 +2299,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("restores the pre-merge snapshot when the draft is untouched since the merge", () => {
-    const draftKey = "environment-1:thread-1";
+    const draftKey = "machine-1:thread-1";
     const snapshot: ComposerDraft = { text: "typed before", attachments: [] };
     const merged: ComposerDraft = {
       text: "typed before\n\nqueued text",
@@ -2321,7 +2321,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("returns merge-written settings to the snapshot but keeps user-edited ones", () => {
-    const draftKey = "environment-1:thread-1";
+    const draftKey = "machine-1:thread-1";
     const snapshot: ComposerDraft = {
       text: "typed before",
       attachments: [],
@@ -2355,7 +2355,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("takes out only what the merge inserted when the user edited during it", () => {
-    const draftKey = "environment-1:thread-1";
+    const draftKey = "machine-1:thread-1";
     const keptAttachment = {
       id: "kept",
       type: "file" as const,
@@ -2405,7 +2405,7 @@ describe("mobile composer drafts", () => {
   });
 
   it("keeps text appended after a merge when rolling it back", () => {
-    const draftKey = "environment-1:thread-1";
+    const draftKey = "machine-1:thread-1";
     const snapshot: ComposerDraft = { text: "typed before", attachments: [] };
     const content = { text: "queued text", attachments: [] };
     const merged = mergeComposerDraftContentState({ [draftKey]: snapshot }, draftKey, content)[
@@ -2444,7 +2444,7 @@ describe("mobile composer drafts", () => {
 
     composerAttachmentCleanupMocks.remove.mockImplementationOnce(async () => {
       appAtomRegistry.set(composerDraftsAtom, {
-        "environment-1:thread-1": { text: "restored", attachments: [reowned] },
+        "machine-1:thread-1": { text: "restored", attachments: [reowned] },
       });
     });
 
@@ -2471,11 +2471,11 @@ describe("mobile composer drafts", () => {
       mimeType: "application/pdf",
       sizeBytes: 42,
       fileUri: "file:///documents/t3-composer-attachments/shared.pdf",
-      uploadEnvironmentId: EnvironmentId.make("environment-1"),
+      uploadMachineId: MachineId.make("machine-1"),
       uploadedAttachmentId: "pending-partial-outbox",
     };
     const readable = {
-      environmentId: EnvironmentId.make("environment-1"),
+      machineId: MachineId.make("machine-1"),
       threadId: ThreadId.make("thread-1"),
       messageId: MessageId.make("message-readable"),
       commandId: CommandId.make("command-readable"),
@@ -2491,7 +2491,7 @@ describe("mobile composer drafts", () => {
         ? [
             new ThreadOutboxStorageError({
               operation: "read-message",
-              environmentId: null,
+              machineId: null,
               threadId: null,
               messageId: null,
               fileName: "unreadable.json",
@@ -2518,7 +2518,7 @@ describe("mobile composer drafts", () => {
 
     const recovered = {
       ...readable,
-      environmentId: EnvironmentId.make("environment-2"),
+      machineId: MachineId.make("machine-2"),
       messageId: MessageId.make("message-recovered"),
       commandId: CommandId.make("command-recovered"),
     };
@@ -2533,7 +2533,7 @@ describe("mobile composer drafts", () => {
     await drafts.releaseUnusedComposerAttachmentFiles([file]);
     expect(composerAttachmentCleanupMocks.remove).toHaveBeenCalledWith(file.fileUri);
     expect(composerAttachmentCleanupMocks.releaseUploads).toHaveBeenCalledWith(
-      file.uploadEnvironmentId,
+      file.uploadMachineId,
       [file.uploadedAttachmentId],
     );
   });
@@ -2550,7 +2550,7 @@ describe("mobile composer drafts", () => {
     composerDraftFileMocks.setDocument({
       schemaVersion: 1,
       drafts: {
-        "environment-1:thread-1": { text: "Persisted draft", attachments: [file] },
+        "machine-1:thread-1": { text: "Persisted draft", attachments: [file] },
       },
     });
     vi.resetModules();
@@ -2560,7 +2560,7 @@ describe("mobile composer drafts", () => {
     await fresh.releaseUnusedComposerAttachmentFiles([file]);
 
     expect(freshRegistry.get(fresh.composerDraftsAtom)).toEqual({
-      "environment-1:thread-1": {
+      "machine-1:thread-1": {
         text: "Persisted draft [report.pdf](t3-context://v1/file/file-cold-start) ",
         attachments: [file],
         context: {

@@ -4,10 +4,10 @@ import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/reactivity";
 
 const EMPTY_ASYNC_RESULT_ATOM = Atom.make(AsyncResult.initial<never, never>(false)).pipe(
-  Atom.withLabel("mobile-environment-query:empty"),
+  Atom.withLabel("mobile-machine-query:empty"),
 );
 
-export interface EnvironmentQueryView<A> {
+export interface MachineQueryView<A> {
   readonly data: A | null;
   readonly error: string | null;
   readonly isPending: boolean;
@@ -19,12 +19,12 @@ function formatError(cause: Cause.Cause<unknown>): string {
   const error = Cause.squash(cause);
   return error instanceof Error && error.message.trim().length > 0
     ? error.message
-    : "The environment request failed.";
+    : "The machine request failed.";
 }
 
-export function useEnvironmentQuery<A, E>(
+export function useMachineQuery<A, E>(
   atom: Atom.Atom<AsyncResult.AsyncResult<A, E>> | null,
-): EnvironmentQueryView<A> {
+): MachineQueryView<A> {
   const selectedAtom = atom ?? EMPTY_ASYNC_RESULT_ATOM;
   const result = useAtomValue(selectedAtom);
   const refresh = useAtomRefresh(selectedAtom);

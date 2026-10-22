@@ -1,20 +1,20 @@
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import { Atom } from "effect/reactivity";
 import { appAtomRegistry } from "./atom-registry";
 
 export function questionAttachmentDraftPrefix(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   threadId: ThreadId,
 ): string {
-  return `${environmentId}:question-${encodeURIComponent(JSON.stringify(threadId))}-`;
+  return `${machineId}:question-${encodeURIComponent(JSON.stringify(threadId))}-`;
 }
 export function questionAttachmentDraftKey(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   threadId: ThreadId,
   requestId: string,
   questionId: string,
 ): string {
-  return `${questionAttachmentDraftPrefix(environmentId, threadId)}${encodeURIComponent(JSON.stringify([requestId, questionId]))}`;
+  return `${questionAttachmentDraftPrefix(machineId, threadId)}${encodeURIComponent(JSON.stringify([requestId, questionId]))}`;
 }
 export const questionAttachmentPreparationAtom = Atom.make<Record<string, number>>({}).pipe(
   Atom.keepAlive,

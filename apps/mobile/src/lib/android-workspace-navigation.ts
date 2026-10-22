@@ -36,8 +36,8 @@ export function androidWorkspaceNavigationState(
   if (!destination) return { ...state, index: 0, routes: [home] };
   const identity =
     destination.name === "Thread"
-      ? ["environmentId", "threadId"]
-      : ["environmentId", "projectId", "repository", "number", "host"];
+      ? ["machineId", "threadId"]
+      : ["machineId", "projectId", "repository", "number", "host"];
   const params = destination.params as Readonly<Record<string, unknown>>;
   const existing = state.routes.findLast((route) => {
     if (route.name !== destination.name) return false;
@@ -82,12 +82,12 @@ export function parentThreadIsBelow(
   state: NavigationState,
   parent: ReactNavigation.RootParamList["Thread"],
 ) {
-  if (!parent?.environmentId || !parent.threadId) return false;
+  if (!parent?.machineId || !parent.threadId) return false;
   const previous = state.routes[state.index - 1];
   const params = previous?.params as ReactNavigation.RootParamList["Thread"] | undefined;
   return (
     previous?.name === "Thread" &&
-    params?.environmentId === parent.environmentId &&
+    params?.machineId === parent.machineId &&
     params?.threadId === parent.threadId
   );
 }

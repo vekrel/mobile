@@ -151,7 +151,7 @@ export class IncomingShareInbox {
       }
       if (target.destination) {
         if (
-          target.destination.environmentId !== destination.environmentId ||
+          target.destination.machineId !== destination.machineId ||
           target.destination.projectId !== destination.projectId
         ) {
           throw new Error("The shared content is already reserved for another project draft.");
@@ -181,7 +181,7 @@ export class IncomingShareInbox {
         return sortAndDedupeIncomingShares(persisted);
       }
       if (
-        target.destination.environmentId !== expectedDestination.environmentId ||
+        target.destination.machineId !== expectedDestination.machineId ||
         target.destination.projectId !== expectedDestination.projectId
       ) {
         throw new Error("The shared content reservation changed before it could be released.");

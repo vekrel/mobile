@@ -1,6 +1,6 @@
 export type NewTaskDraftRouteParams = {
   readonly requestId?: string;
-  readonly environmentId?: string | string[];
+  readonly machineId?: string | string[];
   readonly projectId?: string | string[];
   readonly branch?: string | null;
   readonly worktreePath?: string | null;
@@ -24,8 +24,8 @@ export function isDraftThreadRoute(
   );
 }
 
-export function submittedThreadParams(environmentId: string, threadId: string) {
-  return { draft: undefined, environmentId, threadId };
+export function submittedThreadParams(machineId: string, threadId: string) {
+  return { draft: undefined, machineId, threadId };
 }
 
 export function draftRouteIdentity(draft: NewTaskDraftRouteParams): string {
@@ -34,7 +34,7 @@ export function draftRouteIdentity(draft: NewTaskDraftRouteParams): string {
     draft.requestId,
     first(draft.pendingTaskId),
     first(draft.draftId),
-    first(draft.environmentId),
+    first(draft.machineId),
     first(draft.projectId),
     draft.branch ?? null,
     draft.worktreePath ?? null,

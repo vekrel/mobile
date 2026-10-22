@@ -24,7 +24,7 @@ function LifecycleProbe(input: Input) {
 
 function input(changes: Partial<Input> = {}): Input {
   return {
-    terminalKey: "environment:thread:term-1",
+    terminalKey: "machine:thread:term-1",
     canOperate: true,
     observing: false,
     attached: true,
@@ -79,7 +79,7 @@ it("does not respawn a terminal that exited after operate was revoked", async ()
 
 it("reopens an ended terminal on an explicit new route visit", async () => {
   await render(input({ canOperate: false, terminal: { status: "exited", version: 1 } }));
-  await render(input({ terminalKey: "environment:thread:term-2" }));
+  await render(input({ terminalKey: "machine:thread:term-2" }));
   await render(input({ terminal: { status: "exited", version: 1 } }));
   expect(reopen).toHaveBeenCalledOnce();
 

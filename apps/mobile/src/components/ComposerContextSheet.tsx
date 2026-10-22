@@ -6,7 +6,7 @@ import { filePreviewKind } from "@vekrel/shared/filePreview";
 import type {
   ComposerContextRecord,
   ElementContextSource,
-  EnvironmentId,
+  MachineId,
   ProjectId,
   ScopedThreadRef,
 } from "@vekrel/contracts";
@@ -84,15 +84,15 @@ export function ComposerContextSheet(props: {
   readonly skillDescription?: string;
   readonly onOpenSkill?: () => void;
   readonly onOpenThread?: (thread: ScopedThreadRef) => void;
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly projectId?: ProjectId;
   readonly records?: ReadonlyArray<ComposerContextRecord>;
   readonly attachments?: ReadonlyArray<DraftComposerAttachment>;
 }) {
   const openPullRequest = useOpenPullRequest({
     context:
-      props.environmentId && props.projectId
-        ? { environmentId: props.environmentId, projectId: props.projectId }
+      props.machineId && props.projectId
+        ? { machineId: props.machineId, projectId: props.projectId }
         : undefined,
   });
   const reviewColors = useReviewCommentColors();
@@ -117,8 +117,8 @@ export function ComposerContextSheet(props: {
       fileName: record.name,
       mimeType,
     };
-    const remoteSource = props.environmentId
-      ? { environmentId: props.environmentId, resource }
+    const remoteSource = props.machineId
+      ? { machineId: props.machineId, resource }
       : null;
     if (videoMimeType(record)) {
       if (localFile?.type === "file") {
@@ -160,7 +160,7 @@ export function ComposerContextSheet(props: {
               gallery: contextImageGallery(
                 props.records ?? [],
                 props.attachments ?? [],
-                props.environmentId,
+                props.machineId,
               ),
               actionsSource: { name: record.name, mimeType, ...source },
             }}
@@ -305,7 +305,7 @@ export function ComposerContextSheet(props: {
                     tone="secondary"
                     onPress={() =>
                       props.onOpenThread?.({
-                        environmentId: record.environmentId,
+                        machineId: record.machineId,
                         threadId: record.threadId,
                       })
                     }
@@ -336,13 +336,13 @@ export function ComposerContextSheet(props: {
         {attachmentRecord && "attachmentId" in attachmentRecord ? (
           <ComposerContextAttachment
             key={JSON.stringify([
-              props.environmentId,
+              props.machineId,
               attachmentRecord.attachmentId,
               props.attachments?.find((entry) => entry.id === attachmentRecord.attachmentId)
                 ?.fileUri,
             ])}
             record={attachmentRecord}
-            environmentId={props.environmentId}
+            machineId={props.machineId}
             attachment={props.attachments?.find(
               (entry) => entry.id === attachmentRecord.attachmentId,
             )}

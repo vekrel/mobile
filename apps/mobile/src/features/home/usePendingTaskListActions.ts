@@ -27,12 +27,12 @@ export function usePendingTaskListActions(
       selectThreadRoute(
         pendingTask.kind === "pending"
           ? {
-              environmentId: String(pendingTask.environmentId),
+              machineId: String(pendingTask.machineId),
               threadId: String(pendingTask.message.threadId),
             }
           : {
               draft: {
-                environmentId: String(pendingTask.environmentId),
+                machineId: String(pendingTask.machineId),
                 projectId: String(pendingTask.projectId),
                 draftId: pendingTask.draftKey,
               },

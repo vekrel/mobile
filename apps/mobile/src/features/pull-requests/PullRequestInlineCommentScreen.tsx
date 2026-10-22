@@ -9,7 +9,7 @@ import { AppText as Text, AppTextInput as TextInput } from "../../components/ui/
 import { Button } from "../../components/ui/Button";
 import { uuidv4 } from "../../lib/uuid";
 import { composerPullRequests } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { PullRequestSheetContent } from "./PullRequestSheetContent";
 import { usePullRequestReviewDraft } from "./usePullRequestReviewDraft";
 import { reviewPositionLabel } from "./pullRequestDiffComments";
@@ -31,7 +31,7 @@ export function PullRequestInlineCommentScreen({ route }: StaticScreenProps<Inli
   const saved = store.draft.comments.find((draft) => draft.id === params.draftId);
   const [editedBody, setBody] = useState<string | null>(null);
   const body = editedBody ?? saved?.body ?? "";
-  const detail = useEnvironmentQuery(composerPullRequests.detail(pullRequestTarget(params)));
+  const detail = useMachineQuery(composerPullRequests.detail(pullRequestTarget(params)));
   const { refresh: refreshDetail } = detail;
   useFocusEffect(() => refreshDetail());
   const permissions = usePullRequestPermissions(params, detail.data);

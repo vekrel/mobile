@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 
 import { toStableSavedRemoteConnection } from "./connection";
 
@@ -37,10 +37,10 @@ describe("mobile remote connection records", () => {
     mobileDevice.modelName = "iPhone 15 Pro";
   });
 
-  it("drops short-lived managed environment credentials from stable records", () => {
+  it("drops short-lived managed machine credentials from stable records", () => {
     const connection = {
-      environmentId: EnvironmentId.make("environment-1"),
-      environmentLabel: "Desktop",
+      machineId: MachineId.make("machine-1"),
+      machineLabel: "Desktop",
       pairingUrl: "https://desktop.example/",
       displayUrl: "https://desktop.example/",
       httpBaseUrl: "https://desktop.example/",

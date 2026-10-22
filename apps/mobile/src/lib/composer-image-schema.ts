@@ -1,5 +1,5 @@
 import * as Schema from "effect/Schema";
-import { EnvironmentId, PastedTextAttachmentSource } from "@vekrel/contracts";
+import { MachineId, PastedTextAttachmentSource } from "@vekrel/contracts";
 
 export const DraftComposerImageAttachmentSchema = Schema.Struct({
   id: Schema.String,
@@ -11,7 +11,7 @@ export const DraftComposerImageAttachmentSchema = Schema.Struct({
   fileUri: Schema.optional(Schema.String.check(Schema.isNonEmpty())),
   dataUrl: Schema.optional(Schema.String.check(Schema.isNonEmpty())),
   uploadedAttachmentId: Schema.optional(Schema.String),
-  uploadEnvironmentId: Schema.optional(EnvironmentId),
+  uploadMachineId: Schema.optional(MachineId),
 }).check(
   Schema.makeFilter(
     ({ fileUri, dataUrl }) =>
@@ -30,7 +30,7 @@ export const DraftComposerFileAttachmentSchema = Schema.Struct({
   fileUri: Schema.String,
   source: Schema.optional(PastedTextAttachmentSource),
   uploadedAttachmentId: Schema.optional(Schema.String),
-  uploadEnvironmentId: Schema.optional(EnvironmentId),
+  uploadMachineId: Schema.optional(MachineId),
 });
 
 export const DraftComposerAttachmentSchema = Schema.Union([

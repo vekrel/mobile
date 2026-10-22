@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useEffectEvent, useMemo } from "react";
 
-import { EnvironmentProject, EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import { MachineProject, MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import type { AtomCommandResult } from "@vekrel/client-runtime/state/runtime";
 import {
   type GitActionRequestInput,
@@ -10,7 +10,7 @@ import {
 import {
   AuthOrchestrationOperateScope,
   AuthSourceControlWriteScope,
-  EnvironmentAuthorizationError,
+  MachineAuthorizationError,
   type GitRunStackedActionResult,
 } from "@vekrel/contracts";
 import {
@@ -21,41 +21,41 @@ import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 
 import { useBranches } from "../state/queries";
-import { threadEnvironment } from "../state/threads";
-import { vcsActionManager, vcsEnvironment } from "../state/vcs";
+import { threadMachine } from "../state/threads";
+import { vcsActionManager, vcsMachine } from "../state/vcs";
 import { uuidv4 } from "../lib/uuid";
 import { appAtomRegistry } from "./atom-registry";
-import { readEnvironmentScope, useEnvironmentScope } from "./session";
-import { setPendingConnectionError } from "./use-remote-environment-registry";
+import { readMachineScope, useMachineScope } from "./session";
+import { setPendingConnectionError } from "./use-remote-machine-registry";
 import { useAtomCommand } from "./use-atom-command";
 import { showGitActionResult } from "./use-vcs-action-state";
 import { useThreadSelection } from "./use-thread-selection";
 import { useSelectedThreadWorktree } from "./use-selected-thread-worktree";
 
 export function useSelectedThreadGitActions() {
-  const updateThreadMetadata = useAtomCommand(threadEnvironment.updateMetadata, {
+  const updateThreadMetadata = useAtomCommand(threadMachine.updateMetadata, {
     reportFailure: false,
   });
-  const refreshStatus = useAtomCommand(vcsEnvironment.refreshStatus, { reportFailure: false });
-  const switchRef = useAtomCommand(vcsEnvironment.switchRef, { reportFailure: false });
-  const createRef = useAtomCommand(vcsEnvironment.createRef, { reportFailure: false });
-  const createWorktree = useAtomCommand(vcsEnvironment.createWorktree, { reportFailure: false });
-  const pull = useAtomCommand(vcsEnvironment.pull, { reportFailure: false });
-  const { selectedThread, selectedThreadProject, selectedEnvironmentRuntime } =
+  const refreshStatus = useAtomCommand(vcsMachine.refreshStatus, { reportFailure: false });
+  const switchRef = useAtomCommand(vcsMachine.switchRef, { reportFailure: false });
+  const createRef = useAtomCommand(vcsMachine.createRef, { reportFailure: false });
+  const createWorktree = useAtomCommand(vcsMachine.createWorktree, { reportFailure: false });
+  const pull = useAtomCommand(vcsMachine.pull, { reportFailure: false });
+  const { selectedThread, selectedThreadProject, selectedMachineRuntime } =
     useThreadSelection();
-  const canWriteSourceControl = useEnvironmentScope(
-    selectedThread?.environmentId ?? null,
+  const canWriteSourceControl = useMachineScope(
+    selectedThread?.machineId ?? null,
     AuthSourceControlWriteScope,
   );
-  const canOperateThread = useEnvironmentScope(
-    selectedThread?.environmentId ?? null,
+  const canOperateThread = useMachineScope(
+    selectedThread?.machineId ?? null,
     AuthOrchestrationOperateScope,
   );
   const canChangeThreadBranch = canWriteSourceControl && canOperateThread;
   const { selectedThreadCwd, selectedThreadWorktreePath } = useSelectedThreadWorktree();
   const runStackedAction = useAtomCommand(
     vcsActionManager.runStackedAction({
-      environmentId: selectedThread?.environmentId ?? null,
+      machineId: selectedThread?.machineId ?? null,
       cwd: selectedThreadCwd,
     }),
     { reportFailure: false },
@@ -64,11 +64,11 @@ export function useSelectedThreadGitActions() {
   const selectedThreadGitRootCwd = selectedThreadProject?.workspaceRoot ?? null;
   const branchTarget = useMemo(
     () => ({
-      environmentId: selectedThread?.environmentId ?? null,
+      machineId: selectedThread?.machineId ?? null,
       cwd: selectedThreadGitRootCwd,
       query: null,
     }),
-    [selectedThread?.environmentId, selectedThreadGitRootCwd],
+    [selectedThread?.machineId, selectedThreadGitRootCwd],
   );
   const branchState = useBranches(branchTarget);
   const updateThreadGitContext = useCallback(
@@ -79,10 +79,10 @@ export function useSelectedThreadGitActions() {
         readonly worktreePath?: string | null;
       },
     ) => {
-      if (!readEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope)) {
-        return AsyncResult.failure<never, EnvironmentAuthorizationError>(
+      if (!readMachineScope(thread.machineId, AuthOrchestrationOperateScope)) {
+        return AsyncResult.failure<never, MachineAuthorizationError>(
           Cause.fail(
-            new EnvironmentAuthorizationError({
+            new MachineAuthorizationError({
               requiredScope: AuthOrchestrationOperateScope,
               message: "This connection cannot update the thread's branch.",
             }),
@@ -90,7 +90,7 @@ export function useSelectedThreadGitActions() {
         );
       }
       return updateThreadMetadata({
-        environmentId: thread.environmentId,
+        machineId: thread.machineId,
         input: {
           threadId: thread.id,
           ...(nextState.branch !== undefined ? { branch: nextState.branch } : {}),
@@ -112,10 +112,10 @@ export function useSelectedThreadGitActions() {
         return null;
       }
 
-      const target = { environmentId: selectedThread.environmentId, cwd };
+      const target = { machineId: selectedThread.machineId, cwd };
       const execute = () =>
         refreshStatus({
-          environmentId: selectedThread.environmentId,
+          machineId: selectedThread.machineId,
           input: { cwd },
         });
       const result = options?.quiet
@@ -143,30 +143,30 @@ export function useSelectedThreadGitActions() {
 
   // Shell updates replace the selected thread object many times per second while a
   // turn streams, so key the refresh on primitives.
-  const selectedEnvironmentId = selectedThread?.environmentId ?? null;
+  const selectedMachineId = selectedThread?.machineId ?? null;
   const selectedThreadId = selectedThread?.id ?? null;
   const hasSelectedThreadProject = selectedThreadProject !== null;
-  const isEnvironmentConnected = selectedEnvironmentRuntime?.connectionState === "connected";
+  const isMachineConnected = selectedMachineRuntime?.connectionState === "connected";
   const refreshOnSelection = useEffectEvent(() => {
     void refreshSelectedThreadGitStatus({ quiet: true });
   });
   useEffect(() => {
     if (
-      selectedEnvironmentId === null ||
+      selectedMachineId === null ||
       selectedThreadId === null ||
       !hasSelectedThreadProject ||
       selectedThreadCwd === null ||
-      !isEnvironmentConnected
+      !isMachineConnected
     ) {
       return;
     }
     refreshOnSelection();
   }, [
-    selectedEnvironmentId,
+    selectedMachineId,
     selectedThreadId,
     hasSelectedThreadProject,
     selectedThreadCwd,
-    isEnvironmentConnected,
+    isMachineConnected,
   ]);
 
   const runSelectedThreadGitMutation = useCallback(
@@ -174,8 +174,8 @@ export function useSelectedThreadGitActions() {
       operation: VcsActionOperation,
       label: string,
       execute: (input: {
-        readonly thread: EnvironmentThreadShell;
-        readonly project: EnvironmentProject;
+        readonly thread: MachineThreadShell;
+        readonly project: MachineProject;
         readonly cwd: string;
       }) => Promise<AtomCommandResult<T, E>>,
       options?: { readonly managedExternally?: boolean; readonly changesThreadBranch?: boolean },
@@ -184,15 +184,15 @@ export function useSelectedThreadGitActions() {
         !selectedThread ||
         !selectedThreadProject ||
         !selectedThreadCwd ||
-        !readEnvironmentScope(selectedThread.environmentId, AuthSourceControlWriteScope) ||
+        !readMachineScope(selectedThread.machineId, AuthSourceControlWriteScope) ||
         (options?.changesThreadBranch === true &&
-          !readEnvironmentScope(selectedThread.environmentId, AuthOrchestrationOperateScope))
+          !readMachineScope(selectedThread.machineId, AuthOrchestrationOperateScope))
       ) {
         return null;
       }
 
       const target = {
-        environmentId: selectedThread.environmentId,
+        machineId: selectedThread.machineId,
         cwd: selectedThreadCwd,
       };
       setPendingConnectionError(null);
@@ -227,7 +227,7 @@ export function useSelectedThreadGitActions() {
 
   const syncSelectedThreadBranchState = useCallback(
     async (input: {
-      readonly thread: EnvironmentThreadShell;
+      readonly thread: MachineThreadShell;
       readonly cwd: string;
       readonly nextThreadState?: {
         readonly branch?: string | null;
@@ -256,7 +256,7 @@ export function useSelectedThreadGitActions() {
         "Switching branch",
         async ({ thread, cwd }) => {
           const result = await switchRef({
-            environmentId: thread.environmentId,
+            machineId: thread.machineId,
             input: { cwd, refName: branch },
           });
           if (AsyncResult.isFailure(result)) {
@@ -290,7 +290,7 @@ export function useSelectedThreadGitActions() {
         "Creating branch",
         async ({ thread, cwd }) => {
           const result = await createRef({
-            environmentId: thread.environmentId,
+            machineId: thread.machineId,
             input: { cwd, refName: branch, switchRef: true },
           });
           if (AsyncResult.isFailure(result)) {
@@ -324,7 +324,7 @@ export function useSelectedThreadGitActions() {
         "Creating worktree",
         async ({ thread, project }) => {
           const result = await createWorktree({
-            environmentId: thread.environmentId,
+            machineId: thread.machineId,
             input: {
               cwd: project.workspaceRoot,
               refName: nextWorktree.baseBranch,
@@ -357,7 +357,7 @@ export function useSelectedThreadGitActions() {
       "Pulling latest changes",
       async ({ thread, cwd }) => {
         const result = await pull({
-          environmentId: thread.environmentId,
+          machineId: thread.machineId,
           input: { cwd },
         });
         if (AsyncResult.isFailure(result)) {

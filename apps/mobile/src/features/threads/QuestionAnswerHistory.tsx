@@ -1,5 +1,5 @@
 import type {
-  EnvironmentId,
+  MachineId,
   UserInputAttachmentAnswerPayload,
   UserInputAttachments,
 } from "@vekrel/contracts";
@@ -11,11 +11,11 @@ import { assetImageSource } from "../../lib/assetImageSource";
 import { useAssetUrl } from "../../state/assets";
 
 function AnswerFile(props: {
-  environmentId: EnvironmentId;
+  machineId: MachineId;
   attachment: UserInputAttachments[string][number];
 }) {
   const resource = { _tag: "attachment", attachmentId: props.attachment.id } as const;
-  const url = useAssetUrl(props.environmentId, resource);
+  const url = useAssetUrl(props.machineId, resource);
   return (
     <Pressable
       accessibilityRole="link"
@@ -28,7 +28,7 @@ function AnswerFile(props: {
     >
       {props.attachment.type === "image" && url ? (
         <Image
-          source={assetImageSource(props.environmentId, resource, url)}
+          source={assetImageSource(props.machineId, resource, url)}
           cachePolicy="memory-disk"
           style={{ width: 160, height: 96 }}
           contentFit="contain"
@@ -40,7 +40,7 @@ function AnswerFile(props: {
 }
 
 export function QuestionAnswerHistory(props: {
-  environmentId: EnvironmentId;
+  machineId: MachineId;
   answer: UserInputAttachmentAnswerPayload;
 }) {
   return (
@@ -66,7 +66,7 @@ export function QuestionAnswerHistory(props: {
           {(props.answer.attachmentsByQuestionId[questionId] ?? []).map((attachment) => (
             <AnswerFile
               key={attachment.id}
-              environmentId={props.environmentId}
+              machineId={props.machineId}
               attachment={attachment}
             />
           ))}

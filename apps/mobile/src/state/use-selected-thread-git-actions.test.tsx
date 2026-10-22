@@ -5,9 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 
 const harness = vi.hoisted(() => ({
   selection: {
-    selectedThread: { environmentId: "environment-1", id: "thread-1" } as unknown,
+    selectedThread: { machineId: "machine-1", id: "thread-1" } as unknown,
     selectedThreadProject: { workspaceRoot: "/repo" } as unknown,
-    selectedEnvironmentRuntime: { connectionState: "connected" } as unknown,
+    selectedMachineRuntime: { connectionState: "connected" } as unknown,
   },
   worktree: { selectedThreadCwd: "/repo" as string | null, selectedThreadWorktreePath: null },
   refreshStatusCalls: [] as Array<unknown>,
@@ -26,18 +26,18 @@ vi.mock("./use-atom-command", () => ({
       : async () => AsyncResult.success({}),
 }));
 vi.mock("./vcs", () => ({
-  vcsEnvironment: { refreshStatus: "refreshStatus" },
+  vcsMachine: { refreshStatus: "refreshStatus" },
   vcsActionManager: { runStackedAction: () => "runStackedAction", track: vi.fn() },
 }));
-vi.mock("./threads", () => ({ threadEnvironment: { updateMetadata: "updateMetadata" } }));
+vi.mock("./threads", () => ({ threadMachine: { updateMetadata: "updateMetadata" } }));
 vi.mock("./queries", () => ({ useBranches: () => ({ data: null, refresh: () => {} }) }));
 vi.mock("../lib/uuid", () => ({ uuidv4: () => "uuid" }));
 vi.mock("./atom-registry", () => ({ appAtomRegistry: {} }));
 vi.mock("./session", () => ({
-  readEnvironmentScope: () => true,
-  useEnvironmentScope: () => true,
+  readMachineScope: () => true,
+  useMachineScope: () => true,
 }));
-vi.mock("./use-remote-environment-registry", () => ({ setPendingConnectionError: () => {} }));
+vi.mock("./use-remote-machine-registry", () => ({ setPendingConnectionError: () => {} }));
 vi.mock("./use-vcs-action-state", () => ({ showGitActionResult: () => {} }));
 vi.mock("./use-thread-selection", () => ({
   useThreadSelection: () => {
@@ -77,9 +77,9 @@ async function flush() {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   harness.selection = {
-    selectedThread: { environmentId: "environment-1", id: "thread-1" },
+    selectedThread: { machineId: "machine-1", id: "thread-1" },
     selectedThreadProject: { workspaceRoot: "/repo" },
-    selectedEnvironmentRuntime: { connectionState: "connected" },
+    selectedMachineRuntime: { connectionState: "connected" },
   };
   harness.worktree = { selectedThreadCwd: "/repo", selectedThreadWorktreePath: null };
   harness.refreshStatusCalls = [];
@@ -99,15 +99,15 @@ describe("useSelectedThreadGitActions", () => {
     await flush();
 
     harness.selection = {
-      selectedThread: { environmentId: "environment-1", id: "thread-1" },
+      selectedThread: { machineId: "machine-1", id: "thread-1" },
       selectedThreadProject: { workspaceRoot: "/repo" },
-      selectedEnvironmentRuntime: { connectionState: "connected" },
+      selectedMachineRuntime: { connectionState: "connected" },
     };
     act(() => rerender());
     await flush();
 
     expect(harness.refreshStatusCalls).toEqual([
-      { environmentId: "environment-1", input: { cwd: "/repo" } },
+      { machineId: "machine-1", input: { cwd: "/repo" } },
     ]);
   });
 });

@@ -1,4 +1,4 @@
-import { EnvironmentId, ThreadId, type ThreadJumpKeybindingCommand } from "@vekrel/contracts";
+import { MachineId, ThreadId, type ThreadJumpKeybindingCommand } from "@vekrel/contracts";
 import { useEffect } from "react";
 
 export type HardwareKeyboardCommand =
@@ -74,14 +74,14 @@ export function dispatchHardwareKeyboardCommand(command: HardwareKeyboardCommand
 }
 
 export function parseActiveThreadPath(pathname: string): {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
 } | null {
   const match = /^\/threads\/([^/]+)\/([^/]+)(?:\/|$)/.exec(pathname);
   if (!match?.[1] || !match[2]) return null;
   try {
     return {
-      environmentId: EnvironmentId.make(decodeURIComponent(match[1])),
+      machineId: MachineId.make(decodeURIComponent(match[1])),
       threadId: ThreadId.make(decodeURIComponent(match[2])),
     };
   } catch {
@@ -89,11 +89,11 @@ export function parseActiveThreadPath(pathname: string): {
   }
 }
 
-export function nextEnvironmentId<T extends { readonly environmentId: string }>(
-  environments: ReadonlyArray<T>,
+export function nextMachineId<T extends { readonly machineId: string }>(
+  machines: ReadonlyArray<T>,
   currentId: string | null,
-): T["environmentId"] | null {
-  if (environments.length < 2) return null;
-  const index = environments.findIndex((environment) => environment.environmentId === currentId);
-  return environments[(index + 1) % environments.length]?.environmentId ?? null;
+): T["machineId"] | null {
+  if (machines.length < 2) return null;
+  const index = machines.findIndex((machine) => machine.machineId === currentId);
+  return machines[(index + 1) % machines.length]?.machineId ?? null;
 }

@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 
-import type { EnvironmentId, ReviewDiffPreviewSource, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ReviewDiffPreviewSource, ThreadId } from "@vekrel/contracts";
 import { Atom } from "effect/reactivity";
 
 import { scopedThreadKey } from "../../lib/scopedEntities";
@@ -121,11 +121,11 @@ export interface ReviewAsyncState {
 }
 
 function buildThreadKey(input: {
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly threadId?: ThreadId;
 }): string | null {
-  return input.environmentId && input.threadId
-    ? scopedThreadKey(input.environmentId, input.threadId)
+  return input.machineId && input.threadId
+    ? scopedThreadKey(input.machineId, input.threadId)
     : null;
 }
 
@@ -134,7 +134,7 @@ function buildSectionCacheKey(threadKey: string, sectionId: string): string {
 }
 
 export function useReviewCacheForThread(input: {
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly threadId?: ThreadId;
 }): ReviewCacheForThread {
   const threadKey = buildThreadKey(input);

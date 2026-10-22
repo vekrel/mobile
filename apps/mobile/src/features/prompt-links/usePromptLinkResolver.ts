@@ -10,8 +10,8 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineProject } from "@vekrel/client-runtime/state/shell";
+import type { MachineId } from "@vekrel/contracts";
 import {
   parseNewThreadLink,
   type LinkedPrompt,
@@ -22,7 +22,7 @@ import { useEffect, useEffectEvent, useRef } from "react";
 
 import { scopedThreadKey } from "../../lib/scopedEntities";
 import { useServerConfigs, useThreadShells } from "../../state/entities";
-import { projectEnvironment } from "../../state/projects";
+import { projectMachine } from "../../state/projects";
 import { composerPullRequests } from "../../state/pull-requests";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
@@ -32,7 +32,7 @@ import {
   updateComposerDraftSettings,
   waitForComposerDraftsLoaded,
 } from "../../state/use-composer-drafts";
-import { useRemoteConnectionStatus } from "../../state/use-remote-environment-registry";
+import { useRemoteConnectionStatus } from "../../state/use-remote-machine-registry";
 import { useWorkspaceState } from "../../state/workspace";
 import { useNewTaskFlow } from "../threads/new-task-flow-provider";
 import { applyLinkedPromptToThreadDraft, showPromptLinkNotice } from "./prompt-link-actions";
@@ -40,8 +40,8 @@ import {
   clearedPromptLinkParams,
   promptLinkNotice,
   promptLinkRepositoryName,
-  latestThreadEnvironmentIds,
-  promptLinkScratchEnvironmentId,
+  latestThreadMachineIds,
+  promptLinkScratchMachineId,
   promptLinkSearchFromParams,
 } from "./prompt-link-model";
 
@@ -58,8 +58,8 @@ export function usePromptLinkResolver(params: Readonly<Record<string, unknown>> 
   const { state: catalogState } = useWorkspaceState();
   const threads = useThreadShells();
   const serverConfigs = useServerConfigs();
-  const { connectedEnvironments } = useRemoteConnectionStatus();
-  const openScratch = useAtomCommand(projectEnvironment.openScratch, { reportFailure: false });
+  const { connectedMachines } = useRemoteConnectionStatus();
+  const openScratch = useAtomCommand(projectMachine.openScratch, { reportFailure: false });
   const loadPullRequest = useAtomQueryRunner(composerPullRequests.detail, {
     reportFailure: false,
   });
@@ -71,27 +71,27 @@ export function usePromptLinkResolver(params: Readonly<Record<string, unknown>> 
     catalogState.hasPendingShellSnapshot ||
     // A machine still connecting may hold the repository or thread. One that keeps failing to
     // reconnect has settled offline, and must not hold every link.
-    catalogState.connectingEnvironments.some(
-      (environment) =>
-        environment.connectionState === "connecting" || environment.connectionError === null,
+    catalogState.connectingMachines.some(
+      (machine) =>
+        machine.connectionState === "connecting" || machine.connectionError === null,
     );
 
   const writeDraft = (
     draftKey: string,
-    environmentId: EnvironmentId,
+    machineId: MachineId,
     request: LinkedDraftRequest,
   ): boolean => {
     if (request.prompt) setComposerDraftText(draftKey, request.prompt.text);
     if (request.provider === null) return false;
     const resolved = resolvePromptLinkModelSelection(
-      serverConfigs.get(environmentId)?.providers ?? [],
+      serverConfigs.get(machineId)?.providers ?? [],
       { provider: request.provider, model: request.model },
     );
     if (resolved) updateComposerDraftSettings(draftKey, { modelSelection: resolved.selection });
     return resolved?.exact !== true;
   };
 
-  const openProjectDraft = async (project: EnvironmentProject, request: LinkedDraftRequest) => {
+  const openProjectDraft = async (project: MachineProject, request: LinkedDraftRequest) => {
     try {
       await waitForComposerDraftsLoaded();
     } catch {
@@ -102,13 +102,13 @@ export function usePromptLinkResolver(params: Readonly<Record<string, unknown>> 
       return;
     }
     const draftKey = createNewTaskDraft({
-      environmentId: project.environmentId,
+      machineId: project.machineId,
       projectId: project.id,
     });
     let pullRequestUnavailable: number | null = null;
     if (request.pullRequest) {
       const detail = await loadPullRequest({
-        environmentId: project.environmentId,
+        machineId: project.machineId,
         input: {
           projectId: project.id,
           repository: promptLinkRepositoryName(request.pullRequest),
@@ -129,7 +129,7 @@ export function usePromptLinkResolver(params: Readonly<Record<string, unknown>> 
         pullRequestUnavailable = request.pullRequest.number;
       }
     }
-    const modelUnavailable = writeDraft(draftKey, project.environmentId, request);
+    const modelUnavailable = writeDraft(draftKey, project.machineId, request);
     navigation.dispatch(
       StackActions.push("Thread", {
         draft: {
@@ -150,26 +150,26 @@ export function usePromptLinkResolver(params: Readonly<Record<string, unknown>> 
   };
 
   const openScratchDraft = async (request: LinkedDraftRequest) => {
-    const environmentId = promptLinkScratchEnvironmentId(
-      latestThreadEnvironmentIds(threads),
-      connectedEnvironments
+    const machineId = promptLinkScratchMachineId(
+      latestThreadMachineIds(threads),
+      connectedMachines
         .filter(
-          (environment) =>
+          (machine) =>
             availableScratchWorkspaceRoot(
-              environment.connectionState,
-              serverConfigs.get(environment.environmentId),
+              machine.connectionState,
+              serverConfigs.get(machine.machineId),
             ) !== null,
         )
-        .map((environment) => environment.environmentId),
+        .map((machine) => machine.machineId),
     );
-    if (environmentId === null) {
+    if (machineId === null) {
       Dialog.alert(
         "Could not start without a project",
-        "No connected environment offers threads without a project.",
+        "No connected machine offers threads without a project.",
       );
       return;
     }
-    const result = await openScratch({ environmentId, input: {} });
+    const result = await openScratch({ machineId, input: {} });
     if (result._tag === "Failure") {
       if (!isAtomCommandInterrupted(result)) {
         const error = squashAtomCommandFailure(result);
@@ -186,21 +186,21 @@ export function usePromptLinkResolver(params: Readonly<Record<string, unknown>> 
   };
 
   const cloneRepository = (repository: PromptLinkRepository, request: LinkedDraftRequest) => {
-    const environmentId =
-      flow.selectedEnvironmentId ?? connectedEnvironments[0]?.environmentId ?? null;
-    if (environmentId === null) {
-      Dialog.alert("Could not clone", "Connect an environment first.");
+    const machineId =
+      flow.selectedMachineId ?? connectedMachines[0]?.machineId ?? null;
+    if (machineId === null) {
+      Dialog.alert("Could not clone", "Connect a machine first.");
       return;
     }
     const prompt =
       request.pullRequest === null &&
-      serverConfigs.get(environmentId)?.environment.capabilities.projectCloneTracking === true
+      serverConfigs.get(machineId)?.machine.capabilities.projectCloneTracking === true
         ? request.prompt
         : null;
     const name = promptLinkRepositoryName(repository);
     navigation.dispatch(
       StackActions.push("AddProjectDestination", {
-        environmentId,
+        machineId,
         remoteUrl: `https://github.com/${name}.git`,
         repositoryTitle: name,
         repositoryName: repository.name,
@@ -238,13 +238,13 @@ export function usePromptLinkResolver(params: Readonly<Record<string, unknown>> 
       if (thread) {
         (navigation.getParent() ?? navigation).dispatch(
           StackActions.replace("Thread", {
-            environmentId: String(thread.environmentId),
+            machineId: String(thread.machineId),
             threadId: String(thread.id),
           }),
         );
         if (link.prompt) {
           void applyLinkedPromptToThreadDraft(
-            scopedThreadKey(thread.environmentId, thread.id),
+            scopedThreadKey(thread.machineId, thread.id),
             link.prompt,
             promptLinkNotice({ hiddenCharacters: link.prompt.hiddenCharacters }),
           );
@@ -260,11 +260,11 @@ export function usePromptLinkResolver(params: Readonly<Record<string, unknown>> 
     }
     const lastActivity = new Map<string, string>();
     for (const thread of threads) {
-      const key = `${thread.environmentId}:${thread.projectId}`;
+      const key = `${thread.machineId}:${thread.projectId}`;
       if (thread.updatedAt > (lastActivity.get(key) ?? "")) lastActivity.set(key, thread.updatedAt);
     }
-    const activityOf = (project: EnvironmentProject) =>
-      lastActivity.get(`${project.environmentId}:${project.id}`) ?? "";
+    const activityOf = (project: MachineProject) =>
+      lastActivity.get(`${project.machineId}:${project.id}`) ?? "";
     const project = findPromptLinkProject(
       flow.projectScopes
         .flatMap((scope) => scope.projects)

@@ -1,28 +1,28 @@
 import { useAtomValue } from "@effect/atom-react";
-import type { EnvironmentPresentation } from "@vekrel/client-runtime/connection";
-import { createEnvironmentPresentationAtoms } from "@vekrel/client-runtime/state/presentation";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachinePresentation } from "@vekrel/client-runtime/connection";
+import { createMachinePresentationAtoms } from "@vekrel/client-runtime/state/presentation";
+import type { MachineId } from "@vekrel/contracts";
 import { Atom } from "effect/reactivity";
 
-import { environmentCatalog } from "../connection/catalog";
-import { serverEnvironment } from "./server";
+import { machineCatalog } from "../connection/catalog";
+import { serverMachine } from "./server";
 
-export const environmentPresentations = createEnvironmentPresentationAtoms({
-  catalogValueAtom: environmentCatalog.catalogValueAtom,
-  stateAtom: environmentCatalog.stateAtom,
-  serverConfigValueAtom: serverEnvironment.configValueAtom,
+export const machinePresentations = createMachinePresentationAtoms({
+  catalogValueAtom: machineCatalog.catalogValueAtom,
+  stateAtom: machineCatalog.stateAtom,
+  serverConfigValueAtom: serverMachine.configValueAtom,
 });
 
-const EMPTY_ENVIRONMENT_PRESENTATION_ATOM = Atom.make<EnvironmentPresentation | null>(null).pipe(
-  Atom.withLabel("mobile-environment-presentation:empty"),
+const EMPTY_MACHINE_PRESENTATION_ATOM = Atom.make<MachinePresentation | null>(null).pipe(
+  Atom.withLabel("mobile-machine-presentation:empty"),
 );
 
-export function useEnvironmentPresentation(environmentId: EnvironmentId | null) {
-  const catalog = useAtomValue(environmentCatalog.catalogValueAtom);
+export function useMachinePresentation(machineId: MachineId | null) {
+  const catalog = useAtomValue(machineCatalog.catalogValueAtom);
   const presentation = useAtomValue(
-    environmentId === null
-      ? EMPTY_ENVIRONMENT_PRESENTATION_ATOM
-      : environmentPresentations.presentationAtom(environmentId),
+    machineId === null
+      ? EMPTY_MACHINE_PRESENTATION_ATOM
+      : machinePresentations.presentationAtom(machineId),
   );
   return {
     isReady: catalog.isReady,

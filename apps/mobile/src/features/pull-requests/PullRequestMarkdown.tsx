@@ -35,13 +35,13 @@ export function PullRequestMarkdownRepository(props: {
 }) {
   const target = pullRequestTarget(props.params);
   const project = useProject({
-    environmentId: target.environmentId,
+    machineId: target.machineId,
     projectId: target.input.projectId,
   });
   const cwd = project?.workspaceRoot;
   const media = useMemo(
-    () => (cwd ? { environmentId: target.environmentId, cwd } : null),
-    [target.environmentId, cwd],
+    () => (cwd ? { machineId: target.machineId, cwd } : null),
+    [target.machineId, cwd],
   );
   return (
     <RepositoryContext value={props.value}>

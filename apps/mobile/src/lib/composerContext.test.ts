@@ -4,7 +4,7 @@ import {
   ProjectId,
   ProviderInstanceId,
   ComposerContextId,
-  EnvironmentId,
+  MachineId,
   ThreadId,
   type OrchestrationMessageContext,
   type ServerProviderSkill,
@@ -381,9 +381,9 @@ describe("host context compatibility", () => {
 
 describe("threadComposerContext", () => {
   it("mints a schema-valid, stable id for agent-spawned thread ids", () => {
-    const environmentId = EnvironmentId.make("env-1");
+    const machineId = MachineId.make("env-1");
     const ref = {
-      environmentId,
+      machineId,
       threadId: ThreadId.make(`thread:mcp:${encodeURIComponent("3f2b:delegate")}:review:0`),
     };
     const contextId = threadComposerContext(ref, "Review").contextId;
@@ -391,7 +391,7 @@ describe("threadComposerContext", () => {
     expect(() => ComposerContextId.make(contextId)).not.toThrow();
     expect(threadComposerContext(ref, "Renamed").contextId).toBe(contextId);
     expect(
-      threadComposerContext({ environmentId, threadId: ThreadId.make("abc-123") }, "t").contextId,
+      threadComposerContext({ machineId, threadId: ThreadId.make("abc-123") }, "t").contextId,
     ).toBe("thread_abc-123");
   });
 });

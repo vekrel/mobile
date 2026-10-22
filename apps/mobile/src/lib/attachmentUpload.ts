@@ -10,7 +10,7 @@ import { runAtomCommand, squashAtomCommandFailure } from "@vekrel/client-runtime
 import type {
   ChatFileAttachment,
   ChatImageAttachment,
-  EnvironmentId,
+  MachineId,
   UploadChatImageAttachment,
 } from "@vekrel/contracts";
 import {
@@ -20,9 +20,9 @@ import {
 import * as Option from "effect/Option";
 
 import { appAtomRegistry } from "../state/atom-registry";
-import { assetEnvironment } from "../state/assets";
-import { attachmentEnvironment } from "../state/attachments";
-import { environmentSession, readEnvironmentScope } from "../state/session";
+import { assetMachine } from "../state/assets";
+import { attachmentMachine } from "../state/attachments";
+import { machineSession, readMachineScope } from "../state/session";
 import { resolveOwnedComposerAttachmentFileUri } from "./composerAttachmentFiles";
 import { retainComposerAttachmentFileForPreview } from "./composerAttachmentPreviewRetention";
 import {
@@ -42,7 +42,7 @@ export type UploadedMobileAttachment =
 export function validateDraftFileAttachments(input: {
   readonly attachments: ReadonlyArray<DraftComposerAttachment>;
   readonly serverConfig: {
-    readonly environment: {
+    readonly machine: {
       readonly capabilities: {
         readonly attachmentUploads?: boolean;
         readonly fileAttachments?: { readonly maxUploadBytes: number };
@@ -53,7 +53,7 @@ export function validateDraftFileAttachments(input: {
   const files = input.attachments.filter((attachment) => attachment.type === "file");
   if (files.length === 0) return null;
   if (input.serverConfig === null) return "Server attachment support is still loading.";
-  const capabilities = input.serverConfig.environment.capabilities;
+  const capabilities = input.serverConfig.machine.capabilities;
   if (capabilities.attachmentUploads !== true || capabilities.fileAttachments === undefined) {
     return "This server does not support file attachments.";
   }
@@ -63,7 +63,7 @@ export function validateDraftFileAttachments(input: {
 }
 
 export function withUploadedMobileAttachmentReferences(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachments: ReadonlyArray<DraftComposerAttachment>;
   readonly uploadedAttachments: ReadonlyArray<UploadedMobileAttachment>;
 }): ReadonlyArray<DraftComposerAttachment> {
@@ -78,30 +78,30 @@ export function withUploadedMobileAttachmentReferences(input: {
       !("id" in uploaded) ||
       uploadedAs !== uploaded.type ||
       (attachment.uploadedAttachmentId === uploaded.id &&
-        attachment.uploadEnvironmentId === input.environmentId)
+        attachment.uploadMachineId === input.machineId)
     ) {
       return attachment;
     }
     return {
       ...attachment,
       uploadedAttachmentId: uploaded.id,
-      uploadEnvironmentId: input.environmentId,
+      uploadMachineId: input.machineId,
     };
   });
 }
 
 export async function releasePendingAttachmentUploads(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   attachmentIds: ReadonlyArray<string>,
 ): Promise<void> {
   const deleteOnce = async (attachmentId: string): Promise<boolean> => {
-    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) {
+    if (!readMachineScope(machineId, AuthOrchestrationOperateScope)) {
       throw new Error("This connection cannot delete pending attachments.");
     }
     const result = await runAtomCommand(
       appAtomRegistry,
-      attachmentEnvironment.remove,
-      { environmentId, input: { attachmentId } },
+      attachmentMachine.remove,
+      { machineId, input: { attachmentId } },
       { reportFailure: false, reportDefect: false },
     );
     return (
@@ -124,11 +124,11 @@ export async function releasePendingAttachmentUploads(
 }
 
 async function releaseCreatedUploadsQuietly(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   attachmentIds: ReadonlyArray<string>,
 ): Promise<void> {
   try {
-    await releasePendingAttachmentUploads(environmentId, attachmentIds);
+    await releasePendingAttachmentUploads(machineId, attachmentIds);
   } catch (error) {
     console.warn("[attachments] could not delete abandoned pending uploads", error);
   }
@@ -231,7 +231,7 @@ async function composerImageAttachmentDataUrl(
 }
 
 async function uploadFileBytes(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   attachment: DraftComposerAttachment,
   url: string,
   signal: AbortSignal,
@@ -239,7 +239,7 @@ async function uploadFileBytes(
 ): Promise<void> {
   const { File, Paths, UploadType } = await import("expo-file-system");
   if (signal.aborted) throw new Error("Upload cancelled.");
-  if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) {
+  if (!readMachineScope(machineId, AuthOrchestrationOperateScope)) {
     throw new Error("This connection cannot upload attachments.");
   }
   const fileUri = attachment.fileUri;
@@ -285,7 +285,7 @@ async function uploadFileBytes(
  * a crash reuses the bytes.
  */
 export async function prepareTurnAttachments(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachments: ReadonlyArray<DraftComposerAttachment>;
   readonly supportsImageUploads?: boolean;
   readonly signal?: AbortSignal;
@@ -294,7 +294,7 @@ export async function prepareTurnAttachments(input: {
     draftAttachments: ReadonlyArray<DraftComposerAttachment>,
   ) => Promise<"persisted" | "abandon">;
 }): Promise<PrepareTurnAttachmentsResult> {
-  const { environmentId } = input;
+  const { machineId } = input;
   if (input.signal?.aborted) return { status: "abandoned" };
   const files = input.attachments.filter((attachment) => attachment.type === "file");
   const ready = (
@@ -322,17 +322,17 @@ export async function prepareTurnAttachments(input: {
   }
 
   const requireUploadAccess = () => {
-    if (!readEnvironmentScope(environmentId, AuthOrchestrationOperateScope)) {
+    if (!readMachineScope(machineId, AuthOrchestrationOperateScope)) {
       throw new Error("This connection cannot upload attachments.");
     }
   };
   requireUploadAccess();
 
   const connection = appAtomRegistry.get(
-    environmentSession.preparedConnectionValueAtom(environmentId),
+    machineSession.preparedConnectionValueAtom(machineId),
   );
   if (Option.isNone(connection)) {
-    throw new Error("The environment is not connected.");
+    throw new Error("The machine is not connected.");
   }
 
   const uploadedAttachments: UploadedMobileAttachment[] = [];
@@ -351,13 +351,13 @@ export async function prepareTurnAttachments(input: {
       }
 
       if (
-        attachment.uploadEnvironmentId === environmentId &&
+        attachment.uploadMachineId === machineId &&
         attachment.uploadedAttachmentId !== undefined
       ) {
         const verification = await verifyPersistedAttachmentUpload({
           registry: appAtomRegistry,
-          createAssetUrl: assetEnvironment.createUrl,
-          environmentId,
+          createAssetUrl: assetMachine.createUrl,
+          machineId,
           attachmentId: attachment.uploadedAttachmentId,
         });
         if (verification.status === "failed") {
@@ -373,16 +373,16 @@ export async function prepareTurnAttachments(input: {
       requireUploadAccess();
       const result = await runAttachmentUploadCycle({
         registry: appAtomRegistry,
-        createUploadUrl: attachmentEnvironment.createUploadUrl,
-        remove: attachmentEnvironment.remove,
-        environmentId,
+        createUploadUrl: attachmentMachine.createUploadUrl,
+        remove: attachmentMachine.remove,
+        machineId,
         upload: attachmentUploadInput(attachment),
-        // Read the connection at transfer time: the environment may have
+        // Read the connection at transfer time: the machine may have
         // reconnected on a new base URL since this cycle started.
         resolveUploadUrl: (relativeUrl) => {
           requireUploadAccess();
           const currentConnection = appAtomRegistry.get(
-            environmentSession.preparedConnectionValueAtom(environmentId),
+            machineSession.preparedConnectionValueAtom(machineId),
           );
           return Option.isNone(currentConnection)
             ? null
@@ -390,7 +390,7 @@ export async function prepareTurnAttachments(input: {
         },
         transport: (url) => ({
           done: uploadFileBytes(
-            environmentId,
+            machineId,
             attachment,
             url,
             controller.signal,
@@ -418,7 +418,7 @@ export async function prepareTurnAttachments(input: {
     if (controller.signal.aborted) throw new Error("Upload cancelled.");
 
     const draftAttachments = withUploadedMobileAttachmentReferences({
-      environmentId,
+      machineId,
       attachments: input.attachments,
       uploadedAttachments,
     });
@@ -427,13 +427,13 @@ export async function prepareTurnAttachments(input: {
     );
     if (referencesChanged && input.persistUploadedReferences) {
       if ((await input.persistUploadedReferences(draftAttachments)) === "abandon") {
-        await releaseCreatedUploadsQuietly(environmentId, createdAttachmentIds);
+        await releaseCreatedUploadsQuietly(machineId, createdAttachmentIds);
         return { status: "abandoned" };
       }
     }
     return ready(uploadedAttachments, pendingAttachmentIds, draftAttachments);
   } catch (error) {
-    await releaseCreatedUploadsQuietly(environmentId, createdAttachmentIds);
+    await releaseCreatedUploadsQuietly(machineId, createdAttachmentIds);
     if (controller.signal.aborted) return { status: "abandoned" };
     throw error;
   } finally {

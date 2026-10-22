@@ -117,7 +117,7 @@ export const MERGE_CONFLICT_REASON = "Resolve the branch conflicts before mergin
 export function mergeUnavailableReason(pr: ActionDetail, connectionAllowsWrites: boolean) {
   if (pr.state === "merged") return "This pull request has been merged.";
   if (pr.state === "closed") return "Reopen this pull request before merging.";
-  if (!connectionAllowsWrites) return "This environment connection is read-only.";
+  if (!connectionAllowsWrites) return "This machine connection is read-only.";
   if (!pr.capabilities.actions.includes("merge"))
     return "This provider does not support merging here.";
   if (!pr.viewerPermissions.actions.includes("merge"))

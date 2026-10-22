@@ -1,7 +1,7 @@
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 
 interface ThreadActivityFileContext {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly currentThreadId: ThreadId;
   readonly activitySourceThreadId: ThreadId;
   readonly relativePath: string;
@@ -10,7 +10,7 @@ interface ThreadActivityFileContext {
 
 export function buildThreadActivityFileParams(input: ThreadActivityFileContext) {
   return {
-    environmentId: String(input.environmentId),
+    machineId: String(input.machineId),
     threadId: String(input.currentThreadId),
     path: input.relativePath.split("/").filter((segment) => segment.length > 0),
     ...(Number.isFinite(input.line) && Number(input.line) > 0

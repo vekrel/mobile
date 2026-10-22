@@ -1,13 +1,13 @@
-import type { EnvironmentConnectionPhase } from "@vekrel/client-runtime/connection";
-import type { EnvironmentShellStatus } from "@vekrel/client-runtime/state/shell";
-import type { EnvironmentThreadStatus } from "@vekrel/client-runtime/state/threads";
+import type { MachineConnectionPhase } from "@vekrel/client-runtime/connection";
+import type { MachineShellStatus } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadStatus } from "@vekrel/client-runtime/state/threads";
 
 export function threadRouteIsHydrating(input: {
   readonly isLoadingConnections: boolean;
-  readonly connectionState: EnvironmentConnectionPhase;
-  readonly shellStatus: EnvironmentShellStatus;
+  readonly connectionState: MachineConnectionPhase;
+  readonly shellStatus: MachineShellStatus;
   readonly shellHasError: boolean;
-  readonly detailStatus: EnvironmentThreadStatus;
+  readonly detailStatus: MachineThreadStatus;
   readonly detailHasError: boolean;
 }): boolean {
   if (input.detailStatus === "deleted" || input.shellHasError || input.detailHasError) {

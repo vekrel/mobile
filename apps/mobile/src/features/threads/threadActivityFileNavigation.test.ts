@@ -1,4 +1,4 @@
-import { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import { MachineId, ThreadId } from "@vekrel/contracts";
 import { describe, expect, it } from "@effect/vitest";
 
 import { buildThreadActivityFileParams } from "./threadActivityFileNavigation";
@@ -9,7 +9,7 @@ describe("thread activity file navigation", () => {
     const currentThreadId = ThreadId.make("current-thread");
 
     const params = buildThreadActivityFileParams({
-      environmentId: EnvironmentId.make("environment"),
+      machineId: MachineId.make("machine"),
       currentThreadId,
       activitySourceThreadId: sourceThreadId,
       relativePath: "apps/mobile/src/index.ts",
@@ -17,7 +17,7 @@ describe("thread activity file navigation", () => {
     });
 
     expect(params).toEqual({
-      environmentId: "environment",
+      machineId: "machine",
       threadId: "current-thread",
       path: ["apps", "mobile", "src", "index.ts"],
       line: "12",

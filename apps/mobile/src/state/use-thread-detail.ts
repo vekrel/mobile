@@ -1,13 +1,13 @@
 import { useAtomValue } from "@effect/atom-react";
 import type { PendingThreadRequests } from "@vekrel/client-runtime/state/thread-requests";
-import type { EnvironmentThread } from "@vekrel/client-runtime/state/shell";
-import type { EnvironmentId, OrchestrationV2ThreadProjection, ThreadId } from "@vekrel/contracts";
+import type { MachineThread } from "@vekrel/client-runtime/state/shell";
+import type { MachineId, OrchestrationV2ThreadProjection, ThreadId } from "@vekrel/contracts";
 import { Atom } from "effect/reactivity";
 
-import { environmentThreadDetails, useEnvironmentThread } from "./threads";
+import { machineThreadDetails, useMachineThread } from "./threads";
 import { useThreadSelection } from "./use-thread-selection";
 
-const EMPTY_THREAD_PROJECTION_ATOM = Atom.make<EnvironmentThread | null>(null).pipe(
+const EMPTY_THREAD_PROJECTION_ATOM = Atom.make<MachineThread | null>(null).pipe(
   Atom.withLabel("mobile-thread-projection:empty"),
 );
 const EMPTY_VISIBLE_TURN_ITEMS_ATOM = Atom.make<
@@ -15,37 +15,37 @@ const EMPTY_VISIBLE_TURN_ITEMS_ATOM = Atom.make<
 >(Object.freeze([])).pipe(Atom.withLabel("mobile-thread-visible-turn-items:empty"));
 
 export interface ThreadDetailTarget {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly threadId: ThreadId | null;
 }
 
 export function useThreadDetail(target: ThreadDetailTarget) {
-  return useEnvironmentThread(target.environmentId, target.threadId);
+  return useMachineThread(target.machineId, target.threadId);
 }
 
 export function useSelectedThreadDetailState() {
   const { selectedThreadDetailRef } = useThreadSelection();
-  return useEnvironmentThread(
-    selectedThreadDetailRef?.environmentId ?? null,
+  return useMachineThread(
+    selectedThreadDetailRef?.machineId ?? null,
     selectedThreadDetailRef?.threadId ?? null,
   );
 }
 
-export function useThreadProjection(target: ThreadDetailTarget): EnvironmentThread | null {
+export function useThreadProjection(target: ThreadDetailTarget): MachineThread | null {
   return useAtomValue(
-    target.environmentId === null || target.threadId === null
+    target.machineId === null || target.threadId === null
       ? EMPTY_THREAD_PROJECTION_ATOM
-      : environmentThreadDetails.threadAtom({
-          environmentId: target.environmentId,
+      : machineThreadDetails.threadAtom({
+          machineId: target.machineId,
           threadId: target.threadId,
         }),
   );
 }
 
-export function useSelectedThreadProjection(): EnvironmentThread | null {
+export function useSelectedThreadProjection(): MachineThread | null {
   const { selectedThreadDetailRef } = useThreadSelection();
   return useThreadProjection({
-    environmentId: selectedThreadDetailRef?.environmentId ?? null,
+    machineId: selectedThreadDetailRef?.machineId ?? null,
     threadId: selectedThreadDetailRef?.threadId ?? null,
   });
 }
@@ -54,10 +54,10 @@ export function useThreadVisibleTurnItems(
   target: ThreadDetailTarget,
 ): OrchestrationV2ThreadProjection["visibleTurnItems"] {
   return useAtomValue(
-    target.environmentId === null || target.threadId === null
+    target.machineId === null || target.threadId === null
       ? EMPTY_VISIBLE_TURN_ITEMS_ATOM
-      : environmentThreadDetails.visibleTurnItemsAtom({
-          environmentId: target.environmentId,
+      : machineThreadDetails.visibleTurnItemsAtom({
+          machineId: target.machineId,
           threadId: target.threadId,
         }),
   );
@@ -66,7 +66,7 @@ export function useThreadVisibleTurnItems(
 export function useSelectedThreadVisibleTurnItems(): OrchestrationV2ThreadProjection["visibleTurnItems"] {
   const { selectedThreadDetailRef } = useThreadSelection();
   return useThreadVisibleTurnItems({
-    environmentId: selectedThreadDetailRef?.environmentId ?? null,
+    machineId: selectedThreadDetailRef?.machineId ?? null,
     threadId: selectedThreadDetailRef?.threadId ?? null,
   });
 }
@@ -79,7 +79,7 @@ export function useSelectedThreadWorktreePath() {
   return useAtomValue(
     selectedThreadDetailRef === null
       ? EMPTY_WORKTREE_PATH_ATOM
-      : environmentThreadDetails.worktreePathAtom(selectedThreadDetailRef),
+      : machineThreadDetails.worktreePathAtom(selectedThreadDetailRef),
   );
 }
 
@@ -88,6 +88,6 @@ export function useSelectedThreadPendingRequests() {
   return useAtomValue(
     selectedThreadDetailRef === null
       ? EMPTY_PENDING_REQUESTS_ATOM
-      : environmentThreadDetails.pendingRequestsAtom(selectedThreadDetailRef),
+      : machineThreadDetails.pendingRequestsAtom(selectedThreadDetailRef),
   );
 }

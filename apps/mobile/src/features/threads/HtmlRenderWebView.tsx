@@ -1,6 +1,6 @@
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { useNavigation } from "@react-navigation/native";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import {
   htmlRenderFileName,
   htmlRenderFrameHeight,
@@ -178,7 +178,7 @@ export function HtmlRenderWebView(props: {
 }
 
 export function ThreadHtmlRender(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly render: HtmlRenderReference;
   readonly frameWidth: number;
@@ -198,8 +198,8 @@ export function ThreadHtmlRender(props: {
     }),
     [attachmentId, fileName],
   );
-  const asset = useAssetUrlState(props.environmentId, resource);
-  const refresh = useRefreshAssetUrl(props.environmentId, resource);
+  const asset = useAssetUrlState(props.machineId, resource);
+  const refresh = useRefreshAssetUrl(props.machineId, resource);
   // Signed URLs are re-minted periodically; following them would reload the page.
   const [uri, setUri] = useState<string | null>(null);
   if (uri === null && asset._tag === "Success") setUri(asset.url);
@@ -256,7 +256,7 @@ export function ThreadHtmlRender(props: {
             className="absolute right-1.5 top-1.5 h-7 w-7 items-center justify-center rounded-full border border-border/60 bg-card/80"
             onPress={() =>
               navigation.navigate("ThreadAttachment", {
-                environmentId: String(props.environmentId),
+                machineId: String(props.machineId),
                 threadId: String(props.threadId),
                 attachmentId,
                 name: fileName,

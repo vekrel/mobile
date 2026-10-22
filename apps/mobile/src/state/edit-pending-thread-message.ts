@@ -32,7 +32,7 @@ export async function editPendingThreadMessage(message: QueuedThreadMessage): Pr
     return false;
   }
   holdEditingQueuedMessage(message.messageId);
-  const draftKey = scopedThreadKey(message.environmentId, message.threadId);
+  const draftKey = scopedThreadKey(message.machineId, message.threadId);
   let rollback: {
     snapshot: ReturnType<typeof getComposerDraftSnapshot>;
     merged: ReturnType<typeof getComposerDraftSnapshot>;

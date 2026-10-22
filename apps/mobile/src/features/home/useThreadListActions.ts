@@ -1,5 +1,5 @@
 import type { ThreadMoveDestination } from "../threads/threadOrder";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import * as ThreadUndo from "@vekrel/client-runtime/state/thread-undo";
 import { showThreadUndoNotice } from "./thread-undo-notice";
 import { canSnooze, effectiveSnoozed } from "@vekrel/client-runtime/state/thread-settled";
@@ -11,12 +11,12 @@ import { useRef } from "react";
 import { withThreadDismissal } from "./thread-dismissal";
 import * as Dialog from "../../components/ui/Dialog";
 import { scopedThreadKey } from "../../lib/scopedEntities";
-import { refreshArchivedThreadsForEnvironment } from "../archive/useArchivedThreadSnapshots";
+import { refreshArchivedThreadsForMachine } from "../archive/useArchivedThreadSnapshots";
 import { pinOrderKeyBetween } from "@vekrel/client-runtime/state/thread-sort";
 import { appAtomRegistry } from "../../state/atom-registry";
-import { environmentServerConfigsAtom } from "../../state/server";
-import { readEnvironmentScope } from "../../state/session";
-import { environmentThreadShells, threadEnvironment } from "../../state/threads";
+import { machineServerConfigsAtom } from "../../state/server";
+import { readMachineScope } from "../../state/session";
+import { machineThreadShells, threadMachine } from "../../state/threads";
 import { queuedThreadKeysAtom } from "../../state/use-thread-outbox";
 import { useAtomCommand } from "../../state/use-atom-command";
 import {
@@ -35,48 +35,48 @@ import { resolveThreadTitleRename } from "../threads/thread-title-rename";
 
 /** Version skew: never send settle/unsettle to a server that predates them
     (capability defaults false on decode for older servers). */
-function environmentSupportsSettlement(environmentId: EnvironmentThreadShell["environmentId"]) {
+function machineSupportsSettlement(machineId: MachineThreadShell["machineId"]) {
   return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
+    appAtomRegistry.get(machineServerConfigsAtom).get(machineId)?.machine.capabilities
       .threadSettlement === true
   );
 }
 
-function environmentSupportsSnooze(environmentId: EnvironmentThreadShell["environmentId"]) {
+function machineSupportsSnooze(machineId: MachineThreadShell["machineId"]) {
   return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
+    appAtomRegistry.get(machineServerConfigsAtom).get(machineId)?.machine.capabilities
       .threadSnooze === true
   );
 }
 
-function environmentSupportsPinning(environmentId: EnvironmentThreadShell["environmentId"]) {
+function machineSupportsPinning(machineId: MachineThreadShell["machineId"]) {
   return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
+    appAtomRegistry.get(machineServerConfigsAtom).get(machineId)?.machine.capabilities
       .threadPinning === true
   );
 }
 
-function environmentSupportsPinReorder(environmentId: EnvironmentThreadShell["environmentId"]) {
+function machineSupportsPinReorder(machineId: MachineThreadShell["machineId"]) {
   return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
+    appAtomRegistry.get(machineServerConfigsAtom).get(machineId)?.machine.capabilities
       .threadPinReorder === true
   );
 }
 
-function environmentSupportsAutoSettleOptOut(
-  environmentId: EnvironmentThreadShell["environmentId"],
+function machineSupportsAutoSettleOptOut(
+  machineId: MachineThreadShell["machineId"],
 ) {
   return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
+    appAtomRegistry.get(machineServerConfigsAtom).get(machineId)?.machine.capabilities
       .threadAutoSettleOptOut === true
   );
 }
 
-function environmentSupportsTitleRegeneration(
-  environmentId: EnvironmentThreadShell["environmentId"],
+function machineSupportsTitleRegeneration(
+  machineId: MachineThreadShell["machineId"],
 ) {
   return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
+    appAtomRegistry.get(machineServerConfigsAtom).get(machineId)?.machine.capabilities
       .threadTitleRegeneration === true
   );
 }
@@ -111,29 +111,29 @@ function actionFailureTitle(action: ThreadListAction): string {
   return "Could not delete thread";
 }
 
-function checkThreadOperationPermission(thread: EnvironmentThreadShell, title: string): boolean {
-  if (readEnvironmentScope(thread.environmentId, AuthOrchestrationOperateScope)) return true;
+function checkThreadOperationPermission(thread: MachineThreadShell, title: string): boolean {
+  if (readMachineScope(thread.machineId, AuthOrchestrationOperateScope)) return true;
   Dialog.alert(title, "This connection cannot change threads.");
   return false;
 }
 
 function useThreadActionExecutor(
-  onCompleted?: (action: ThreadListAction, thread: EnvironmentThreadShell) => void,
+  onCompleted?: (action: ThreadListAction, thread: MachineThreadShell) => void,
 ) {
-  const archiveMutation = useAtomCommand(threadEnvironment.archive, { reportFailure: false });
-  const unarchiveMutation = useAtomCommand(threadEnvironment.unarchive, { reportFailure: false });
-  const deleteMutation = useAtomCommand(threadEnvironment.delete, { reportFailure: false });
-  const settleMutation = useAtomCommand(threadEnvironment.settle, { reportFailure: false });
-  const unsettleMutation = useAtomCommand(threadEnvironment.unsettle, { reportFailure: false });
+  const archiveMutation = useAtomCommand(threadMachine.archive, { reportFailure: false });
+  const unarchiveMutation = useAtomCommand(threadMachine.unarchive, { reportFailure: false });
+  const deleteMutation = useAtomCommand(threadMachine.delete, { reportFailure: false });
+  const settleMutation = useAtomCommand(threadMachine.settle, { reportFailure: false });
+  const unsettleMutation = useAtomCommand(threadMachine.unsettle, { reportFailure: false });
   const inFlightThreadKeys = useRef(new Set<string>());
 
   const executeAction = async (
     action: ThreadListAction,
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     onStarted?: () => void,
   ) => {
     if (!checkThreadOperationPermission(thread, actionFailureTitle(action))) return false;
-    const key = scopedThreadKey(thread.environmentId, thread.id);
+    const key = scopedThreadKey(thread.machineId, thread.id);
     if (inFlightThreadKeys.current.has(key)) {
       return false;
     }
@@ -143,11 +143,11 @@ function useThreadActionExecutor(
     const succeeded = await (async () => {
       if (
         (action === "settle" || action === "unsettle") &&
-        !environmentSupportsSettlement(thread.environmentId)
+        !machineSupportsSettlement(thread.machineId)
       ) {
         Dialog.alert(
           actionFailureTitle(action),
-          "This environment's server does not support settling yet. Update the server to use Settle.",
+          "This machine's server does not support settling yet. Update the server to use Settle.",
         );
         return false;
       }
@@ -170,7 +170,7 @@ function useThreadActionExecutor(
             ? // reason "user" pins the thread active: auto-settle stays
               // suppressed until real activity clears the pin server-side.
               await unsettleMutation({
-                environmentId: thread.environmentId,
+                machineId: thread.machineId,
                 input: { threadId: thread.id, reason: "user" },
               })
             : await (
@@ -182,7 +182,7 @@ function useThreadActionExecutor(
                       ? unarchiveMutation
                       : deleteMutation
               )({
-                environmentId: thread.environmentId,
+                machineId: thread.machineId,
                 input: { threadId: thread.id },
               }),
         (result) => result._tag === "Success",
@@ -192,7 +192,7 @@ function useThreadActionExecutor(
         return false;
       }
       if (action === "archive" || action === "unarchive" || action === "delete") {
-        refreshArchivedThreadsForEnvironment(thread.environmentId);
+        refreshArchivedThreadsForMachine(thread.machineId);
       }
       onCompleted?.(action, thread);
       return true;
@@ -207,8 +207,8 @@ function useThreadActionExecutor(
 // A plain function, not a hook: a `use*` function that calls no hooks is skipped by
 // the compiler, so the delete handler it returned was a new closure every render.
 function confirmThreadDeletion(
-  executeAction: (action: ThreadListAction, thread: EnvironmentThreadShell) => Promise<boolean>,
-  thread: EnvironmentThreadShell,
+  executeAction: (action: ThreadListAction, thread: MachineThreadShell) => Promise<boolean>,
+  thread: MachineThreadShell,
 ) {
   if (!checkThreadOperationPermission(thread, actionFailureTitle("delete"))) return;
   const title = "Delete thread?";
@@ -225,42 +225,42 @@ function confirmThreadDeletion(
 }
 
 export function useThreadListActions(): {
-  readonly archiveThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly confirmDeleteThread: (thread: EnvironmentThreadShell) => void;
-  readonly settleThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly snoozeThread: (thread: EnvironmentThreadShell, snoozedUntil: string) => Promise<boolean>;
-  readonly unsnoozeThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly unsettleThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly pinThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
-  readonly unpinThread: (thread: EnvironmentThreadShell) => Promise<boolean>;
+  readonly archiveThread: (thread: MachineThreadShell) => Promise<boolean>;
+  readonly confirmDeleteThread: (thread: MachineThreadShell) => void;
+  readonly settleThread: (thread: MachineThreadShell) => Promise<boolean>;
+  readonly snoozeThread: (thread: MachineThreadShell, snoozedUntil: string) => Promise<boolean>;
+  readonly unsnoozeThread: (thread: MachineThreadShell) => Promise<boolean>;
+  readonly unsettleThread: (thread: MachineThreadShell) => Promise<boolean>;
+  readonly pinThread: (thread: MachineThreadShell) => Promise<boolean>;
+  readonly unpinThread: (thread: MachineThreadShell) => Promise<boolean>;
   readonly setThreadAutoSettle: (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     enabled: boolean,
   ) => Promise<boolean>;
   readonly moveThread: (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     direction: ThreadMoveDestination,
   ) => Promise<boolean>;
-  readonly renameThread: (thread: EnvironmentThreadShell) => void;
-  readonly regenerateThreadTitle: (thread: EnvironmentThreadShell) => Promise<boolean>;
+  readonly renameThread: (thread: MachineThreadShell) => void;
+  readonly regenerateThreadTitle: (thread: MachineThreadShell) => Promise<boolean>;
 } {
   const executeAction = useThreadActionExecutor();
-  const snoozeMutation = useAtomCommand(threadEnvironment.snooze, { reportFailure: false });
-  const unsnoozeMutation = useAtomCommand(threadEnvironment.unsnooze, { reportFailure: false });
-  const pinMutation = useAtomCommand(threadEnvironment.pin, { reportFailure: false });
-  const unpinMutation = useAtomCommand(threadEnvironment.unpin, { reportFailure: false });
-  const setAutoSettleMutation = useAtomCommand(threadEnvironment.setAutoSettle, {
+  const snoozeMutation = useAtomCommand(threadMachine.snooze, { reportFailure: false });
+  const unsnoozeMutation = useAtomCommand(threadMachine.unsnooze, { reportFailure: false });
+  const pinMutation = useAtomCommand(threadMachine.pin, { reportFailure: false });
+  const unpinMutation = useAtomCommand(threadMachine.unpin, { reportFailure: false });
+  const setAutoSettleMutation = useAtomCommand(threadMachine.setAutoSettle, {
     reportFailure: false,
   });
-  const updateThreadMetadata = useAtomCommand(threadEnvironment.updateMetadata, {
+  const updateThreadMetadata = useAtomCommand(threadMachine.updateMetadata, {
     reportFailure: false,
   });
   const snoozeInFlightThreadKeys = useRef(new Set<string>());
   const titleRegenerationInFlightThreadKeys = useRef(new Set<string>());
 
-  const archiveThread = (thread: EnvironmentThreadShell) => executeAction("archive", thread);
+  const archiveThread = (thread: MachineThreadShell) => executeAction("archive", thread);
   const offerUndo = (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     action: "Settled" | "Snoozed" | "Unpinned",
     claim: ReturnType<typeof ThreadUndo.begin>,
     plan: ThreadUndo.ThreadUndoPlan,
@@ -285,7 +285,7 @@ export function useThreadListActions(): {
                     action === "Unpinned" ? "Could not undo unpin" : "Could not undo settle";
                   if (!checkThreadOperationPermission(thread, failureTitle)) return false;
                   const result = await snoozeMutation({
-                    environmentId: thread.environmentId,
+                    machineId: thread.machineId,
                     input: { threadId: thread.id, snoozedUntil: step.snoozedUntil },
                   });
                   if (result._tag === "Failure") {
@@ -310,8 +310,8 @@ export function useThreadListActions(): {
         }
       },
     });
-  const settleThread = async (thread: EnvironmentThreadShell) => {
-    const key = scopedThreadKey(thread.environmentId, thread.id);
+  const settleThread = async (thread: MachineThreadShell) => {
+    const key = scopedThreadKey(thread.machineId, thread.id);
     const plan = ThreadUndo.planThreadUndo("settle", thread);
     let claim: ReturnType<typeof ThreadUndo.begin> | undefined;
     const succeeded = await executeAction("settle", thread, () => {
@@ -325,18 +325,18 @@ export function useThreadListActions(): {
     }
     return succeeded;
   };
-  const snoozeThread = async (thread: EnvironmentThreadShell, snoozedUntil: string) => {
+  const snoozeThread = async (thread: MachineThreadShell, snoozedUntil: string) => {
     if (!checkThreadOperationPermission(thread, "Could not snooze thread")) return false;
-    const key = scopedThreadKey(thread.environmentId, thread.id);
+    const key = scopedThreadKey(thread.machineId, thread.id);
     if (snoozeInFlightThreadKeys.current.has(key)) {
       return false;
     }
     snoozeInFlightThreadKeys.current.add(key);
     const succeeded = await (async () => {
-      if (!environmentSupportsSnooze(thread.environmentId)) {
+      if (!machineSupportsSnooze(thread.machineId)) {
         Dialog.alert(
           "Could not snooze thread",
-          "This environment's server does not support snoozing yet. Update the server to use Snooze.",
+          "This machine's server does not support snoozing yet. Update the server to use Snooze.",
         );
         return false;
       }
@@ -358,7 +358,7 @@ export function useThreadListActions(): {
         key,
         () =>
           snoozeMutation({
-            environmentId: thread.environmentId,
+            machineId: thread.machineId,
             input: {
               threadId: thread.id,
               snoozedUntil,
@@ -383,18 +383,18 @@ export function useThreadListActions(): {
     snoozeInFlightThreadKeys.current.delete(key);
     return succeeded;
   };
-  const unsnoozeThread = async (thread: EnvironmentThreadShell) => {
+  const unsnoozeThread = async (thread: MachineThreadShell) => {
     if (!checkThreadOperationPermission(thread, "Could not wake thread")) return false;
-    const key = scopedThreadKey(thread.environmentId, thread.id);
+    const key = scopedThreadKey(thread.machineId, thread.id);
     if (snoozeInFlightThreadKeys.current.has(key)) {
       return false;
     }
     snoozeInFlightThreadKeys.current.add(key);
     const succeeded = await (async () => {
-      if (!environmentSupportsSnooze(thread.environmentId)) {
+      if (!machineSupportsSnooze(thread.machineId)) {
         Dialog.alert(
           "Could not wake thread",
-          "This environment's server does not support snoozing yet. Update the server to wake this thread.",
+          "This machine's server does not support snoozing yet. Update the server to wake this thread.",
         );
         return false;
       }
@@ -405,7 +405,7 @@ export function useThreadListActions(): {
         key,
         () =>
           unsnoozeMutation({
-            environmentId: thread.environmentId,
+            machineId: thread.machineId,
             input: { threadId: thread.id, reason: "user" },
           }),
         (result) => result._tag === "Success",
@@ -425,14 +425,14 @@ export function useThreadListActions(): {
     snoozeInFlightThreadKeys.current.delete(key);
     return succeeded;
   };
-  const unsettleThread = async (thread: EnvironmentThreadShell) =>
+  const unsettleThread = async (thread: MachineThreadShell) =>
     (await executeAction("unsettle", thread)) === true;
-  const pinThread = async (thread: EnvironmentThreadShell, restoreOrderKey?: string) => {
+  const pinThread = async (thread: MachineThreadShell, restoreOrderKey?: string) => {
     if (!checkThreadOperationPermission(thread, "Could not pin thread")) return false;
-    if (!environmentSupportsPinning(thread.environmentId)) {
+    if (!machineSupportsPinning(thread.machineId)) {
       Dialog.alert(
         "Could not pin thread",
-        "This environment's server does not support pinning yet. Update the server to use Pin.",
+        "This machine's server does not support pinning yet. Update the server to use Pin.",
       );
       return false;
     }
@@ -440,8 +440,8 @@ export function useThreadListActions(): {
     // Same placement as web: a fresh pin takes the top of the arranged
     // run. Servers that predate reordering get the bare pin (keyless).
     let orderKey: string | undefined;
-    if (environmentSupportsPinReorder(thread.environmentId)) {
-      const shells = appAtomRegistry.get(environmentThreadShells.threadShellsAtom);
+    if (machineSupportsPinReorder(thread.machineId)) {
+      const shells = appAtomRegistry.get(machineThreadShells.threadShellsAtom);
       let firstKey: string | null = null;
       for (const shell of shells) {
         if (shell.pinnedAt == null || shell.pinOrderKey == null) continue;
@@ -449,18 +449,18 @@ export function useThreadListActions(): {
       }
       orderKey = pinOrderKeyBetween(null, firstKey) ?? undefined;
     }
-    orderKey = environmentSupportsPinReorder(thread.environmentId)
+    orderKey = machineSupportsPinReorder(thread.machineId)
       ? (restoreOrderKey ?? orderKey)
       : undefined;
-    ThreadUndo.invalidate("pin", scopedThreadKey(thread.environmentId, thread.id));
+    ThreadUndo.invalidate("pin", scopedThreadKey(thread.machineId, thread.id));
     // Pinning clears snooze, so older Settled or Snoozed undos would fight this pin.
-    ThreadUndo.invalidate("settle", scopedThreadKey(thread.environmentId, thread.id));
-    ThreadUndo.invalidate("snooze", scopedThreadKey(thread.environmentId, thread.id));
+    ThreadUndo.invalidate("settle", scopedThreadKey(thread.machineId, thread.id));
+    ThreadUndo.invalidate("snooze", scopedThreadKey(thread.machineId, thread.id));
     const result = await withThreadDismissal(
-      scopedThreadKey(thread.environmentId, thread.id),
+      scopedThreadKey(thread.machineId, thread.id),
       () =>
         pinMutation({
-          environmentId: thread.environmentId,
+          machineId: thread.machineId,
           input: { threadId: thread.id, ...(orderKey !== undefined ? { orderKey } : {}) },
         }),
       (result) => result._tag === "Success",
@@ -477,23 +477,23 @@ export function useThreadListActions(): {
     }
     return true;
   };
-  const unpinThread = async (thread: EnvironmentThreadShell) => {
+  const unpinThread = async (thread: MachineThreadShell) => {
     if (!checkThreadOperationPermission(thread, "Could not unpin thread")) return false;
-    if (!environmentSupportsPinning(thread.environmentId)) {
+    if (!machineSupportsPinning(thread.machineId)) {
       Dialog.alert(
         "Could not unpin thread",
-        "This environment's server does not support pinning yet. Update the server to use Pin.",
+        "This machine's server does not support pinning yet. Update the server to use Pin.",
       );
       return false;
     }
     selectionHaptic();
     const plan = ThreadUndo.planThreadUndo("unpin", thread);
-    const claim = ThreadUndo.begin("pin", scopedThreadKey(thread.environmentId, thread.id));
+    const claim = ThreadUndo.begin("pin", scopedThreadKey(thread.machineId, thread.id));
     const result = await withThreadDismissal(
-      scopedThreadKey(thread.environmentId, thread.id),
+      scopedThreadKey(thread.machineId, thread.id),
       () =>
         unpinMutation({
-          environmentId: thread.environmentId,
+          machineId: thread.machineId,
           input: { threadId: thread.id },
         }),
       (result) => result._tag === "Success",
@@ -512,17 +512,17 @@ export function useThreadListActions(): {
     offerUndo(thread, "Unpinned", claim, plan);
     return true;
   };
-  const setThreadAutoSettle = async (thread: EnvironmentThreadShell, enabled: boolean) => {
-    if (!environmentSupportsAutoSettleOptOut(thread.environmentId)) {
+  const setThreadAutoSettle = async (thread: MachineThreadShell, enabled: boolean) => {
+    if (!machineSupportsAutoSettleOptOut(thread.machineId)) {
       Dialog.alert(
         "Could not update auto-settle",
-        "This environment's server does not support turning auto-settle off per thread yet. Update the server to use it.",
+        "This machine's server does not support turning auto-settle off per thread yet. Update the server to use it.",
       );
       return false;
     }
     selectionHaptic();
     const result = await setAutoSettleMutation({
-      environmentId: thread.environmentId,
+      machineId: thread.machineId,
       input: { threadId: thread.id, enabled },
     });
     if (result._tag === "Failure") {
@@ -537,16 +537,16 @@ export function useThreadListActions(): {
     }
     return true;
   };
-  const regenerateThreadTitle = async (thread: EnvironmentThreadShell) => {
+  const regenerateThreadTitle = async (thread: MachineThreadShell) => {
     if (!checkThreadOperationPermission(thread, "Could not regenerate title")) return false;
-    const key = scopedThreadKey(thread.environmentId, thread.id);
+    const key = scopedThreadKey(thread.machineId, thread.id);
     if (thread.titleRegeneration != null || titleRegenerationInFlightThreadKeys.current.has(key)) {
       return false;
     }
-    if (!environmentSupportsTitleRegeneration(thread.environmentId)) {
+    if (!machineSupportsTitleRegeneration(thread.machineId)) {
       Dialog.alert(
         "Could not regenerate title",
-        "This environment's server does not support title regeneration yet. Update the server to regenerate thread titles.",
+        "This machine's server does not support title regeneration yet. Update the server to regenerate thread titles.",
       );
       return false;
     }
@@ -555,7 +555,7 @@ export function useThreadListActions(): {
     selectionHaptic();
     const succeeded = await (async () => {
       const result = await updateThreadMetadata({
-        environmentId: thread.environmentId,
+        machineId: thread.machineId,
         input: { threadId: thread.id, regenerateTitle: true },
       });
       if (result._tag === "Failure") {
@@ -573,7 +573,7 @@ export function useThreadListActions(): {
     titleRegenerationInFlightThreadKeys.current.delete(key);
     return succeeded;
   };
-  const renameThread = (thread: EnvironmentThreadShell) => {
+  const renameThread = (thread: MachineThreadShell) => {
     const commit = (title: string) => {
       const resolution = resolveThreadTitleRename({ title, originalTitle: thread.title });
       if (resolution.action === "reject-empty") {
@@ -583,7 +583,7 @@ export function useThreadListActions(): {
       if (resolution.action === "noop") return;
       selectionHaptic();
       void updateThreadMetadata({
-        environmentId: thread.environmentId,
+        machineId: thread.machineId,
         input: { threadId: thread.id, title: resolution.title },
       }).then((result) => {
         if (result._tag === "Success") return;
@@ -606,18 +606,18 @@ export function useThreadListActions(): {
   };
 
   // Plan against the complete section so filtering does not change a move.
-  const reorderPinnedMutation = useAtomCommand(threadEnvironment.reorderPin, {
+  const reorderPinnedMutation = useAtomCommand(threadMachine.reorderPin, {
     reportFailure: false,
   });
-  const reorderActiveMutation = useAtomCommand(threadEnvironment.reorderActive, {
+  const reorderActiveMutation = useAtomCommand(threadMachine.reorderActive, {
     reportFailure: false,
   });
-  const moveThread = async (thread: EnvironmentThreadShell, direction: ThreadMoveDestination) => {
+  const moveThread = async (thread: MachineThreadShell, direction: ThreadMoveDestination) => {
     if (!checkThreadOperationPermission(thread, "Could not move thread")) return false;
     if (getPendingThreadOrder() !== null || appAtomRegistry.get(threadDropBusyAtom)) return false;
-    const shells = appAtomRegistry.get(environmentThreadShells.threadShellsAtom);
+    const shells = appAtomRegistry.get(machineThreadShells.threadShellsAtom);
     const current = shells.find(
-      (row) => row.id === thread.id && row.environmentId === thread.environmentId,
+      (row) => row.id === thread.id && row.machineId === thread.machineId,
     );
     if (!current || current.archivedAt !== null) return false;
     thread = current;
@@ -628,23 +628,23 @@ export function useThreadListActions(): {
           ? "pinned"
           : "active";
     if (section === "settled") {
-      if (!environmentSupportsSettlement(thread.environmentId)) return false;
+      if (!machineSupportsSettlement(thread.machineId)) return false;
       appAtomRegistry.set(threadDropBusyAtom, true);
       const settled = await settleThread(thread);
       appAtomRegistry.set(threadDropBusyAtom, false);
       return settled;
     }
-    const configs = appAtomRegistry.get(environmentServerConfigsAtom);
-    const supportsReorder = (environmentId: EnvironmentThreadShell["environmentId"]) => {
-      const capabilities = configs.get(environmentId)?.environment.capabilities;
+    const configs = appAtomRegistry.get(machineServerConfigsAtom);
+    const supportsReorder = (machineId: MachineThreadShell["machineId"]) => {
+      const capabilities = configs.get(machineId)?.machine.capabilities;
       return section === "pinned"
         ? capabilities?.threadPinReorder === true
         : capabilities?.threadActiveReorder === true;
     };
-    if (!supportsReorder(thread.environmentId)) {
+    if (!supportsReorder(thread.machineId)) {
       Dialog.alert(
         "Could not move thread",
-        "This environment's server does not support reordering these threads. Update the server to arrange them.",
+        "This machine's server does not support reordering these threads. Update the server to arrange them.",
       );
       return false;
     }
@@ -653,14 +653,14 @@ export function useThreadListActions(): {
       section,
       now: new Date().toISOString(),
       queuedThreadKeys: appAtomRegistry.get(queuedThreadKeysAtom),
-      settlementEnvironmentIds: new Set(
+      settlementMachineIds: new Set(
         [...configs].flatMap(([id, config]) =>
-          config.environment.capabilities.threadSettlement === true ? [id] : [],
+          config.machine.capabilities.threadSettlement === true ? [id] : [],
         ),
       ),
-      snoozeEnvironmentIds: new Set(
+      snoozeMachineIds: new Set(
         [...configs].flatMap(([id, config]) =>
-          config.environment.capabilities.threadSnooze === true ? [id] : [],
+          config.machine.capabilities.threadSnooze === true ? [id] : [],
         ),
       ),
     });
@@ -668,25 +668,25 @@ export function useThreadListActions(): {
       allThreads: shells,
       ordered,
       section,
-      reorderableEnvironmentIds: new Set([...configs.keys()].filter(supportsReorder)),
-    })(scopedThreadKey(thread.environmentId, thread.id), direction);
+      reorderableMachineIds: new Set([...configs.keys()].filter(supportsReorder)),
+    })(scopedThreadKey(thread.machineId, thread.id), direction);
     if (assignments === null) return false;
     const lifecycle = threadDropLifecycle(thread, section, new Date().toISOString());
     const crossSection = !ordered.some(
-      (row) => row.id === thread.id && row.environmentId === thread.environmentId,
+      (row) => row.id === thread.id && row.machineId === thread.machineId,
     );
     if (
       crossSection &&
       (((section === "pinned" || thread.pinnedAt != null) &&
-        !environmentSupportsPinning(thread.environmentId)) ||
+        !machineSupportsPinning(thread.machineId)) ||
         (thread.settledOverride === "settled" &&
-          !environmentSupportsSettlement(thread.environmentId)) ||
+          !machineSupportsSettlement(thread.machineId)) ||
         (effectiveSnoozed(thread, { now: new Date().toISOString() }) &&
-          !environmentSupportsSnooze(thread.environmentId)))
+          !machineSupportsSnooze(thread.machineId)))
     )
       return false;
     const shellByKey = new Map(
-      shells.map((shell) => [scopedThreadKey(shell.environmentId, shell.id), shell]),
+      shells.map((shell) => [scopedThreadKey(shell.machineId, shell.id), shell]),
     );
     for (const assignment of assignments) {
       const target = shellByKey.get(assignment.id);
@@ -700,7 +700,7 @@ export function useThreadListActions(): {
           createPendingThreadOrder({
             section,
             ordered,
-            movedId: scopedThreadKey(thread.environmentId, thread.id),
+            movedId: scopedThreadKey(thread.machineId, thread.id),
             direction,
             assignments,
           }),
@@ -710,14 +710,14 @@ export function useThreadListActions(): {
       if (crossSection) {
         if (section === "pinned") {
           const orderKey = assignments.find(
-            ({ id }) => id === scopedThreadKey(thread.environmentId, thread.id),
+            ({ id }) => id === scopedThreadKey(thread.machineId, thread.id),
           )?.orderKey;
           // Same as pinThread: older Unpinned, Settled, or Snoozed undos would fight this pin.
-          ThreadUndo.invalidate("pin", scopedThreadKey(thread.environmentId, thread.id));
-          ThreadUndo.invalidate("settle", scopedThreadKey(thread.environmentId, thread.id));
-          ThreadUndo.invalidate("snooze", scopedThreadKey(thread.environmentId, thread.id));
+          ThreadUndo.invalidate("pin", scopedThreadKey(thread.machineId, thread.id));
+          ThreadUndo.invalidate("settle", scopedThreadKey(thread.machineId, thread.id));
+          ThreadUndo.invalidate("snooze", scopedThreadKey(thread.machineId, thread.id));
           const result = await pinMutation({
-            environmentId: thread.environmentId,
+            machineId: thread.machineId,
             input: { threadId: thread.id, ...(orderKey === undefined ? {} : { orderKey }) },
           });
           if (result._tag === "Failure") {
@@ -735,16 +735,16 @@ export function useThreadListActions(): {
           crossSection &&
           section === "pinned" &&
           thread.pinnedAt == null &&
-          assignment.id === scopedThreadKey(thread.environmentId, thread.id)
+          assignment.id === scopedThreadKey(thread.machineId, thread.id)
         )
           continue;
         if (pending !== null && !pending.isPending()) return false;
         const target = shellByKey.get(assignment.id);
         if (target === undefined) continue;
         if (!checkThreadOperationPermission(target, "Could not move thread")) return false;
-        ThreadUndo.invalidate("pin", scopedThreadKey(target.environmentId, target.id));
+        ThreadUndo.invalidate("pin", scopedThreadKey(target.machineId, target.id));
         const result = await reorder({
-          environmentId: target.environmentId,
+          machineId: target.machineId,
           input: { threadId: target.id, orderKey: assignment.orderKey },
         });
         if (result._tag === "Failure") {
@@ -766,7 +766,7 @@ export function useThreadListActions(): {
     return moved;
   };
 
-  const confirmDeleteThread = (thread: EnvironmentThreadShell) =>
+  const confirmDeleteThread = (thread: MachineThreadShell) =>
     confirmThreadDeletion(executeAction, thread);
 
   return {
@@ -786,19 +786,19 @@ export function useThreadListActions(): {
 }
 
 export function useArchivedThreadListActions(
-  onCompleted: (thread: EnvironmentThreadShell) => void,
+  onCompleted: (thread: MachineThreadShell) => void,
 ): {
-  readonly unarchiveThread: (thread: EnvironmentThreadShell) => void;
-  readonly confirmDeleteThread: (thread: EnvironmentThreadShell) => void;
+  readonly unarchiveThread: (thread: MachineThreadShell) => void;
+  readonly confirmDeleteThread: (thread: MachineThreadShell) => void;
 } {
-  const handleCompleted = (_action: ThreadListAction, thread: EnvironmentThreadShell) => {
+  const handleCompleted = (_action: ThreadListAction, thread: MachineThreadShell) => {
     onCompleted(thread);
   };
   const executeAction = useThreadActionExecutor(handleCompleted);
-  const unarchiveThread = (thread: EnvironmentThreadShell) => {
+  const unarchiveThread = (thread: MachineThreadShell) => {
     void executeAction("unarchive", thread);
   };
-  const confirmDeleteThread = (thread: EnvironmentThreadShell) =>
+  const confirmDeleteThread = (thread: MachineThreadShell) =>
     confirmThreadDeletion(executeAction, thread);
 
   return { unarchiveThread, confirmDeleteThread };

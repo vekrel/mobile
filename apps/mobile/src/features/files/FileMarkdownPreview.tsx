@@ -1,5 +1,5 @@
 import { settlePromise } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import { resolveMobileMarkdownMediaSource } from "../../lib/markdownMediaSource";
 import { getBrowseDirectoryPath } from "@vekrel/client-runtime/state/projects";
 import { useState } from "react";
@@ -72,7 +72,7 @@ export function useMarkdownPreviewStyles(): MarkdownPreviewStyles {
 export function FileMarkdownPreview(props: {
   readonly cwd: string;
   readonly captured?: boolean;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly markdown: string;
   readonly relativePath: string;
   readonly threadId: ThreadId | null;
@@ -100,7 +100,7 @@ export function FileMarkdownPreview(props: {
       imageEmbed: true,
     });
     const preview = resolveMarkdownMediaPreview(image.href, {
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       threadId: props.threadId ?? undefined,
       workspaceRoot: markdownDirectory,
       captured: props.captured,
@@ -145,7 +145,7 @@ export function FileMarkdownPreview(props: {
     }
     return (
       <ThreadMarkdownImage
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         resource={media.resource}
         alt={image.alt}
         srcFragment={media.srcFragment}
@@ -156,14 +156,14 @@ export function FileMarkdownPreview(props: {
   };
   const styles = useMarkdownPreviewStyles();
   const resolveImageSource = useMarkdownImageSource({
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     threadId: props.threadId,
     workspaceRoot: markdownDirectory,
     captured: props.captured,
   });
   const openMedia = (href: string, imageEmbed = false) => {
     const media = resolveMarkdownMediaPreview(href, {
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       threadId: props.threadId ?? undefined,
       workspaceRoot: markdownDirectory,
       captured: props.captured,

@@ -1,4 +1,4 @@
-import { CommandId, EnvironmentId, MessageId, ThreadId } from "@vekrel/contracts";
+import { CommandId, MachineId, MessageId, ThreadId } from "@vekrel/contracts";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { QueuedThreadMessage } from "./thread-outbox-model";
@@ -54,7 +54,7 @@ import {
 
 function queuedMessage(messageId: string, text: string): QueuedThreadMessage {
   return {
-    environmentId: EnvironmentId.make("environment-1"),
+    machineId: MachineId.make("machine-1"),
     threadId: ThreadId.make("thread-1"),
     messageId: MessageId.make(messageId),
     commandId: CommandId.make(`command-${messageId}`),

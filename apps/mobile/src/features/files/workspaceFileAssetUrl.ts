@@ -1,4 +1,4 @@
-import type { AssetResource, EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { AssetResource, MachineId, ThreadId } from "@vekrel/contracts";
 import { useMemo } from "react";
 
 import { useAssetUrlState, useRefreshAssetUrl } from "../../state/assets";
@@ -11,7 +11,7 @@ import {
 
 export function useWorkspaceFileAssetUrlState(props: {
   readonly cwd: string | null;
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly relativePath: string | null;
   readonly threadId: ThreadId | null;
   readonly draftCwd?: string | null;
@@ -43,7 +43,7 @@ export function useWorkspaceFileAssetUrlState(props: {
     if (draftCwd === null) return null;
     return { _tag: "draft-workspace-file", cwd: draftCwd, path: relativePath };
   }, [absolutePath, relativePath, props.threadId, draftCwd]);
-  const state = useAssetUrlState(props.environmentId, resource);
-  const refresh = useRefreshAssetUrl(props.environmentId, resource);
+  const state = useAssetUrlState(props.machineId, resource);
+  const refresh = useRefreshAssetUrl(props.machineId, resource);
   return { ...state, resource, refresh };
 }

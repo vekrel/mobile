@@ -350,14 +350,14 @@ describe("incoming native shares", () => {
     expect(
       selectIncomingShareAttachmentsForServer({
         attachments: [file],
-        serverConfig: { environment: { capabilities: { attachmentUploads: true } } },
+        serverConfig: { machine: { capabilities: { attachmentUploads: true } } },
       }),
     ).toMatchObject({ status: "ready", attachments: [] });
     expect(
       selectIncomingShareAttachmentsForServer({
         attachments: [file],
         serverConfig: {
-          environment: {
+          machine: {
             capabilities: {
               attachmentUploads: true,
               fileAttachments: { maxUploadBytes: 5 * 1024 * 1024 },
@@ -370,7 +370,7 @@ describe("incoming native shares", () => {
       selectIncomingShareAttachmentsForServer({
         attachments: [file],
         serverConfig: {
-          environment: {
+          machine: {
             capabilities: {
               attachmentUploads: true,
               fileAttachments: { maxUploadBytes: 10 * 1024 * 1024 },

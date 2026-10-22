@@ -16,29 +16,29 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { ScreenScrollView } from "../../components/ui/ScreenScrollView";
-import { environmentPresentations } from "../../state/presentation";
-import { useEnvironmentQuery } from "../../state/query";
-import { serverEnvironment } from "../../state/server";
-import { useEnvironmentsWithScope } from "../../state/session";
+import { machinePresentations } from "../../state/presentation";
+import { useMachineQuery } from "../../state/query";
+import { serverMachine } from "../../state/server";
+import { useMachinesWithScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { SettingsActionRow } from "./components/SettingsActionRow";
 import {
-  AndroidSettingsEnvironmentFilter,
-  SettingsEnvironmentFilterHeader,
-} from "./components/SettingsEnvironmentFilterHeader";
+  AndroidSettingsMachineFilter,
+  SettingsMachineFilterHeader,
+} from "./components/SettingsMachineFilterHeader";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { SettingsSection } from "./components/SettingsSection";
-import { useSettingsEnvironmentFilter, type SettingsTarget } from "./settings-environment-filter";
+import { useSettingsMachineFilter, type SettingsTarget } from "./settings-machine-filter";
 
 export function SettingsProviderAccountsRouteScreen() {
-  const { selectedTargets } = useSettingsEnvironmentFilter();
-  const permittedEnvironments = useEnvironmentsWithScope(selectedTargets, AuthProvidersManageScope);
-  const providersByEnvironment = useAtomValue(environmentPresentations.providersByEnvironmentAtom);
+  const { selectedTargets } = useSettingsMachineFilter();
+  const permittedMachines = useMachinesWithScope(selectedTargets, AuthProvidersManageScope);
+  const providersByMachine = useAtomValue(machinePresentations.providersByMachineAtom);
   const insets = useSafeAreaInsets();
   return (
     <>
-      <SettingsEnvironmentFilterHeader />
-      <SettingsScreen title="Provider accounts" trailing={<AndroidSettingsEnvironmentFilter />}>
+      <SettingsMachineFilterHeader />
+      <SettingsScreen title="Provider accounts" trailing={<AndroidSettingsMachineFilter />}>
         <ScreenScrollView
           className="flex-1"
           contentInsetAdjustmentBehavior="automatic"
@@ -46,20 +46,20 @@ export function SettingsProviderAccountsRouteScreen() {
           contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 18) + 18 }}
         >
           {selectedTargets.length === 0 ? (
-            <Text className="text-foreground-muted">Select a connected environment.</Text>
+            <Text className="text-foreground-muted">Select a connected machine.</Text>
           ) : (
-            selectedTargets.map((environment) => (
-              <SettingsSection key={environment.environmentId} title={environment.label}>
-                {!permittedEnvironments.has(environment.environmentId) ? (
+            selectedTargets.map((machine) => (
+              <SettingsSection key={machine.machineId} title={machine.label}>
+                {!permittedMachines.has(machine.machineId) ? (
                   <View className="gap-1 p-4">
                     <Text className="text-base text-foreground">Limited permissions</Text>
                     <Text className="text-sm text-foreground-muted">
-                      {`This session can view ${environment.label}'s providers but can't change their settings.`}
+                      {`This session can view ${machine.label}'s providers but can't change their settings.`}
                     </Text>
                   </View>
                 ) : (
                   <>
-                    {(providersByEnvironment.get(environment.environmentId) ?? [])
+                    {(providersByMachine.get(machine.machineId) ?? [])
                       .filter(
                         (provider) =>
                           provider.setup?.canAuthenticate ||
@@ -68,11 +68,11 @@ export function SettingsProviderAccountsRouteScreen() {
                       .map((provider) => (
                         <ProviderAccount
                           key={provider.instanceId}
-                          environment={environment}
+                          machine={machine}
                           provider={provider}
                         />
                       ))}
-                    {!(providersByEnvironment.get(environment.environmentId) ?? []).some(
+                    {!(providersByMachine.get(machine.machineId) ?? []).some(
                       (provider) =>
                         provider.setup?.canAuthenticate ||
                         (provider.driver === "acpRegistry" && provider.installed),
@@ -93,22 +93,22 @@ export function SettingsProviderAccountsRouteScreen() {
 }
 
 function ProviderAccount({
-  environment,
+  machine,
   provider,
 }: {
-  readonly environment: SettingsTarget;
+  readonly machine: SettingsTarget;
   readonly provider: ServerProvider;
 }) {
-  const environmentId = environment.environmentId;
+  const machineId = machine.machineId;
   const instanceId = provider.instanceId;
-  const target = { environmentId, input: { instanceId } };
-  const auth = useEnvironmentQuery(serverEnvironment.providerAuthState(target));
+  const target = { machineId, input: { instanceId } };
+  const auth = useMachineQuery(serverMachine.providerAuthState(target));
   const options = { reportFailure: false, reportDefect: false };
-  const start = useAtomCommand(serverEnvironment.startProviderAuth, options);
-  const respond = useAtomCommand(serverEnvironment.respondProviderAuth, options);
-  const complete = useAtomCommand(serverEnvironment.completeProviderAuth, options);
-  const cancel = useAtomCommand(serverEnvironment.cancelProviderAuth, options);
-  const logout = useAtomCommand(serverEnvironment.logoutProviderAuth, options);
+  const start = useAtomCommand(serverMachine.startProviderAuth, options);
+  const respond = useAtomCommand(serverMachine.respondProviderAuth, options);
+  const complete = useAtomCommand(serverMachine.completeProviderAuth, options);
+  const cancel = useAtomCommand(serverMachine.cancelProviderAuth, options);
+  const logout = useAtomCommand(serverMachine.logoutProviderAuth, options);
   const [pending, setPending] = useState(false);
   const [choosingMethod, setChoosingMethod] = useState(false);
   const pendingRef = useRef(false);
@@ -158,7 +158,7 @@ function ProviderAccount({
     if (!state?.flowId || !interaction) return Promise.resolve(false);
     return run(() =>
       respond({
-        environmentId,
+        machineId,
         input: { instanceId, flowId: state.flowId!, interactionId: interaction.id, response },
       }),
     );
@@ -261,7 +261,7 @@ function ProviderAccount({
                 if (!state?.flowId) return;
                 void run(() =>
                   complete({
-                    environmentId,
+                    machineId,
                     input: { instanceId, flowId: state.flowId!, callbackUrl: values.callback! },
                   }),
                 ).then((sent) => {
@@ -288,7 +288,7 @@ function ProviderAccount({
               onPress={() => {
                 setChoosingMethod(false);
                 void run(() =>
-                  start({ environmentId, input: { instanceId, methodId: method.id } }),
+                  start({ machineId, input: { instanceId, methodId: method.id } }),
                 );
               }}
             />
@@ -330,7 +330,7 @@ function ProviderAccount({
           label="Cancel sign-in"
           disabled={disabled}
           onPress={() => {
-            void run(() => cancel({ environmentId, input: { instanceId, flowId: state.flowId! } }));
+            void run(() => cancel({ machineId, input: { instanceId, flowId: state.flowId! } }));
           }}
         />
       ) : !active && !needsExternalSetup && provider.setup?.canAuthenticate !== false ? (
@@ -351,7 +351,7 @@ function ProviderAccount({
           onPress={() =>
             Dialog.alert(
               "Sign out?",
-              `Running threads sharing this sign-in on ${environment.label} will stop. Thread history is kept.`,
+              `Running threads sharing this sign-in on ${machine.label} will stop. Thread history is kept.`,
               [
                 { text: "Cancel", style: "cancel" },
                 {

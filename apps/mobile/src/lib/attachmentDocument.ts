@@ -2,7 +2,7 @@ import { AsyncResult } from "effect/reactivity";
 import { settlePromise, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import * as Dialog from "../components/ui/Dialog";
 import { filePreviewDelimiter, parseDelimitedPreview } from "@vekrel/shared/delimitedPreview";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { readFilePreviewResponse } from "@vekrel/client-runtime/file-preview";
 import { filePreviewKind, FILE_TEXT_PREVIEW_MAX_BYTES } from "@vekrel/shared/filePreview";
 import { fetch } from "expo/fetch";
@@ -28,7 +28,7 @@ export function useAttachmentDocument(input: {
   readonly mimeType: string;
   readonly sizeBytes: number;
   readonly attachmentId: string;
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly attachment: FileBackedComposerAttachment | null;
 }) {
   const kind = filePreviewKind(input);
@@ -42,8 +42,8 @@ export function useAttachmentDocument(input: {
     mimeType: input.mimeType,
     disposition: "inline" as const,
   };
-  const environmentId = input.attachment ? null : input.environmentId;
-  const refresh = useRefreshAssetUrl(environmentId, resource);
+  const machineId = input.attachment ? null : input.machineId;
+  const refresh = useRefreshAssetUrl(machineId, resource);
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [remoteUri, setRemoteUri] = useState<string | null>(null);
   const [content, setContent] = useState<{ text: string; truncated: boolean } | null>(null);
@@ -55,7 +55,7 @@ export function useAttachmentDocument(input: {
   const presentation = attachmentDocumentPresentation({
     kind,
     hasTable: table !== null,
-    hasEnvironment: input.environmentId !== null,
+    hasMachine: input.machineId !== null,
     rendered,
   });
   const [revision, setRevision] = useState(0);
@@ -73,7 +73,7 @@ export function useAttachmentDocument(input: {
     void refresh()
       .then((url) => {
         if (cancelled) return;
-        if (!url) throw new Error("Reconnect to this environment and try again.");
+        if (!url) throw new Error("Reconnect to this machine and try again.");
         textReadUrl.current = { uri: url, authorizedAt: Date.now() };
         setRemoteUri(url);
       })
@@ -131,7 +131,7 @@ export function useAttachmentDocument(input: {
           let target = authorized?.uri ?? uri;
           if (!authorized || Date.now() - authorized.authorizedAt > STALE_URL_MS) {
             const refreshed = await refresh();
-            if (!refreshed) throw new Error("Reconnect to this environment and try again.");
+            if (!refreshed) throw new Error("Reconnect to this machine and try again.");
             target = refreshed;
             if (!controller.signal.aborted) {
               // Keep the source-read URL and its age together without restarting active media.

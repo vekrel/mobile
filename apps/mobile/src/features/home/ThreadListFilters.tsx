@@ -6,16 +6,16 @@ import type { HomeHeaderProps } from "./HomeHeader.types";
 export function ThreadListFilters(
   props: Pick<
     HomeHeaderProps,
-    | "environments"
+    | "machines"
     | "projects"
-    | "selectedEnvironmentId"
+    | "selectedMachineId"
     | "selectedProjectKey"
-    | "onEnvironmentChange"
+    | "onMachineChange"
     | "onProjectChange"
   >,
 ) {
-  const selectedEnvironment = props.environments.find(
-    (environment) => environment.environmentId === props.selectedEnvironmentId,
+  const selectedMachine = props.machines.find(
+    (machine) => machine.machineId === props.selectedMachineId,
   );
   const selectedProject = props.projects.find(
     (project) => project.key === props.selectedProjectKey,
@@ -27,31 +27,31 @@ export function ThreadListFilters(
       contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 2, paddingBottom: 10, gap: 8 }}
     >
       <ListFilterMenu
-        label={selectedEnvironment?.label ?? "All environments"}
-        accessibilityLabel="Filter threads by environment"
-        active={selectedEnvironment !== undefined}
+        label={selectedMachine?.label ?? "All machines"}
+        accessibilityLabel="Filter threads by machine"
+        active={selectedMachine !== undefined}
         actions={[
           {
             id: "all",
-            title: "All environments",
-            state: props.selectedEnvironmentId === null ? "on" : "off",
+            title: "All machines",
+            state: props.selectedMachineId === null ? "on" : "off",
           },
-          ...props.environments.map((environment) => ({
-            id: JSON.stringify(environment.environmentId),
-            title: environment.label,
+          ...props.machines.map((machine) => ({
+            id: JSON.stringify(machine.machineId),
+            title: machine.label,
             state:
-              environment.environmentId === props.selectedEnvironmentId
+              machine.machineId === props.selectedMachineId
                 ? ("on" as const)
                 : ("off" as const),
           })),
         ]}
         onSelect={(id) => {
-          if (id === "all") props.onEnvironmentChange(null);
+          if (id === "all") props.onMachineChange(null);
           else {
-            const environment = props.environments.find(
-              (candidate) => JSON.stringify(candidate.environmentId) === id,
+            const machine = props.machines.find(
+              (candidate) => JSON.stringify(candidate.machineId) === id,
             );
-            if (environment) props.onEnvironmentChange(environment.environmentId);
+            if (machine) props.onMachineChange(machine.machineId);
           }
         }}
       />
@@ -81,13 +81,13 @@ export function ThreadListFilters(
           }
         }}
       />
-      {props.selectedEnvironmentId !== null || props.selectedProjectKey !== null ? (
+      {props.selectedMachineId !== null || props.selectedProjectKey !== null ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Reset thread filters"
           className="h-8 w-8 items-center justify-center"
           onPress={() => {
-            props.onEnvironmentChange(null);
+            props.onMachineChange(null);
             props.onProjectChange(null);
           }}
         >

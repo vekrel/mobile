@@ -1,21 +1,21 @@
 import { useAtomValue } from "@effect/atom-react";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { CHATGPT_USAGE_URL, collectExternalUsageLinks } from "@vekrel/shared/usageLimits";
 import { Linking, Pressable, View } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
 import { ProviderIcon } from "../../components/ProviderIcon";
-import { environmentPresentations } from "../../state/presentation";
+import { machinePresentations } from "../../state/presentation";
 
 export function ChatGptUsageSummary({
-  selectedEnvironmentIds,
+  selectedMachineIds,
 }: {
-  selectedEnvironmentIds: ReadonlySet<EnvironmentId> | null;
+  selectedMachineIds: ReadonlySet<MachineId> | null;
 }) {
-  const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
+  const presentations = useAtomValue(machinePresentations.presentationsWithProvidersAtom);
   const selected =
-    selectedEnvironmentIds === null
+    selectedMachineIds === null
       ? presentations
-      : new Map([...presentations].filter(([id]) => selectedEnvironmentIds.has(id)));
+      : new Map([...presentations].filter(([id]) => selectedMachineIds.has(id)));
   const usage = collectExternalUsageLinks(selected).find((link) => link.url === CHATGPT_USAGE_URL);
   if (!usage) return null;
   return (

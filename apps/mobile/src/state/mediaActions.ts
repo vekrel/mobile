@@ -8,7 +8,7 @@ import {
 } from "@vekrel/client-runtime/media-actions";
 import {
   AuthFilesystemReadScope,
-  type EnvironmentId,
+  type MachineId,
   sessionGrantsScope,
   type SessionGrantInput,
 } from "@vekrel/contracts";
@@ -19,8 +19,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { useRefreshAssetUrl } from "./assets";
 import { appAtomRegistry } from "./atom-registry";
-import { useEnvironmentQuery } from "./query";
-import { environmentSession } from "./session";
+import { useMachineQuery } from "./query";
+import { machineSession } from "./session";
 import { downloadAndShareAttachment, shareLocalAttachment } from "../lib/attachmentDownload";
 import { copyTextWithHaptic } from "../lib/copyTextWithHaptic";
 import { loadLocalAttachmentPreview } from "../lib/localAttachmentPreview";
@@ -29,28 +29,28 @@ function allowsHostMedia(session: SessionGrantInput | null) {
   return session === null || sessionGrantsScope(session, AuthFilesystemReadScope);
 }
 
-function canReadHostMedia(environmentId: EnvironmentId | null): boolean {
-  if (environmentId === null) return true;
-  const result = appAtomRegistry.get(environmentSession.sessionStateAtom(environmentId));
+function canReadHostMedia(machineId: MachineId | null): boolean {
+  if (machineId === null) return true;
+  const result = appAtomRegistry.get(machineSession.sessionStateAtom(machineId));
   return result._tag !== "Failure" && allowsHostMedia(Option.getOrNull(AsyncResult.value(result)));
 }
 
 export function useMediaActions(source: MediaActionsSource | undefined, onOpenFile?: () => void) {
   const navigation = useNavigation();
-  const hostEnvironmentId =
+  const hostMachineId =
     source &&
     "resource" in source &&
     (source.resource._tag === "workspace-file" || source.resource._tag === "media-file")
-      ? source.environmentId
+      ? source.machineId
       : null;
-  const fileSession = useEnvironmentQuery(
-    hostEnvironmentId === null ? null : environmentSession.sessionStateAtom(hostEnvironmentId),
+  const fileSession = useMachineQuery(
+    hostMachineId === null ? null : machineSession.sessionStateAtom(hostMachineId),
   );
   const canReadMedia =
-    hostEnvironmentId === null ||
+    hostMachineId === null ||
     (fileSession.error === null && fileSession.data !== null && allowsHostMedia(fileSession.data));
   const refresh = useRefreshAssetUrl(
-    source && "environmentId" in source ? source.environmentId : null,
+    source && "machineId" in source ? source.machineId : null,
     source && "resource" in source ? source.resource : null,
   );
   const controller = useRef<AbortController | null>(null);
@@ -58,7 +58,7 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
   useEffect(() => () => controller.current?.abort(), []);
 
   const share = () => {
-    if (!source || controller.current || !canReadHostMedia(hostEnvironmentId)) return;
+    if (!source || controller.current || !canReadHostMedia(hostMachineId)) return;
     const request = new AbortController();
     controller.current = request;
     setSharing(true);
@@ -74,7 +74,7 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
         return;
       }
       const uri = "uri" in source ? normalizeNativeMarkdownUrl(source.uri) : await refresh();
-      if (request.signal.aborted || !canReadHostMedia(hostEnvironmentId)) return;
+      if (request.signal.aborted || !canReadHostMedia(hostMachineId)) return;
       if (uri === null) throw new Error("The file could not be loaded. Reconnect and try again.");
       const input = {
         attachment: { name: source.name, mimeType: source.mimeType },
@@ -134,17 +134,17 @@ export function useMediaActions(source: MediaActionsSource | undefined, onOpenFi
                 },
               ]
             : []),
-          ...(relativePath && "environmentId" in source && threadId !== undefined
+          ...(relativePath && "machineId" in source && threadId !== undefined
             ? [
                 {
                   id: "open-file" as const,
                   title: "Open in file viewer",
                   disabled: !canReadMedia,
                   run: () => {
-                    if (!canReadHostMedia(hostEnvironmentId)) return;
+                    if (!canReadHostMedia(hostMachineId)) return;
                     onOpenFile?.();
                     navigation.navigate("ThreadFile", {
-                      environmentId: String(source.environmentId),
+                      machineId: String(source.machineId),
                       threadId: String(threadId),
                       path: relativePath.split("/"),
                     });

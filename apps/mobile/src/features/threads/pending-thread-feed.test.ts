@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   CommandId,
   ComposerContextId,
-  EnvironmentId,
+  MachineId,
   MessageId,
   ProjectId,
   ThreadId,
@@ -11,7 +11,7 @@ import type { QueuedThreadMessage } from "../../state/thread-outbox-model";
 import { appendPendingThreadMessages } from "./pending-thread-feed";
 
 const pending = (id: string): QueuedThreadMessage => ({
-  environmentId: EnvironmentId.make("env"),
+  machineId: MachineId.make("env"),
   threadId: ThreadId.make("thread"),
   messageId: MessageId.make(id),
   commandId: CommandId.make(id),

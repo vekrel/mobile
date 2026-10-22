@@ -10,16 +10,16 @@ import { ScreenContent } from "../../../components/ui/ScreenContent";
 import { NativeStackScreenOptions } from "../../../native/StackHeader";
 import { AppText as Text, AppTextInput as TextInput } from "../../../components/ui/AppText";
 import { cn } from "../../../lib/cn";
-import { useEnvironmentQuery } from "../../../state/query";
+import { useMachineQuery } from "../../../state/query";
 import { useThreadSelection } from "../../../state/use-thread-selection";
 import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-git-actions";
 import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
 import { useSelectedThreadWorktree } from "../../../state/use-selected-thread-worktree";
-import { vcsEnvironment } from "../../../state/vcs";
+import { vcsMachine } from "../../../state/vcs";
 import { SheetActionButton } from "./gitSheetComponents";
 
 type GitBranchesSheetProps = StaticScreenProps<{
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly threadId: string;
 }>;
 
@@ -33,10 +33,10 @@ export function GitBranchesSheet(_props: GitBranchesSheetProps) {
   const gitActions = useSelectedThreadGitActions();
   const { canChangeThreadBranch } = gitActions;
 
-  const gitStatus = useEnvironmentQuery(
+  const gitStatus = useMachineQuery(
     selectedThread !== null && selectedThreadCwd !== null
-      ? vcsEnvironment.status({
-          environmentId: selectedThread.environmentId,
+      ? vcsMachine.status({
+          machineId: selectedThread.machineId,
           input: { cwd: selectedThreadCwd },
         })
       : null,

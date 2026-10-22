@@ -5,41 +5,41 @@ import { AsyncResult } from "effect/reactivity";
 import * as Cause from "effect/Cause";
 import { AuthFilesystemReadScope, AuthSourceControlWriteScope } from "@vekrel/contracts";
 import type {
-  EnvironmentProject,
-  EnvironmentThreadShell,
+  MachineProject,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import { NATIVE_LIQUID_GLASS_SUPPORTED } from "../../native/native-glass";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
-import { useEnvironmentQuery } from "../../state/query";
-import { useEnvironmentScope } from "../../state/session";
+import { useMachineQuery } from "../../state/query";
+import { useMachineScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { vcsActionManager, vcsEnvironment } from "../../state/vcs";
+import { vcsActionManager, vcsMachine } from "../../state/vcs";
 import { useVcsActionState } from "../../state/use-vcs-action-state";
 import { ThreadHeader } from "./ThreadHeader";
 
 export function DraftThreadHeader(props: {
-  readonly thread: EnvironmentThreadShell;
-  readonly project: EnvironmentProject;
+  readonly thread: MachineThreadShell;
+  readonly project: MachineProject;
   readonly cwd: string | null;
 }) {
   const navigation = useNavigation();
   const { themeVariables } = useAppearancePreferences();
-  const environmentId = props.thread.environmentId;
-  const canReadFiles = useEnvironmentScope(environmentId, AuthFilesystemReadScope);
-  const canWriteGit = useEnvironmentScope(environmentId, AuthSourceControlWriteScope);
-  const status = useEnvironmentQuery(
-    props.cwd ? vcsEnvironment.status({ environmentId, input: { cwd: props.cwd } }) : null,
+  const machineId = props.thread.machineId;
+  const canReadFiles = useMachineScope(machineId, AuthFilesystemReadScope);
+  const canWriteGit = useMachineScope(machineId, AuthSourceControlWriteScope);
+  const status = useMachineQuery(
+    props.cwd ? vcsMachine.status({ machineId, input: { cwd: props.cwd } }) : null,
   );
-  const target = { environmentId, cwd: props.cwd };
+  const target = { machineId, cwd: props.cwd };
   const progress = useVcsActionState(target);
   const runAction = useAtomCommand(vcsActionManager.runStackedAction(target), {
     reportFailure: false,
   });
-  const pull = useAtomCommand(vcsEnvironment.pull, { reportFailure: false });
+  const pull = useAtomCommand(vcsMachine.pull, { reportFailure: false });
   const openFiles = () => {
     if (!props.cwd || !canReadFiles) return;
     navigation.navigate("NewTaskFiles", {
-      environmentId,
+      machineId,
       cwd: props.cwd,
       projectName: props.project.title,
     });
@@ -61,7 +61,7 @@ export function DraftThreadHeader(props: {
       onOpenFilesInspector={openFiles}
       onOpenGitInspector={requiresThread}
       gitControls={{
-        environmentId,
+        machineId,
         threadId: props.thread.id,
         hasThread: false,
         currentBranch: props.thread.branch,
@@ -81,7 +81,7 @@ export function DraftThreadHeader(props: {
         },
         onPull: async () => {
           if (!canWriteGit || !props.cwd) return;
-          const result = await pull({ environmentId, input: { cwd: props.cwd } });
+          const result = await pull({ machineId, input: { cwd: props.cwd } });
           if (AsyncResult.isFailure(result))
             Dialog.alert("Could not pull", String(Cause.squash(result.cause)));
         },

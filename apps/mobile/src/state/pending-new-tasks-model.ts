@@ -1,4 +1,4 @@
-import type { EnvironmentId, ProjectId } from "@vekrel/contracts";
+import type { MachineId, ProjectId } from "@vekrel/contracts";
 
 import { deriveThreadTitleFromPrompt } from "../lib/projectThreadStartTurn";
 import type { QueuedThreadCreation, QueuedThreadMessage } from "./thread-outbox-model";
@@ -10,7 +10,7 @@ export type PendingNewTask = PendingQueuedTask | PendingDraftTask;
 export interface PendingQueuedTask {
   readonly kind: "pending";
   readonly key: string;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly projectId: ProjectId;
   readonly projectTitle: string | undefined;
   readonly projectCwd: string | undefined;
@@ -24,7 +24,7 @@ export interface PendingQueuedTask {
 export interface PendingDraftTask {
   readonly kind: "draft";
   readonly key: string;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly projectId: ProjectId;
   readonly projectTitle: undefined;
   readonly projectCwd: undefined;
@@ -59,7 +59,7 @@ export function buildPendingNewTasks(input: {
     tasks.push({
       kind: "pending",
       key: `pending-task:${message.messageId}`,
-      environmentId: message.environmentId,
+      machineId: message.machineId,
       projectId: message.creation.projectId,
       projectTitle: message.creation.projectTitle,
       projectCwd: message.creation.projectCwd,
@@ -77,7 +77,7 @@ export function buildPendingNewTasks(input: {
     tasks.push({
       kind: "draft",
       key: `draft-task:${draftKey}`,
-      environmentId: draft.project.environmentId,
+      machineId: draft.project.machineId,
       projectId: draft.project.projectId,
       projectTitle: undefined,
       projectCwd: undefined,

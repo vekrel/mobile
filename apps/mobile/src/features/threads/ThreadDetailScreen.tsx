@@ -23,13 +23,13 @@ import {
 } from "@vekrel/client-runtime/state/thread-settled";
 import type { WorktreeSetupCardProps } from "./worktree-setup-card";
 import type { ComposerTextPaste } from "../../native/T3ComposerEditor.types";
-import { type EnvironmentConnectionPhase } from "@vekrel/client-runtime/connection";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import { type MachineConnectionPhase } from "@vekrel/client-runtime/connection";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import type { HandoffEndpoints } from "@vekrel/client-runtime/handoff";
 import {
   childThreadInputsTitle,
   type CodexFeedbackSubmission,
-  type EnvironmentThreadStatus,
+  type MachineThreadStatus,
 } from "@vekrel/client-runtime/state/threads";
 import { useKeyboardChatComposerInset, useKeyboardScrollToEnd } from "@legendapp/list/keyboard";
 import { resolveProviderSkillsForCwd } from "@vekrel/client-runtime/providerSkills";
@@ -38,7 +38,7 @@ import { HeaderHeightContext } from "@react-navigation/elements";
 import { NativeLayoutObserver } from "../../native/NativeLayoutObserver";
 import { deriveBottomControlInsets, type NativeLayoutMetrics } from "../../lib/reserved-regions";
 import type {
-  EnvironmentId,
+  MachineId,
   MessageId,
   ModelSelection,
   ProviderInteractionMode,
@@ -121,8 +121,8 @@ import {
   type LayoutVariant,
 } from "../../lib/layout";
 import { editPendingThreadMessage } from "../../state/edit-pending-thread-message";
-import { deviceEnvironment } from "../../state/device";
-import { useEnvironmentQuery } from "../../state/query";
+import { deviceMachine } from "../../state/device";
+import { useMachineQuery } from "../../state/query";
 import { threadDevicePreviews } from "../devices/threadDevicePreviews";
 import { ThreadBrowserFloat } from "../browser/ThreadBrowserFloat";
 import { useThreadServerBrowserTabs } from "../../state/preview";
@@ -133,7 +133,7 @@ import {
   clearThreadComposerError,
   threadComposerErrorsAtom,
 } from "../../state/thread-composer-error";
-import { threadEnvironment } from "../../state/threads";
+import { threadMachine } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useDelayedStatus } from "../../lib/useDelayedStatus";
 import type {
@@ -190,7 +190,7 @@ export interface ThreadDetailScreenProps {
   readonly worktreeSetup?: WorktreeSetupCardProps | null;
   readonly setupWorkingStartedAt?: string | null;
   readonly canOperateThread: boolean;
-  readonly selectedThread: EnvironmentThreadShell;
+  readonly selectedThread: MachineThreadShell;
   /**
    * Read thread details through this, not `selectedThread.id`: it stays null until
    * a queued creation reaches the server; see `useThreadSelection`.
@@ -199,7 +199,7 @@ export interface ThreadDetailScreenProps {
   readonly contentPresentation: ThreadContentPresentation;
   readonly screenTone: StatusTone;
   readonly connectionError: string | null;
-  readonly environmentLabel: string | null;
+  readonly machineLabel: string | null;
   readonly feedbackSubmissions: ReadonlyArray<CodexFeedbackSubmission>;
   readonly onDismissFeedback: (id: MessageId) => void;
   readonly selectedThreadFeed: ReadonlyArray<ThreadFeedEntry>;
@@ -224,8 +224,8 @@ export interface ThreadDetailScreenProps {
   readonly activePendingUserInputDrafts: Record<string, PendingUserInputDraftAnswer>;
   readonly activePendingUserInputAnswers: Record<string, string | ReadonlyArray<string>> | null;
   readonly respondingUserInputId: RuntimeRequestId | null;
-  readonly connectionStateLabel: EnvironmentConnectionPhase;
-  readonly threadSyncStatus?: EnvironmentThreadStatus;
+  readonly connectionStateLabel: MachineConnectionPhase;
+  readonly threadSyncStatus?: MachineThreadStatus;
   readonly historyControls?: ThreadFeedHistoryControls;
   readonly activeThreadBusy: boolean;
   readonly canStopThread: boolean;
@@ -236,7 +236,7 @@ export interface ThreadDetailScreenProps {
   readonly isSavingQueuedEdit: boolean;
   readonly onCancelQueuedRunEdit: () => void;
   readonly onRemoveQueuedEditAttachment: (attachmentId: string) => void;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly projectWorkspaceRoot: string | null;
   readonly threadCwd: string | null;
   readonly selectedThreadQueueCount: number;
@@ -260,7 +260,7 @@ export interface ThreadDetailScreenProps {
     followUp?: ActiveTurnComposerAction,
     beforeDispatch?: () => Promise<boolean>,
   ) => Promise<MessageId | null>;
-  readonly onReconnectEnvironment: () => void;
+  readonly onReconnectMachine: () => void;
   readonly canSwitchThreadProvider: boolean;
   readonly onUpdateThreadModelSelection: (modelSelection: ModelSelection) => void;
   readonly onUpdateThreadRuntimeMode: (runtimeMode: RuntimeMode) => void;
@@ -362,18 +362,18 @@ const USER_INPUT_TOGGLE_TIMING = {
 // The visit watermark follows the shell's updatedAt, which ticks while a run
 // streams. Keeping it in a leaf lets the screen read the quiet shell.
 function ThreadVisitWatermark(props: {
-  readonly environmentId: EnvironmentId;
-  readonly selectedThread: EnvironmentThreadShell;
+  readonly machineId: MachineId;
+  readonly selectedThread: MachineThreadShell;
   readonly showContent: boolean;
 }) {
   const liveThread = useThreadShell({
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     threadId: props.selectedThread.id,
   });
   const thread = liveThread ?? props.selectedThread;
   const showContent = props.showContent;
-  const selectedThreadKey = scopedThreadKey(props.environmentId, thread.id);
-  const visitThread = useAtomCommand(threadEnvironment.visit, { reportFailure: false });
+  const selectedThreadKey = scopedThreadKey(props.machineId, thread.id);
+  const visitThread = useAtomCommand(threadMachine.visit, { reportFailure: false });
   const lastDispatchedVisitRef = useRef<string | null>(null);
   const lastVisitDispatchRef = useRef({ threadKey: selectedThreadKey, at: 0 });
   const selectedThreadId = thread.id;
@@ -412,7 +412,7 @@ function ThreadVisitWatermark(props: {
       lastDispatchedVisitRef.current = dispatchKey;
       lastVisitDispatchRef.current = { threadKey: selectedThreadKey, at: Date.now() };
       void visitThread({
-        environmentId: props.environmentId,
+        machineId: props.machineId,
         input: { threadId: selectedThreadId, visitedAt: selectedThreadUpdatedAt },
       });
     };
@@ -436,7 +436,7 @@ function ThreadVisitWatermark(props: {
     const timer = setTimeout(dispatch, 10_000 - elapsed);
     return () => clearTimeout(timer);
   }, [
-    props.environmentId,
+    props.machineId,
     selectedThreadId,
     selectedThreadKey,
     selectedThreadLastVisitedAt,
@@ -454,27 +454,27 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
   const navigation = useNavigation();
   const { session: voiceInputSession } = useGlobalVoiceInput();
   const reportedModelSelection = useThreadReportedModelSelection(props.selectedThreadDetailRef);
-  const deviceState = useEnvironmentQuery(
-    deviceEnvironment.state({ environmentId: props.environmentId, input: {} }),
+  const deviceState = useMachineQuery(
+    deviceMachine.state({ machineId: props.machineId, input: {} }),
   );
   const devicePreviews = threadDevicePreviews(deviceState.data, props.selectedThread.id);
   const openDevicePreview = () => {
     Keyboard.dismiss();
     navigation.navigate("ThreadDevicePreview", {
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       threadId: props.selectedThread.id,
     });
   };
   const browserTabs = useThreadServerBrowserTabs({
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     threadId: props.selectedThread.id,
     enabled:
-      !props.draftMode && props.serverConfig?.environment.capabilities.serverBrowser === true,
+      !props.draftMode && props.serverConfig?.machine.capabilities.serverBrowser === true,
   });
   const openBrowserPreview = (tabId?: string) => {
     Keyboard.dismiss();
     navigation.navigate("ThreadBrowserPreview", {
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       threadId: props.selectedThread.id,
       ...(tabId === undefined ? {} : { tabId }),
     });
@@ -521,9 +521,9 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
   const nativeMetrics = usesNativeWorkspaceColumns ? columnMetrics : screenMetrics;
   const controlInsets = deriveBottomControlInsets(nativeMetrics);
   const agentLabel = `${props.selectedThread.modelSelection.instanceId} agent`;
-  const selectedThreadKey = scopedThreadKey(props.environmentId, props.selectedThread.id);
+  const selectedThreadKey = scopedThreadKey(props.machineId, props.selectedThread.id);
   const childThreadInputs = useChildThreadInputs({
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     threadId: props.selectedThread.id,
   });
   const composerError = useAtomValue(threadComposerErrorsAtom)[selectedThreadKey]?.message ?? null;
@@ -582,13 +582,13 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
     }
   })();
   const threadSyncLabel = useDelayedStatus(selectedThreadKey, realThreadSyncLabel);
-  const interruptThreadTurn = useAtomCommand(threadEnvironment.interruptTurn, {
+  const interruptThreadTurn = useAtomCommand(threadMachine.interruptTurn, {
     reportFailure: false,
   });
-  const unsnoozeThread = useAtomCommand(threadEnvironment.unsnooze, { reportFailure: false });
-  const unsettleThread = useAtomCommand(threadEnvironment.unsettle, { reportFailure: false });
-  const updateMetadata = useAtomCommand(threadEnvironment.updateMetadata, { reportFailure: false });
-  const visitThread = useAtomCommand(threadEnvironment.visit, { reportFailure: false });
+  const unsnoozeThread = useAtomCommand(threadMachine.unsnooze, { reportFailure: false });
+  const unsettleThread = useAtomCommand(threadMachine.unsettle, { reportFailure: false });
+  const updateMetadata = useAtomCommand(threadMachine.updateMetadata, { reportFailure: false });
+  const visitThread = useAtomCommand(threadMachine.visit, { reportFailure: false });
   const [statusRequest, setStatusRequest] = useState<{ threadKey: string } | null>(null);
   const statusPending = statusRequest?.threadKey === selectedThreadKey;
   const [lifecycleNow, setLifecycleNow] = useState(() => new Date().toISOString());
@@ -600,7 +600,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
     }, []),
   );
   const snoozed =
-    props.serverConfig?.environment.capabilities.threadSnooze === true &&
+    props.serverConfig?.machine.capabilities.threadSnooze === true &&
     effectiveSnoozed(props.selectedThread, { now: lifecycleNow });
   const snoozedUntil = props.selectedThread.snoozedUntil;
   useEffect(() => {
@@ -613,10 +613,10 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Re-arm if timer clamping fires before the wake time.
   }, [snoozed, snoozedUntil, lifecycleNow]);
   const settled =
-    props.serverConfig?.environment.capabilities.threadSettlement === true &&
+    props.serverConfig?.machine.capabilities.threadSettlement === true &&
     props.selectedThread.settledOverride === "settled";
   const wokeAt =
-    props.serverConfig?.environment.capabilities.threadSnooze === true
+    props.serverConfig?.machine.capabilities.threadSnooze === true
       ? threadWokeAt(props.selectedThread, { now: lifecycleNow })
       : null;
   const woke = isThreadWokeUnseen({
@@ -630,7 +630,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
     const request = { threadKey: selectedThreadKey };
     setStatusRequest(request);
     const target = {
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       input: { threadId: props.selectedThread.id },
     };
     const recovery = props.selectedThread.limitRecovery;
@@ -679,8 +679,8 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
     const connectionStatus = connectionFloatingStatus({
       connectionError: props.connectionError,
       connectionState: props.connectionStateLabel,
-      environmentLabel: props.environmentLabel,
-      onReconnect: props.onReconnectEnvironment,
+      machineLabel: props.machineLabel,
+      onReconnect: props.onReconnectMachine,
     });
     if (connectionStatus !== null && !props.draftMode) {
       return connectionStatus;
@@ -711,7 +711,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
           Keyboard.dismiss();
           navigation.dispatch(
             StackActions.push("Thread", {
-              environmentId: props.environmentId,
+              machineId: props.machineId,
               threadId: childInput.id,
             }),
           );
@@ -735,7 +735,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
         onPress: () => {
           Keyboard.dismiss();
           navigation.navigate("ThreadBackgroundWork", {
-            environmentId: props.environmentId,
+            machineId: props.machineId,
             threadId: props.selectedThread.id,
           });
         },
@@ -1246,7 +1246,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
     }
     if (
       edited.value &&
-      selectedThreadKeyRef.current === scopedThreadKey(message.environmentId, message.threadId)
+      selectedThreadKeyRef.current === scopedThreadKey(message.machineId, message.threadId)
     ) {
       composerEditorRef.current?.focus();
     }
@@ -1313,7 +1313,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
     <View className="flex-1" onLayout={handleScreenLayout}>
       {!usesNativeWorkspaceColumns ? <NativeLayoutObserver onChange={setScreenMetrics} /> : null}
       <ThreadVisitWatermark
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         selectedThread={props.selectedThread}
         showContent={showContent && !props.draftMode}
       />
@@ -1355,7 +1355,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
             )}
           >
             <ThreadFeed
-              environmentId={props.environmentId}
+              machineId={props.machineId}
               threadId={props.selectedThread.id}
               workspaceRoot={props.threadCwd}
               feed={props.selectedThreadFeed}
@@ -1403,7 +1403,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
       {showContent ? (
         <ThreadBrowserFloat
           key={selectedThreadKey}
-          environmentId={props.environmentId}
+          machineId={props.machineId}
           threadId={props.selectedThread.id}
           tabs={browserTabs.tabs}
           loaded={browserTabs.loaded}
@@ -1464,7 +1464,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
                   onOpenAgents={() => {
                     Keyboard.dismiss();
                     navigation.navigate("ThreadAgents", {
-                      environmentId: props.environmentId,
+                      machineId: props.machineId,
                       threadId: props.selectedThread.id,
                     });
                   }}
@@ -1472,7 +1472,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
                   onOpenQueue={() => {
                     Keyboard.dismiss();
                     navigation.navigate("ThreadQueue", {
-                      environmentId: props.environmentId,
+                      machineId: props.machineId,
                       threadId: props.selectedThread.id,
                     });
                   }}
@@ -1496,7 +1496,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
                   <UsageLimitRecoveryCard
                     key={props.selectedThread.latestRun?.runId}
                     thread={props.selectedThread}
-                    environmentId={props.environmentId}
+                    machineId={props.machineId}
                   />
                   <ChatGptUsageLimitNotice
                     key={`chatgpt-limit:${props.selectedThread.latestRun?.runId}`}
@@ -1531,7 +1531,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
                     >
                       <ComposerUsageLimits
                         report={usageLimitsReport}
-                        environmentId={props.environmentId}
+                        machineId={props.machineId}
                         maxHeight={usageLimitsMaxHeight}
                         onClose={dismissUsageLimits}
                       />
@@ -1620,7 +1620,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
                             ? null
                             : () => {
                                 const parent = {
-                                  environmentId: String(props.environmentId),
+                                  machineId: String(props.machineId),
                                   threadId: String(props.selectedThread.lineage.parentThreadId),
                                 };
                                 navigation.dispatch((state) =>
@@ -1647,7 +1647,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
                         }
                         contentMaxWidth={contentMaxWidth}
                         connectionState={props.connectionStateLabel}
-                        environmentLabel={props.environmentLabel}
+                        machineLabel={props.machineLabel}
                         selectedThread={props.selectedThread}
                         hasCompactableConversation={
                           hasCompactableConversation && !props.isCompacting
@@ -1656,7 +1656,7 @@ export const ThreadDetailScreen = function ThreadDetailScreen(props: ThreadDetai
                         queueCount={props.selectedThreadQueueCount}
                         activeThreadBusy={props.activeThreadBusy}
                         canStopThread={props.canStopThread}
-                        environmentId={props.environmentId}
+                        machineId={props.machineId}
                         projectCwd={props.threadCwd ?? props.projectWorkspaceRoot}
                         // Follow-ups typed before the server creates the thread wait in
                         // the draft: queueing them against a thread id the server may

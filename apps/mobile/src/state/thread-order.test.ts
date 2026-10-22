@@ -1,5 +1,5 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
-import { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
+import { MachineId, ThreadId } from "@vekrel/contracts";
 import type { Atom } from "effect/reactivity";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
@@ -11,7 +11,7 @@ import {
   getPendingThreadOrder,
   pendingThreadOrderAtom,
 } from "./thread-order";
-import { environmentThreadShells } from "./threads";
+import { machineThreadShells } from "./threads";
 
 vi.mock("./atom-registry", async () => {
   const { AtomRegistry } = await import("effect/reactivity");
@@ -19,27 +19,27 @@ vi.mock("./atom-registry", async () => {
 });
 vi.mock("./threads", async () => {
   const { Atom } = await import("effect/reactivity");
-  return { environmentThreadShells: { threadShellsAtom: Atom.make([]).pipe(Atom.keepAlive) } };
+  return { machineThreadShells: { threadShellsAtom: Atom.make([]).pipe(Atom.keepAlive) } };
 });
 vi.mock("./server", async () => {
   const { Atom } = await import("effect/reactivity");
-  return { environmentServerConfigsAtom: Atom.make(new Map()).pipe(Atom.keepAlive) };
+  return { machineServerConfigsAtom: Atom.make(new Map()).pipe(Atom.keepAlive) };
 });
 vi.mock("./use-thread-outbox", async () => {
   const { Atom } = await import("effect/reactivity");
   return { queuedThreadKeysAtom: Atom.make(new Set<string>()).pipe(Atom.keepAlive) };
 });
 
-const shellsAtom = environmentThreadShells.threadShellsAtom as Atom.Writable<
-  readonly EnvironmentThreadShell[],
-  readonly EnvironmentThreadShell[]
+const shellsAtom = machineThreadShells.threadShellsAtom as Atom.Writable<
+  readonly MachineThreadShell[],
+  readonly MachineThreadShell[]
 >;
 
 function fixture() {
   const rows = ["a", "b"].map((id, index) =>
     makeThreadShellFixture({
       id: ThreadId.make(id),
-      environmentId: EnvironmentId.make("env"),
+      machineId: MachineId.make("env"),
       createdAt: `2026-06-01T0${2 - index}:00:00.000Z`,
     }),
   );

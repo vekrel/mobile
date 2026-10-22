@@ -7,7 +7,7 @@ import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
-  type EnvironmentId,
+  type MachineId,
   type PastedTextAttachmentSource,
   type UploadChatImageAttachment,
 } from "@vekrel/contracts";
@@ -31,7 +31,7 @@ export interface DraftComposerImageAttachment extends Omit<UploadChatImageAttach
   readonly fileUri?: string;
   readonly dataUrl?: string;
   readonly uploadedAttachmentId?: string;
-  readonly uploadEnvironmentId?: EnvironmentId;
+  readonly uploadMachineId?: MachineId;
 }
 
 export interface DraftComposerFileAttachment {
@@ -43,7 +43,7 @@ export interface DraftComposerFileAttachment {
   readonly fileUri: string;
   readonly source?: PastedTextAttachmentSource;
   readonly uploadedAttachmentId?: string;
-  readonly uploadEnvironmentId?: EnvironmentId;
+  readonly uploadMachineId?: MachineId;
 }
 
 export async function createPastedTextComposerAttachment(input: {

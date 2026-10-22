@@ -2,7 +2,7 @@ import * as Dialog from "../../components/ui/Dialog";
 import { useAtomValue } from "@effect/atom-react";
 import {
   AuthProvidersManageScope,
-  type EnvironmentId,
+  type MachineId,
   type ProviderConsumeResetCreditOutcome,
   type ProviderConsumeResetCreditInput,
   type ServerProvider,
@@ -23,9 +23,9 @@ import { Linking, Pressable, View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { ProviderIcon } from "../../components/ProviderIcon";
-import { environmentPresentations } from "../../state/presentation";
-import { serverEnvironment } from "../../state/server";
-import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
+import { machinePresentations } from "../../state/presentation";
+import { serverMachine } from "../../state/server";
+import { readMachineScope, useMachineScope } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { usageProviderKind, useProviderColors } from "./usageProviders";
 
@@ -218,15 +218,15 @@ const OUTCOME_TEXT: Record<ProviderConsumeResetCreditOutcome, string> = {
 };
 
 export function ResetCredits(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly input: ProviderConsumeResetCreditInput;
   readonly credits: ServerProviderResetCredits;
   readonly now: number;
   readonly dense?: boolean;
 }) {
-  const { environmentId, input, credits, now, dense = false } = props;
-  const canManageProviders = useEnvironmentScope(environmentId, AuthProvidersManageScope);
-  const consume = useAtomCommand(serverEnvironment.consumeResetCredit, {
+  const { machineId, input, credits, now, dense = false } = props;
+  const canManageProviders = useMachineScope(machineId, AuthProvidersManageScope);
+  const consume = useAtomCommand(serverMachine.consumeResetCredit, {
     reportFailure: false,
   });
   const [busy, setBusy] = useState(false);
@@ -244,10 +244,10 @@ export function ResetCredits(props: {
         }`;
 
   const redeem = async () => {
-    if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;
+    if (!readMachineScope(machineId, AuthProvidersManageScope)) return;
     setBusy(true);
     setStatus(null);
-    const result = await consume({ environmentId, input });
+    const result = await consume({ machineId, input });
     setBusy(false);
     if (result._tag === "Success") {
       setStatus(result.value.warning ?? OUTCOME_TEXT[result.value.outcome]);
@@ -261,7 +261,7 @@ export function ResetCredits(props: {
   };
 
   const confirm = () => {
-    if (!readEnvironmentScope(environmentId, AuthProvidersManageScope)) return;
+    if (!readMachineScope(machineId, AuthProvidersManageScope)) return;
     Dialog.alert(
       "Use a reset credit?",
       "This redeems one credit on your account and clears the current rate-limit windows. It cannot be undone.",
@@ -309,38 +309,38 @@ export function ResetCredits(props: {
 }
 
 export function useRefreshLimits(
-  selectedEnvironmentIds: ReadonlySet<EnvironmentId> | null = null,
+  selectedMachineIds: ReadonlySet<MachineId> | null = null,
   active = false,
 ) {
-  const presentations = useAtomValue(environmentPresentations.presentationsAtom);
-  const refreshProviders = useAtomCommand(serverEnvironment.refreshProviders, {
+  const presentations = useAtomValue(machinePresentations.presentationsAtom);
+  const refreshProviders = useAtomCommand(serverMachine.refreshProviders, {
     reportFailure: false,
   });
   const [now, setNow] = useState(() => Date.now());
   const [refreshing, setRefreshing] = useState(false);
   const refreshingRef = useRef(false);
-  const [failedEnvironments, setFailedEnvironments] = useState<
-    readonly { environmentId: EnvironmentId; label: string }[]
+  const [failedMachines, setFailedMachines] = useState<
+    readonly { machineId: MachineId; label: string }[]
   >([]);
   const refresh = async (automatic = false, afterPending = false) => {
     const connected = [...presentations].filter(
-      ([environmentId, presentation]) =>
+      ([machineId, presentation]) =>
         presentation.connection.phase === "connected" &&
-        (selectedEnvironmentIds === null || selectedEnvironmentIds.has(environmentId)),
+        (selectedMachineIds === null || selectedMachineIds.has(machineId)),
     );
     await Promise.all(
-      connected.map(async ([environmentId, presentation]) => {
+      connected.map(async ([machineId, presentation]) => {
         const result = await refreshUsageLimits(
-          environmentId,
-          () => refreshProviders({ environmentId, input: {} }),
+          machineId,
+          () => refreshProviders({ machineId, input: {} }),
           automatic,
           afterPending,
         );
         if (result === undefined) return;
-        setFailedEnvironments((previous) => [
-          ...previous.filter((failed) => failed.environmentId !== environmentId),
+        setFailedMachines((previous) => [
+          ...previous.filter((failed) => failed.machineId !== machineId),
           ...(result._tag === "Failure"
-            ? [{ environmentId, label: presentation.entry.target.label }]
+            ? [{ machineId, label: presentation.entry.target.label }]
             : []),
         ]);
       }),
@@ -357,24 +357,24 @@ export function useRefreshLimits(
       setRefreshing(false);
     });
   };
-  const connectedLimitsEnvironments = [...presentations]
+  const connectedLimitsMachines = [...presentations]
     .filter(
-      ([environmentId, presentation]) =>
+      ([machineId, presentation]) =>
         presentation.connection.phase === "connected" &&
-        (selectedEnvironmentIds === null || selectedEnvironmentIds.has(environmentId)),
+        (selectedMachineIds === null || selectedMachineIds.has(machineId)),
     )
-    .map(([environmentId]) => environmentId)
+    .map(([machineId]) => machineId)
     .sort()
     .join(",");
   const autoRefreshLimits = useEffectEvent(() => refresh(true));
   useEffect(() => {
-    if (active && connectedLimitsEnvironments) void autoRefreshLimits();
-  }, [active, connectedLimitsEnvironments]);
+    if (active && connectedLimitsMachines) void autoRefreshLimits();
+  }, [active, connectedLimitsMachines]);
 
-  const failedLabels = failedEnvironments
+  const failedLabels = failedMachines
     .filter(
-      ({ environmentId }) =>
-        selectedEnvironmentIds === null || selectedEnvironmentIds.has(environmentId),
+      ({ machineId }) =>
+        selectedMachineIds === null || selectedMachineIds.has(machineId),
     )
     .map(({ label }) => label);
   return {

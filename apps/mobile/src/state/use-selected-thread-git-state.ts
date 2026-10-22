@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import { dedupeRemoteBranchesWithLocalMatches } from "@vekrel/shared/git";
 
 import { useBranches } from "./queries";
-import { useEnvironmentQuery } from "./query";
-import { sourceControlEnvironment } from "./sourceControl";
+import { useMachineQuery } from "./query";
+import { sourceControlMachine } from "./sourceControl";
 import { useVcsActionState } from "./use-vcs-action-state";
 import { useThreadSelection } from "./use-thread-selection";
 import { useSelectedThreadWorktree } from "./use-selected-thread-worktree";
@@ -15,28 +15,28 @@ export function useSelectedThreadGitState() {
 
   const selectedThreadGitTarget = useMemo(
     () => ({
-      environmentId: selectedThread?.environmentId ?? null,
+      machineId: selectedThread?.machineId ?? null,
       cwd: selectedThreadCwd,
     }),
-    [selectedThread?.environmentId, selectedThreadCwd],
+    [selectedThread?.machineId, selectedThreadCwd],
   );
   const gitActionState = useVcsActionState(selectedThreadGitTarget);
-  const sourceControlDiscovery = useEnvironmentQuery(
+  const sourceControlDiscovery = useMachineQuery(
     selectedThread === null
       ? null
-      : sourceControlEnvironment.discovery({
-          environmentId: selectedThread.environmentId,
+      : sourceControlMachine.discovery({
+          machineId: selectedThread.machineId,
           input: {},
         }),
   );
 
   const selectedThreadBranchTarget = useMemo(
     () => ({
-      environmentId: selectedThread?.environmentId ?? null,
+      machineId: selectedThread?.machineId ?? null,
       cwd: selectedThreadProject?.workspaceRoot ?? null,
       query: null,
     }),
-    [selectedThread?.environmentId, selectedThreadProject?.workspaceRoot],
+    [selectedThread?.machineId, selectedThreadProject?.workspaceRoot],
   );
   const selectedThreadBranchState = useBranches(selectedThreadBranchTarget);
   const selectedThreadBranches = useMemo(

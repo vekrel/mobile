@@ -1,20 +1,20 @@
-import type { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
-import { repositoryGroupingKeyOf, type EnvironmentId } from "@vekrel/contracts";
+import type { MachineProject } from "@vekrel/client-runtime/state/shell";
+import { repositoryGroupingKeyOf, type MachineId } from "@vekrel/contracts";
 
 import { scopedProjectKey } from "../../lib/scopedEntities";
 import type { HomeProjectScope } from "../home/homeThreadList";
 
 type DraftProjectSelectionResolution =
   | { readonly kind: "preserve" }
-  | { readonly kind: "select"; readonly project: EnvironmentProject }
+  | { readonly kind: "select"; readonly project: MachineProject }
   | { readonly kind: "pick" };
 
 export function getProjectScopeSelectionTarget(
   scope: HomeProjectScope,
-  preferredEnvironmentId: EnvironmentId | null,
-): EnvironmentProject {
+  preferredMachineId: MachineId | null,
+): MachineProject {
   return (
-    scope.projects.find((project) => project.environmentId === preferredEnvironmentId) ??
+    scope.projects.find((project) => project.machineId === preferredMachineId) ??
     scope.representative
   );
 }
@@ -38,15 +38,15 @@ export function filterProjectScopes(
 
 function getOnlySelectableProject(
   projectScopes: ReadonlyArray<HomeProjectScope>,
-): EnvironmentProject | null {
+): MachineProject | null {
   const onlyScope = projectScopes.length === 1 ? projectScopes[0] : null;
   return onlyScope?.representative ?? null;
 }
 
-export function resolveEnvironmentProjectMatch(
-  projectsOnTarget: ReadonlyArray<EnvironmentProject>,
-  selectedProject: EnvironmentProject | null,
-): EnvironmentProject | null {
+export function resolveMachineProjectMatch(
+  projectsOnTarget: ReadonlyArray<MachineProject>,
+  selectedProject: MachineProject | null,
+): MachineProject | null {
   const repositoryKey = selectedProject?.repositoryIdentity
     ? repositoryGroupingKeyOf(selectedProject.repositoryIdentity)
     : null;
@@ -55,8 +55,8 @@ export function resolveEnvironmentProjectMatch(
   const workspaceBasename = selectedProject?.workspaceRoot.split("/").at(-1) || null;
   // The weaker signals only apply where identity is unknown on at least one
   // side; two known, different repositories never match on a shared basename
-  // or title (mirrors the environment list filter in the new-task flow).
-  const isKnownMismatch = (project: EnvironmentProject) => {
+  // or title (mirrors the machine list filter in the new-task flow).
+  const isKnownMismatch = (project: MachineProject) => {
     const projectKey = project.repositoryIdentity
       ? repositoryGroupingKeyOf(project.repositoryIdentity)
       : null;
@@ -90,13 +90,13 @@ export function resolveEnvironmentProjectMatch(
 
 export function resolveDraftProjectSelection(
   selectedProjectKey: string | null,
-  projects: ReadonlyArray<EnvironmentProject>,
+  projects: ReadonlyArray<MachineProject>,
   projectScopes: ReadonlyArray<HomeProjectScope>,
 ): DraftProjectSelectionResolution {
   const hasExplicitProjectSelection =
     selectedProjectKey !== null &&
     projects.some(
-      (project) => scopedProjectKey(project.environmentId, project.id) === selectedProjectKey,
+      (project) => scopedProjectKey(project.machineId, project.id) === selectedProjectKey,
     );
   if (hasExplicitProjectSelection) {
     return { kind: "preserve" };
@@ -108,21 +108,21 @@ export function resolveDraftProjectSelection(
 
 export function newTaskDestination(
   _usesSplitView: boolean,
-  projects: ReadonlyArray<EnvironmentProject>,
-  currentProject: Pick<EnvironmentProject, "environmentId" | "id"> | undefined,
+  projects: ReadonlyArray<MachineProject>,
+  currentProject: Pick<MachineProject, "machineId" | "id"> | undefined,
   requestId: string,
 ) {
   const project =
     projects.find(
       (candidate) =>
-        candidate.environmentId === currentProject?.environmentId &&
+        candidate.machineId === currentProject?.machineId &&
         candidate.id === currentProject.id,
     ) ?? projects[0];
   return project
     ? {
         draft: {
           requestId,
-          environmentId: String(project.environmentId),
+          machineId: String(project.machineId),
           projectId: String(project.id),
         },
       }

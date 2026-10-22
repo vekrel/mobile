@@ -26,7 +26,7 @@ export function ThreadListToolbar(props: {
   readonly filterActions: MenuAction[];
   readonly filterCustomized: boolean;
   readonly onFilterAction: NonNullable<ComponentProps<typeof Menu>["onPressAction"]>;
-  readonly onOpenEnvironments: () => void;
+  readonly onOpenMachines: () => void;
   readonly sidebar?: boolean;
   readonly onLayout?: (event: LayoutChangeEvent) => void;
   readonly onRequestVisibility?: () => void;
@@ -113,7 +113,7 @@ export function ThreadListToolbar(props: {
         onOpenSearch={openSearch}
         searchAccessibilityLabel="Search threads"
         titleAccessibilityLabel="Vekrel, Threads"
-        onOpenEnvironments={props.onOpenEnvironments}
+        onOpenMachines={props.onOpenMachines}
         filter={filterButton}
       />
     </View>

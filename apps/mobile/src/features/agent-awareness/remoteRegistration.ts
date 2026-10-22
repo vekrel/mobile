@@ -9,7 +9,7 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import { AppState, Platform } from "react-native";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import {
   type RelayDeviceRegistrationRequest,
   type RelayAgentActivitySnapshotResponse,
@@ -26,7 +26,7 @@ import {
 import type { SavedRemoteConnection } from "../../lib/connection";
 import { runtime } from "../../lib/runtime";
 import { appAtomRegistry } from "../../state/atom-registry";
-import { environmentServerConfigsAtom } from "../../state/server";
+import { machineServerConfigsAtom } from "../../state/server";
 import type { Preferences } from "../../persistence/mobile-preferences";
 import {
   clearAgentAwarenessRegistrationRecord,
@@ -76,7 +76,7 @@ export class AgentAwarenessOperationError extends Schema.TaggedError<AgentAwaren
   }
 }
 
-const environmentConnections = new Map<EnvironmentId, SavedRemoteConnection>();
+const machineConnections = new Map<MachineId, SavedRemoteConnection>();
 // Keyed by ActivityKit id: getAgentLiveActivities() wraps the same native
 // activity in a new object on every call. The relay keeps only the latest token
 // a device registers, so each activity's token reads and registrations run one
@@ -460,24 +460,24 @@ const unregisterDeviceWithRelay = Effect.fn("remoteRegistration.unregisterDevice
   },
 );
 
-function environmentPublishesAgentActivity(environmentId: EnvironmentId): boolean {
+function machinePublishesAgentActivity(machineId: MachineId): boolean {
   return (
-    appAtomRegistry.get(environmentServerConfigsAtom).get(environmentId)?.environment.capabilities
+    appAtomRegistry.get(machineServerConfigsAtom).get(machineId)?.machine.capabilities
       .agentActivityPublishing !== false
   );
 }
 
 export function armAgentAwarenessLiveActivityForLocalWork(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadTitle: string;
   readonly projectTitle: string;
 }): void {
   if (!canRegisterRemoteLiveActivities() || !relayTokenProvider) {
     return;
   }
-  if (!environmentPublishesAgentActivity(input.environmentId)) {
-    logRegistrationDebug("live activity arming skipped; environment does not publish", {
-      environmentId: input.environmentId,
+  if (!machinePublishesAgentActivity(input.machineId)) {
+    logRegistrationDebug("live activity arming skipped; machine does not publish", {
+      machineId: input.machineId,
     });
     return;
   }
@@ -508,7 +508,7 @@ function armAgentAwarenessLiveActivityForLocalWorkNow(input: {
         updatedAt: nowIso,
         activities: [
           {
-            environmentId: "",
+            machineId: "",
             threadId: "",
             projectTitle: input.projectTitle,
             threadTitle: input.threadTitle,
@@ -838,22 +838,22 @@ export function registerAgentAwarenessConnection(connection: SavedRemoteConnecti
     return;
   }
 
-  environmentConnections.set(connection.environmentId, connection);
+  machineConnections.set(connection.machineId, connection);
   ensurePushTokenListener();
   ensureAppStateListener();
   enqueueDeviceRegistration({}, "device registration failed");
   runRegistrationInBackground(
     refreshActiveLiveActivityRemoteRegistration(),
-    "active live activity registration after environment connection failed",
+    "active live activity registration after machine connection failed",
   );
 }
 
-function removeAgentAwarenessConnection(environmentId: EnvironmentId): void {
-  environmentConnections.delete(environmentId);
+function removeAgentAwarenessConnection(machineId: MachineId): void {
+  machineConnections.delete(machineId);
 }
 
-export function unregisterAgentAwarenessConnection(environmentId: EnvironmentId): void {
-  removeAgentAwarenessConnection(environmentId);
+export function unregisterAgentAwarenessConnection(machineId: MachineId): void {
+  removeAgentAwarenessConnection(machineId);
 }
 
 export function refreshAgentAwarenessRegistration(): Effect.Effect<
@@ -889,7 +889,7 @@ export function updateAgentAwarenessRegistrationPreferences(
 }
 
 export function __resetAgentAwarenessRemoteRegistrationForTest(): void {
-  environmentConnections.clear();
+  machineConnections.clear();
   pushTokenSubscription?.remove();
   pushTokenSubscription = null;
   appStateSubscription?.remove();
@@ -959,7 +959,7 @@ export const registerLiveActivityPushToken = Effect.fn(
       if (!activityPushToken) {
         logRegistrationDebug(
           "live activity push token not available yet; waiting for token event",
-          { connectionCount: environmentConnections.size },
+          { connectionCount: machineConnections.size },
         );
         return false;
       }

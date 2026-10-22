@@ -2,7 +2,7 @@ import { useAtomValue } from "@effect/atom-react";
 import type { ThreadTurnSubagents } from "@vekrel/client-runtime/state/thread-subagents";
 import {
   isOrchestrationV2WorkActive,
-  type EnvironmentId,
+  type MachineId,
   type OrchestrationV2Subagent,
   type ThreadId,
 } from "@vekrel/contracts";
@@ -18,7 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AndroidSheetHeader } from "../../components/ui/AndroidScreenHeader";
 import { AppText as Text } from "../../components/ui/AppText";
-import { environmentThreadDetails } from "../../state/threads";
+import { machineThreadDetails } from "../../state/threads";
 import { NativeStackScreenOptions, nativeHeaderScrollEdgeEffects } from "../../native/StackHeader";
 import { NativeHeader, NativeScreen } from "../../native/ThemedScreenStack";
 import { SubagentRow } from "./SubagentRow";
@@ -27,7 +27,7 @@ import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 
 const HEADER_SCROLL_EDGE_EFFECTS = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
 
-type AgentsTarget = { readonly environmentId: EnvironmentId; readonly threadId: ThreadId };
+type AgentsTarget = { readonly machineId: MachineId; readonly threadId: ThreadId };
 
 const EMPTY_TURN_SUBAGENTS_ATOM = Atom.make<ThreadTurnSubagents | null>(null).pipe(
   Atom.withLabel("mobile-thread-turn-subagents:empty"),
@@ -37,7 +37,7 @@ export function useThreadTurnSubagents(target: AgentsTarget | null): ThreadTurnS
   return useAtomValue(
     target === null
       ? EMPTY_TURN_SUBAGENTS_ATOM
-      : environmentThreadDetails.turnSubagentsAtom(target),
+      : machineThreadDetails.turnSubagentsAtom(target),
   );
 }
 
@@ -56,7 +56,7 @@ export function ThreadAgentsSheet({ route }: StaticScreenProps<AgentsTarget>) {
     // belongs in the workspace stack where Home's back button expects it.
     navigation.dispatch(
       StackActions.replace("Thread", {
-        environmentId: target.environmentId,
+        machineId: target.machineId,
         threadId: childThreadId,
       }),
     );
@@ -81,7 +81,7 @@ export function ThreadAgentsSheet({ route }: StaticScreenProps<AgentsTarget>) {
           <AgentRow
             key={subagent.id}
             subagent={subagent}
-            environmentId={target.environmentId}
+            machineId={target.machineId}
             tickSeconds={hasLiveAgent}
             onOpen={openChildThread}
           />
@@ -132,7 +132,7 @@ export function ThreadAgentsSheet({ route }: StaticScreenProps<AgentsTarget>) {
 }
 
 function AgentRow(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly subagent: OrchestrationV2Subagent;
   readonly tickSeconds: boolean;
   readonly onOpen: (childThreadId: ThreadId) => void;
@@ -143,7 +143,7 @@ function AgentRow(props: {
   const row = (
     <View className="border-b border-border py-3.5">
       <SubagentRow
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         subagent={subagent}
         elapsed={<AgentElapsed subagent={subagent} tickSeconds={props.tickSeconds} />}
       />

@@ -1,11 +1,11 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import {
   generateSpreadPinOrderKeys,
   pinOrderKeyBetween,
   planPinnedReorder,
 } from "@vekrel/client-runtime/state/thread-sort";
 import { effectiveSnoozed } from "@vekrel/client-runtime/state/thread-settled";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 
 export type ThreadMoveDestination =
   | "up"
@@ -46,9 +46,9 @@ export function threadOrderAfterMove(
 }
 
 export type OrderRow = Pick<
-  EnvironmentThreadShell,
+  MachineThreadShell,
   | "id"
-  | "environmentId"
+  | "machineId"
   | "pinOrderKey"
   | "activeOrderKey"
   | "createdAt"
@@ -66,7 +66,7 @@ export interface PendingThreadOrder {
 }
 
 function rowId(row: OrderRow): string {
-  return `${row.environmentId}:${row.id}`;
+  return `${row.machineId}:${row.id}`;
 }
 
 function rowOrder(row: OrderRow, section: PendingThreadOrder["section"]) {
@@ -80,7 +80,7 @@ export function createThreadMovePlanner(input: {
   readonly ordered: readonly OrderRow[];
   readonly allThreads?: readonly OrderRow[];
   readonly section: PendingThreadOrder["section"];
-  readonly reorderableEnvironmentIds: ReadonlySet<EnvironmentId>;
+  readonly reorderableMachineIds: ReadonlySet<MachineId>;
 }) {
   const orderedIds = input.ordered.map(rowId);
   const keysById = new Map(
@@ -91,7 +91,7 @@ export function createThreadMovePlanner(input: {
   );
   const writableIds = new Set(
     (input.allThreads ?? input.ordered)
-      .filter((row) => input.reorderableEnvironmentIds.has(row.environmentId))
+      .filter((row) => input.reorderableMachineIds.has(row.machineId))
       .map(rowId),
   );
   return (movedId: string, direction: ThreadMoveDestination) => {
@@ -122,7 +122,7 @@ export function computeThreadMoveAvailability(input: {
   readonly ordered: readonly OrderRow[];
   readonly allThreads?: readonly OrderRow[];
   readonly section: PendingThreadOrder["section"];
-  readonly reorderableEnvironmentIds: ReadonlySet<EnvironmentId>;
+  readonly reorderableMachineIds: ReadonlySet<MachineId>;
   readonly pendingOrder?: PendingThreadOrder | null;
 }): Map<string, ThreadMoveAvailability> {
   const result = new Map<string, ThreadMoveAvailability>();
@@ -144,7 +144,7 @@ export function computeThreadMoveAvailability(input: {
   for (const row of input.allThreads ?? input.ordered) {
     const id = rowId(row);
     keysById.set(id, rowOrder(row, input.section).key);
-    if (input.reorderableEnvironmentIds.has(row.environmentId)) writableIds.add(id);
+    if (input.reorderableMachineIds.has(row.machineId)) writableIds.add(id);
   }
   const reservedKeys = new Set<string>();
   keysById.forEach((key, id) => {
@@ -280,7 +280,7 @@ export function applyPendingThreadOrder<T extends OrderRow>(
 }
 
 export function threadDropLifecycle(
-  thread: EnvironmentThreadShell,
+  thread: MachineThreadShell,
   section: "pinned" | "active",
   now: string,
 ) {

@@ -1,6 +1,6 @@
 import { type StaticScreenProps, useNavigation } from "@react-navigation/native";
 import { useAtomValue } from "@effect/atom-react";
-import type { ChatAttachment, EnvironmentId, RunId, ThreadId } from "@vekrel/contracts";
+import type { ChatAttachment, MachineId, RunId, ThreadId } from "@vekrel/contracts";
 import { Atom } from "effect/reactivity";
 import { Image } from "expo-image";
 import * as Haptics from "expo-haptics";
@@ -26,7 +26,7 @@ import { NativeStackScreenOptions, nativeHeaderScrollEdgeEffects } from "../../n
 import { useAssetUrl } from "../../state/assets";
 import { assetImageSource } from "../../lib/assetImageSource";
 import { beginQueuedRunEdit, useQueuedRunEdit } from "../../state/queued-run-edit";
-import { environmentThreadDetails, threadEnvironment } from "../../state/threads";
+import { machineThreadDetails, threadMachine } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 import {
@@ -45,17 +45,17 @@ const EMPTY_QUEUED_COUNT_ATOM = Atom.make(0).pipe(
   Atom.withLabel("mobile-thread-queue-count:empty"),
 );
 
-type QueueTarget = { readonly environmentId: EnvironmentId; readonly threadId: ThreadId };
+type QueueTarget = { readonly machineId: MachineId; readonly threadId: ThreadId };
 type QueueAction = "steer" | "edit" | "up" | "down" | "remove";
 type QueueRowLayout = { readonly id: RunId; readonly y?: number; readonly height?: number };
 
 export function useThreadQueueWorkflow(target: QueueTarget) {
-  return useAtomValue(environmentThreadDetails.queueWorkflowAtom(target));
+  return useAtomValue(machineThreadDetails.queueWorkflowAtom(target));
 }
 
 export function useThreadQueuedCount(target: QueueTarget | null) {
   return useAtomValue(
-    target === null ? EMPTY_QUEUED_COUNT_ATOM : environmentThreadDetails.queuedCountAtom(target),
+    target === null ? EMPTY_QUEUED_COUNT_ATOM : machineThreadDetails.queuedCountAtom(target),
   );
 }
 
@@ -66,12 +66,12 @@ export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
   const insets = useSafeAreaInsets();
   const theme = useUniwindTheme();
   const workflow = useThreadQueueWorkflow(target);
-  const threadKey = scopedThreadKey(target.environmentId, target.threadId);
+  const threadKey = scopedThreadKey(target.machineId, target.threadId);
   const editing = useQueuedRunEdit(threadKey);
-  const reorder = useAtomCommand(threadEnvironment.reorderQueuedRun, "reorder queued message");
-  const promote = useAtomCommand(threadEnvironment.promoteQueuedRun, "promote queued message");
-  const cancel = useAtomCommand(threadEnvironment.cancelQueuedRun, "remove queued message");
-  const resume = useAtomCommand(threadEnvironment.resumeThreadQueue, "resume queue");
+  const reorder = useAtomCommand(threadMachine.reorderQueuedRun, "reorder queued message");
+  const promote = useAtomCommand(threadMachine.promoteQueuedRun, "promote queued message");
+  const cancel = useAtomCommand(threadMachine.cancelQueuedRun, "remove queued message");
+  const resume = useAtomCommand(threadMachine.resumeThreadQueue, "resume queue");
   const [resuming, setResuming] = useState(false);
   const [busyRunId, setBusyRunId] = useState<RunId | null>(null);
   const busyRef = useRef(false);
@@ -370,7 +370,7 @@ export function ThreadQueueSheet({ route }: StaticScreenProps<QueueTarget>) {
                     className="min-h-14 flex-row items-center gap-2.5 py-2.5 active:opacity-70"
                   >
                     <QueueAttachmentThumbnails
-                      environmentId={target.environmentId}
+                      machineId={target.machineId}
                       attachments={attachments}
                     />
                     <Text
@@ -531,7 +531,7 @@ function QueueRowSwipeable(props: {
 }
 
 function QueueAttachmentThumbnails(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachments: ReadonlyArray<ChatAttachment>;
 }) {
   const images = props.attachments.filter((attachment) => attachment.mimeType.startsWith("image/"));
@@ -543,7 +543,7 @@ function QueueAttachmentThumbnails(props: {
       {shown.map((attachment) => (
         <QueueAttachmentThumbnail
           key={attachment.id}
-          environmentId={props.environmentId}
+          machineId={props.machineId}
           attachment={attachment}
         />
       ))}
@@ -559,7 +559,7 @@ function QueueAttachmentThumbnails(props: {
 }
 
 function QueueAttachmentThumbnail(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachment: ChatAttachment;
 }) {
   const resource = {
@@ -569,13 +569,13 @@ function QueueAttachmentThumbnail(props: {
     mimeType: props.attachment.mimeType,
     disposition: "inline",
   } as const;
-  const url = useAssetUrl(props.environmentId, resource);
+  const url = useAssetUrl(props.machineId, resource);
   if (url === null) {
     return <View className="h-6 w-6 rounded bg-subtle" />;
   }
   return (
     <Image
-      source={assetImageSource(props.environmentId, resource, url)}
+      source={assetImageSource(props.machineId, resource, url)}
       cachePolicy="memory-disk"
       contentFit="cover"
       style={{ width: 24, height: 24, borderRadius: 4 }}

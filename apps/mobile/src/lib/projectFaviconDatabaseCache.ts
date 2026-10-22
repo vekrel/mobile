@@ -92,7 +92,7 @@ export const projectFaviconDatabaseCache = createSharedProjectFaviconCache({
     put: (key, entry: ProjectFaviconEntry) =>
       runDatabase((database) =>
         database.saveCache(
-          entry.environmentId,
+          entry.machineId,
           CACHE_KIND,
           key,
           CACHE_SCHEMA_VERSION,
@@ -100,7 +100,7 @@ export const projectFaviconDatabaseCache = createSharedProjectFaviconCache({
         ),
       ),
     remove: (key, entry) =>
-      runDatabase((database) => database.removeCache(entry.environmentId, CACHE_KIND, key)),
+      runDatabase((database) => database.removeCache(entry.machineId, CACHE_KIND, key)),
   },
   load: createProjectFaviconImageLoader({ downscale: downscaleProjectFavicon }),
 });

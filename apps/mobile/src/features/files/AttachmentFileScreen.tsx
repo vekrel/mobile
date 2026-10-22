@@ -4,7 +4,7 @@ import * as Dialog from "../../components/ui/Dialog";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import type { MenuAction } from "@react-native-menu/menu";
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import { formatAttachmentSize } from "@vekrel/client-runtime/state/attachments";
 import { useEffect, useRef, useState } from "react";
 import { Platform, ScrollView, View } from "react-native";
@@ -32,7 +32,7 @@ import { WorkspaceFileWebPreview } from "./WorkspaceFileWebPreview";
 import { HtmlRenderWebView } from "../threads/HtmlRenderWebView";
 
 export type AttachmentFileRouteParams = {
-  readonly environmentId?: string;
+  readonly machineId?: string;
   readonly threadId?: string;
   readonly attachmentId: string;
   readonly name: string;
@@ -54,7 +54,7 @@ function nativeViewerKind(kind: ReturnType<typeof useAttachmentDocument>["kind"]
 function AttachmentDocumentBody(props: {
   readonly document: ReturnType<typeof useAttachmentDocument>;
   readonly name: string;
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly htmlRender: boolean;
   readonly nativeViewer: "pending" | "open" | "unavailable" | null;
   readonly nativeError: string | null;
@@ -124,11 +124,11 @@ function AttachmentDocumentBody(props: {
               </View>
             </ScrollView>
           </ScrollView>
-        ) : document.activeMode === "markdown" && props.environmentId ? (
+        ) : document.activeMode === "markdown" && props.machineId ? (
           <FileMarkdownPreview
             cwd=""
             relativePath=""
-            environmentId={props.environmentId}
+            machineId={props.machineId}
             threadId={null}
             markdown={content.text}
             captured
@@ -170,8 +170,8 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
   const iconColor = useUniwindTheme()["--color-icon"];
   const isAndroid = Platform.OS === "android";
   const params = props.route.params;
-  const environmentId = params.environmentId?.trim()
-    ? EnvironmentId.make(params.environmentId)
+  const machineId = params.machineId?.trim()
+    ? MachineId.make(params.machineId)
     : null;
   const sizeBytes = Number.parseInt(params.sizeBytes, 10) || 0;
   const draftKey = params.draftKey ?? null;
@@ -186,7 +186,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     mimeType: params.mimeType,
     sizeBytes,
     attachmentId: params.attachmentId,
-    environmentId,
+    machineId,
     attachment: localAttachment,
   });
   const [nativeOpen, setNativeOpen] = useState(false);
@@ -212,7 +212,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
     const kind = nativeKind ?? "document";
     const base = { kind, name: params.name, mimeType: params.mimeType };
     if (localAttachment) return { ...base, attachment: localAttachment };
-    if (environmentId) return { ...base, environmentId, resource };
+    if (machineId) return { ...base, machineId, resource };
     return uri ? { ...base, uri } : null;
   })();
   const handleNativeOpenError = (error: unknown) => {
@@ -386,7 +386,7 @@ export function AttachmentFileScreen(props: AttachmentFileScreenProps) {
       <AttachmentDocumentBody
         document={document}
         name={params.name}
-        environmentId={environmentId}
+        machineId={machineId}
         htmlRender={params.htmlRender === "1"}
         nativeViewer={nativeViewer}
         nativeError={nativeError}

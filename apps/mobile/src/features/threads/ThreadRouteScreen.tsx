@@ -18,7 +18,7 @@ import {
   AuthTerminalOperateScope,
   AuthTerminalReadScope,
   DEFAULT_SERVER_SETTINGS,
-  EnvironmentId,
+  MachineId,
   ThreadId,
   type ProjectScript,
 } from "@vekrel/contracts";
@@ -31,13 +31,13 @@ import {
 import { Platform, ScrollView } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useConnectionsReady } from "../../state/workspace";
-import { useEnvironmentShellReadiness } from "../../state/shell";
+import { useMachineShellReadiness } from "../../state/shell";
 import { restoredNewTaskDraftKey } from "../../state/new-task-draft-key";
 import { clearPendingThreadCreationOutcome } from "../../state/pending-thread-creation";
 import { recoverFailedThreadDraft } from "../../state/recover-failed-thread-draft";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { dismissGitActionResult, useGitActionProgress } from "../../state/use-vcs-action-state";
-import { vcsEnvironment } from "../../state/vcs";
+import { vcsMachine } from "../../state/vcs";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { LoadingScreen } from "../../components/LoadingScreen";
 import { scopedThreadKey } from "../../lib/scopedEntities";
@@ -46,11 +46,11 @@ import { connectionTone } from "../connection/connectionTone";
 import {
   useRemoteConnections,
   useRemoteConnectionStatus,
-  useRemoteEnvironmentRuntime,
-} from "../../state/use-remote-environment-registry";
+  useRemoteMachineRuntime,
+} from "../../state/use-remote-machine-registry";
 import { useKnownTerminalSessions } from "../../state/use-terminal-session";
 import { uuidv4 } from "../../lib/uuid";
-import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
+import { readMachineScope, useMachineScope } from "../../state/session";
 import { useSelectedThreadDetailState } from "../../state/use-thread-detail";
 import { useThreadSelection } from "../../state/use-thread-selection";
 import { GitActionProgressOverlay } from "./GitActionProgressOverlay";
@@ -77,7 +77,7 @@ import { useSelectedThreadWorktree } from "../../state/use-selected-thread-workt
 import { useThreadComposerState } from "../../state/use-thread-composer-state";
 import { resolveMergeBackTargetThreadId } from "@vekrel/client-runtime/state/thread-relationships";
 import { resolveLatestMergeBackRun } from "@vekrel/client-runtime/state/thread-workflows";
-import { threadEnvironment } from "../../state/threads";
+import { threadMachine } from "../../state/threads";
 import { projectThreadContentPresentation } from "./threadContentPresentation";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import {
@@ -146,7 +146,7 @@ function OpeningThreadLoadingScreen() {
 }
 
 type ThreadRouteScreenRouteProps = StaticScreenProps<{
-  readonly environmentId?: string;
+  readonly machineId?: string;
   readonly threadId?: string;
   readonly draft?: NewTaskDraftRouteParams;
   readonly prompt?: string | string[];
@@ -205,27 +205,27 @@ function LiveThreadRouteController(props: ThreadRouteScreenProps) {
   const { connectionState } = useRemoteConnectionStatus();
   const { selectedThread } = useThreadSelection();
   const params = props.route.params ?? {};
-  const environmentIdRaw = firstRouteParam(params.environmentId);
+  const machineIdRaw = firstRouteParam(params.machineId);
   const threadIdRaw = firstRouteParam(params.threadId);
-  const environmentId = environmentIdRaw ? EnvironmentId.make(environmentIdRaw) : null;
-  const routeEnvironmentRuntime = useRemoteEnvironmentRuntime(environmentId);
-  const routeEnvironmentShellState = useEnvironmentShellReadiness(environmentId);
-  const { onReconnectEnvironment } = useRemoteConnections();
+  const machineId = machineIdRaw ? MachineId.make(machineIdRaw) : null;
+  const routeMachineRuntime = useRemoteMachineRuntime(machineId);
+  const routeMachineShellState = useMachineShellReadiness(machineId);
+  const { onReconnectMachine } = useRemoteConnections();
   const navigation = useNavigation();
   const routeConnectionState =
-    routeEnvironmentRuntime?.connectionState ?? (environmentId ? "available" : connectionState);
+    routeMachineRuntime?.connectionState ?? (machineId ? "available" : connectionState);
   const routeThreadKey =
-    environmentId !== null && threadIdRaw !== null
-      ? scopedThreadKey(environmentId, ThreadId.make(threadIdRaw))
+    machineId !== null && threadIdRaw !== null
+      ? scopedThreadKey(machineId, ThreadId.make(threadIdRaw))
       : null;
   const selectedThreadKey =
     selectedThread === null
       ? null
-      : scopedThreadKey(selectedThread.environmentId, selectedThread.id);
+      : scopedThreadKey(selectedThread.machineId, selectedThread.id);
   const selectedThreadDetailState = useSelectedThreadDetailState();
   useThreadPromptLink(params, routeThreadKey);
 
-  if (environmentId === null || threadIdRaw === null) {
+  if (machineId === null || threadIdRaw === null) {
     return <OpeningThreadLoadingScreen />;
   }
 
@@ -236,8 +236,8 @@ function LiveThreadRouteController(props: ThreadRouteScreenProps) {
   const stillHydrating = threadRouteIsHydrating({
     isLoadingConnections: !connectionsReady,
     connectionState: routeConnectionState,
-    shellStatus: routeEnvironmentShellState.status,
-    shellHasError: routeEnvironmentShellState.hasError,
+    shellStatus: routeMachineShellState.status,
+    shellHasError: routeMachineShellState.hasError,
     detailStatus: selectedThreadDetailState.status,
     detailHasError: Option.isSome(selectedThreadDetailState.error),
   });
@@ -249,16 +249,16 @@ function LiveThreadRouteController(props: ThreadRouteScreenProps) {
   return (
     <ThreadUnavailableScreen
       actionLabel={
-        routeEnvironmentRuntime === null ? "Manage environments" : "Reconnect environment"
+        routeMachineRuntime === null ? "Manage machines" : "Reconnect machine"
       }
       onAction={() => {
-        if (routeEnvironmentRuntime !== null) {
-          onReconnectEnvironment(environmentId);
+        if (routeMachineRuntime !== null) {
+          onReconnectMachine(machineId);
           return;
         }
         navigation.navigate("SettingsSheet", {
           screen: "SettingsContent",
-          params: { screen: "SettingsEnvironments" },
+          params: { screen: "SettingsMachines" },
         });
       }}
     />
@@ -275,24 +275,24 @@ function ThreadRouteContent(
   const { fileInspector, layout, panes, showAuxiliaryPane, toggleAuxiliaryPane } =
     useAdaptiveWorkspaceLayout();
   const { connectionState } = useRemoteConnectionStatus();
-  const { onReconnectEnvironment } = useRemoteConnections();
+  const { onReconnectMachine } = useRemoteConnections();
   const {
     selectedThread,
     selectedThreadCreation,
     selectedThreadDetailRef,
     selectedThreadProject,
-    selectedEnvironmentConnection,
+    selectedMachineConnection,
   } = useThreadSelection();
-  const canOperateThread = useEnvironmentScope(
-    selectedThread?.environmentId ?? null,
+  const canOperateThread = useMachineScope(
+    selectedThread?.machineId ?? null,
     AuthOrchestrationOperateScope,
   );
-  const canReadTerminal = useEnvironmentScope(
-    selectedThread?.environmentId ?? null,
+  const canReadTerminal = useMachineScope(
+    selectedThread?.machineId ?? null,
     AuthTerminalReadScope,
   );
-  const canOperateTerminal = useEnvironmentScope(
-    selectedThread?.environmentId ?? null,
+  const canOperateTerminal = useMachineScope(
+    selectedThread?.machineId ?? null,
     AuthTerminalOperateScope,
   );
   const selectedThreadDetailState = props.selectedThreadDetailState;
@@ -302,9 +302,9 @@ function ThreadRouteContent(
   const gitState = useSelectedThreadGitState();
   const gitActions = useSelectedThreadGitActions();
   const requests = useSelectedThreadRequests();
-  const interruptThreadTurn = useAtomCommand(threadEnvironment.interruptTurn, "thread interrupt");
-  const resumeThreadQueue = useAtomCommand(threadEnvironment.resumeThreadQueue, "resume queue");
-  const loadEarlierHistory = useAtomCommand(threadEnvironment.loadEarlierHistory, {
+  const interruptThreadTurn = useAtomCommand(threadMachine.interruptTurn, "thread interrupt");
+  const resumeThreadQueue = useAtomCommand(threadMachine.resumeThreadQueue, "resume queue");
+  const loadEarlierHistory = useAtomCommand(threadMachine.loadEarlierHistory, {
     label: "load earlier thread history",
     reportFailure: false,
   });
@@ -322,7 +322,7 @@ function ThreadRouteContent(
       error: history.error,
       onLoadEarlier: () => {
         void loadEarlierHistory({
-          environmentId: selectedThread.environmentId,
+          machineId: selectedThread.machineId,
           input: { threadId: selectedThread.id },
         });
       },
@@ -330,7 +330,7 @@ function ThreadRouteContent(
   })();
   const navigation = useNavigation();
   const openPullRequest = useOpenPullRequest();
-  const mergeBack = useAtomCommand(threadEnvironment.mergeBack, "merge thread back");
+  const mergeBack = useAtomCommand(threadMachine.mergeBack, "merge thread back");
   const mergeBackTargetThreadId = resolveMergeBackTargetThreadId(selectedThreadDetail);
   const mergeBackRun =
     selectedThreadDetail === null ? null : resolveLatestMergeBackRun(selectedThreadDetail);
@@ -346,7 +346,7 @@ function ThreadRouteContent(
     }
     mergeBackBusyRef.current = true;
     const result = await mergeBack({
-      environmentId: selectedThread.environmentId,
+      machineId: selectedThread.machineId,
       input: {
         sourceThreadId: selectedThread.id,
         targetThreadId: mergeBackTargetThreadId,
@@ -357,16 +357,16 @@ function ThreadRouteContent(
     mergeBackBusyRef.current = false;
     if (result._tag !== "Success") return;
     navigation.navigate("Thread", {
-      environmentId: selectedThread.environmentId,
+      machineId: selectedThread.machineId,
       threadId: mergeBackTargetThreadId,
     });
   };
   const params = props.route.params ?? {};
-  const environmentIdRaw = firstRouteParam(params.environmentId);
-  const environmentId = environmentIdRaw ? EnvironmentId.make(environmentIdRaw) : null;
+  const machineIdRaw = firstRouteParam(params.machineId);
+  const machineId = machineIdRaw ? MachineId.make(machineIdRaw) : null;
   const threadId = firstRouteParam(params.threadId);
   const routeThreadIdentity =
-    environmentIdRaw !== null && threadId !== null ? `${environmentIdRaw}:${threadId}` : null;
+    machineIdRaw !== null && threadId !== null ? `${machineIdRaw}:${threadId}` : null;
   const [inspectorSelection, setInspectorSelection] = useState<ThreadInspectorSelection | null>(
     () => (props.renderInspector ? { routeThreadIdentity, mode: "route" } : null),
   );
@@ -420,10 +420,10 @@ function ThreadRouteContent(
       }
     };
   });
-  const routeEnvironmentRuntime = useRemoteEnvironmentRuntime(environmentId);
+  const routeMachineRuntime = useRemoteMachineRuntime(machineId);
   const routeConnectionState =
-    routeEnvironmentRuntime?.connectionState ?? (environmentId ? "available" : connectionState);
-  const routeConnectionError = routeEnvironmentRuntime?.connectionError ?? null;
+    routeMachineRuntime?.connectionState ?? (machineId ? "available" : connectionState);
+  const routeConnectionError = routeMachineRuntime?.connectionError ?? null;
   const selectedThreadWithDraftSettings = selectedThread
     ? {
         ...selectedThread,
@@ -436,20 +436,20 @@ function ThreadRouteContent(
   const usesNativeHeaderGlass = NATIVE_LIQUID_GLASS_SUPPORTED;
   const headerSubtitle = [
     selectedThreadProject?.title ?? null,
-    selectedEnvironmentConnection?.environmentLabel ?? null,
+    selectedMachineConnection?.machineLabel ?? null,
   ]
     .filter(Boolean)
     .join(" · ");
-  const gitStatus = useEnvironmentQuery(
+  const gitStatus = useMachineQuery(
     selectedThread !== null && selectedThreadCwd !== null
-      ? vcsEnvironment.status({
-          environmentId: selectedThread.environmentId,
+      ? vcsMachine.status({
+          machineId: selectedThread.machineId,
           input: { cwd: selectedThreadCwd },
         })
       : null,
   );
   const { sessions: knownTerminalSessions } = useKnownTerminalSessions({
-    environmentId: selectedThread?.environmentId ?? null,
+    machineId: selectedThread?.machineId ?? null,
     threadId: selectedThread?.id ?? null,
   });
   const terminalMenuSessions = buildTerminalMenuSessions({
@@ -457,15 +457,15 @@ function ThreadRouteContent(
     workspaceRoot: selectedThreadProject?.workspaceRoot ?? null,
   });
   const selectedThreadDetailWorktreePath = selectedThreadDetail?.thread.worktreePath ?? null;
-  const handleReconnectEnvironment = () => {
-    if (!environmentId) {
+  const handleReconnectMachine = () => {
+    if (!machineId) {
       return;
     }
-    onReconnectEnvironment(environmentId);
+    onReconnectMachine(machineId);
   };
 
   const gitActionProgressTarget = {
-    environmentId: selectedThread?.environmentId ?? null,
+    machineId: selectedThread?.machineId ?? null,
     cwd: selectedThreadCwd,
   };
   const gitActionProgress = useGitActionProgress(gitActionProgressTarget);
@@ -476,7 +476,7 @@ function ThreadRouteContent(
         return;
       }
       navigation.navigate("GitOverview", {
-        environmentId: String(selectedThread.environmentId),
+        machineId: String(selectedThread.machineId),
         threadId: String(selectedThread.id),
       });
       return;
@@ -490,7 +490,7 @@ function ThreadRouteContent(
     }
     if (!fileInspector.supported) {
       navigation.navigate("ThreadFiles", {
-        environmentId: String(selectedThread.environmentId),
+        machineId: String(selectedThread.machineId),
         threadId: String(selectedThread.id),
       });
       return;
@@ -513,7 +513,7 @@ function ThreadRouteContent(
       return;
     }
     const params = {
-      environmentId: String(selectedThread.environmentId),
+      machineId: String(selectedThread.machineId),
       threadId: String(selectedThread.id),
       path: path.split("/").filter((segment) => segment.length > 0),
     };
@@ -529,14 +529,14 @@ function ThreadRouteContent(
     <GitOverviewSheet
       headerInset={inspectorHeaderInset}
       presentation="inspector"
-      route={{ params: { environmentId: environmentId!, threadId: threadId! } }}
+      route={{ params: { machineId: machineId!, threadId: threadId! } }}
     />
   );
   const FilesInspector = () =>
     selectedThread !== null && selectedThreadCwd !== null ? (
       <ThreadFileNavigatorPane
         cwd={selectedThreadCwd}
-        environmentId={selectedThread.environmentId}
+        machineId={selectedThread.machineId}
         headerInset={inspectorHeaderInset}
         projectName={selectedThreadProject?.title ?? "Files"}
         selectedPath={null}
@@ -563,13 +563,13 @@ function ThreadRouteContent(
   const handleStopThread = () => {
     if (
       !selectedThread ||
-      !readEnvironmentScope(selectedThread.environmentId, AuthOrchestrationOperateScope) ||
+      !readMachineScope(selectedThread.machineId, AuthOrchestrationOperateScope) ||
       composer.interruptibleRunId === null
     ) {
       return;
     }
     return interruptThreadTurn({
-      environmentId: selectedThread.environmentId,
+      machineId: selectedThread.machineId,
       input: {
         threadId: selectedThread.id,
         runId: composer.interruptibleRunId,
@@ -580,7 +580,7 @@ function ThreadRouteContent(
   const handleResumeQueue = async () => {
     if (!selectedThread) return;
     await resumeThreadQueue({
-      environmentId: selectedThread.environmentId,
+      machineId: selectedThread.machineId,
       input: { threadId: selectedThread.id },
     });
   };
@@ -595,14 +595,14 @@ function ThreadRouteContent(
     if (
       !selectedThread ||
       !selectedThreadProject?.workspaceRoot ||
-      (!readEnvironmentScope(selectedThread.environmentId, AuthTerminalReadScope) &&
-        !readEnvironmentScope(selectedThread.environmentId, AuthTerminalOperateScope))
+      (!readMachineScope(selectedThread.machineId, AuthTerminalReadScope) &&
+        !readMachineScope(selectedThread.machineId, AuthTerminalOperateScope))
     ) {
       return;
     }
 
     void navigation.navigate("ThreadTerminal", {
-      environmentId: String(selectedThread.environmentId),
+      machineId: String(selectedThread.machineId),
       threadId: String(selectedThread.id),
       ...(nextTerminalId ? { terminalId: nextTerminalId } : {}),
     });
@@ -618,7 +618,7 @@ function ThreadRouteContent(
     if (
       !selectedThread ||
       !selectedThreadProject?.workspaceRoot ||
-      !readEnvironmentScope(selectedThread.environmentId, AuthTerminalOperateScope)
+      !readMachineScope(selectedThread.machineId, AuthTerminalOperateScope)
     ) {
       return;
     }
@@ -626,12 +626,12 @@ function ThreadRouteContent(
     const nextId = nextOpenTerminalId({
       listedTerminalIds: terminalMenuSessions.map((session) => session.terminalId),
       ...(knownTerminalSessions === null ||
-      !readEnvironmentScope(selectedThread.environmentId, AuthTerminalReadScope)
+      !readMachineScope(selectedThread.machineId, AuthTerminalReadScope)
         ? { uniqueSuffix: uuidv4() }
         : {}),
     });
     void navigation.navigate("ThreadTerminal", {
-      environmentId: String(selectedThread.environmentId),
+      machineId: String(selectedThread.machineId),
       threadId: String(selectedThread.id),
       terminalId: nextId,
     });
@@ -648,7 +648,7 @@ function ThreadRouteContent(
     if (
       !selectedThread ||
       !selectedThreadProject?.workspaceRoot ||
-      !readEnvironmentScope(selectedThread.environmentId, AuthTerminalOperateScope)
+      !readMachineScope(selectedThread.machineId, AuthTerminalOperateScope)
     ) {
       terminalDebugLog("project-script:abort", {
         scriptId: script.id,
@@ -660,7 +660,7 @@ function ThreadRouteContent(
     const targetTerminalId = resolveProjectScriptTerminalId({
       existingTerminalIds: terminalMenuSessions.map((session) => session.terminalId),
       ...(knownTerminalSessions === null ||
-      !readEnvironmentScope(selectedThread.environmentId, AuthTerminalReadScope)
+      !readMachineScope(selectedThread.machineId, AuthTerminalReadScope)
         ? { uniqueSuffix: uuidv4() }
         : {}),
       hasRunningTerminal: terminalMenuSessions.some(
@@ -681,7 +681,7 @@ function ThreadRouteContent(
     });
     stagePendingTerminalLaunch({
       target: {
-        environmentId: selectedThread.environmentId,
+        machineId: selectedThread.machineId,
         threadId: selectedThread.id,
         terminalId: targetTerminalId,
       },
@@ -700,13 +700,13 @@ function ThreadRouteContent(
     });
 
     void navigation.navigate("ThreadTerminal", {
-      environmentId: String(selectedThread.environmentId),
+      machineId: String(selectedThread.machineId),
       threadId: String(selectedThread.id),
       terminalId: targetTerminalId,
     });
   };
   const threadGitControlProps = {
-    environmentId: environmentIdRaw ?? "",
+    machineId: machineIdRaw ?? "",
     threadId: threadId ?? "",
     auxiliaryPaneControl:
       !layout.usesSplitView && fileInspector.supported && selectedThreadCwd !== null
@@ -731,7 +731,7 @@ function ThreadRouteContent(
     canOpenFiles: Boolean(selectedThreadProject?.workspaceRoot),
     projectScripts: selectedThreadProject
       ? resolveProjectScripts(
-          routeEnvironmentRuntime?.serverConfig?.settings ?? DEFAULT_SERVER_SETTINGS,
+          routeMachineRuntime?.serverConfig?.settings ?? DEFAULT_SERVER_SETTINGS,
           selectedThreadProject,
         )
       : [],
@@ -765,7 +765,7 @@ function ThreadRouteContent(
       StackActions.replace("Thread", {
         draft: {
           draftId: restoredNewTaskDraftKey(creation.messageId),
-          environmentId: String(creation.environmentId),
+          machineId: String(creation.machineId),
           projectId: String(creation.creation.projectId),
           ...(selectedThreadProject ? { title: selectedThreadProject.title } : {}),
         },
@@ -774,7 +774,7 @@ function ThreadRouteContent(
   };
   const setupTurnStartedAt = composer.selectedThreadActivityRun?.startedAt ?? null;
   const { snapshot: worktreeSetupSnapshot, visible: worktreeSetup } = useWorktreeSetup({
-    environmentId: selectedThread?.environmentId ?? null,
+    machineId: selectedThread?.machineId ?? null,
     threadId: selectedThread?.id ?? null,
     preparing:
       composer.selectedThreadActivityRun?.status === "preparing" ||
@@ -794,15 +794,15 @@ function ThreadRouteContent(
     worktreeSetup !== null
       ? worktreeSetup.phase === "running" && !worktreeSetupAgentStarted(worktreeSetup)
       : (selectedThreadDetail?.runs.some((run) => run.status === "preparing") ?? false);
-  const cancelWorktreeSetup = useAtomCommand(vcsEnvironment.cancelWorktreeSetup);
+  const cancelWorktreeSetup = useAtomCommand(vcsMachine.cancelWorktreeSetup);
   const handleCancelWorktreeSetup = () => {
     if (!selectedThread) return;
     void cancelWorktreeSetup({
-      environmentId: selectedThread.environmentId,
+      machineId: selectedThread.machineId,
       input: { threadId: selectedThread.id },
     });
   };
-  const startLocalThread = useAtomCommand(threadEnvironment.startTurn, "work locally");
+  const startLocalThread = useAtomCommand(threadMachine.startTurn, "work locally");
   const localResendBusy = useRef(false);
   const setupMessage = selectedThreadDetail?.messages.find((message) => message.role === "user");
   const handleWorkLocally = async () => {
@@ -810,7 +810,7 @@ function ThreadRouteContent(
       return;
     localResendBusy.current = true;
     const result = await cancelWorktreeSetup({
-      environmentId: selectedThread.environmentId,
+      machineId: selectedThread.machineId,
       input: { threadId: selectedThread.id },
     });
     if (result._tag !== "Success" || !result.value.cancelled) {
@@ -821,7 +821,7 @@ function ThreadRouteContent(
     // the original outbox delivery. Reuse the server-owned prompt and uploads.
     const metadata = makeTurnCommandMetadata();
     const launched = await startLocalThread({
-      environmentId: selectedThread.environmentId,
+      machineId: selectedThread.machineId,
       input: buildProjectThreadStartTurnInput({
         ...metadata,
         projectId: selectedThread.projectId,
@@ -844,7 +844,7 @@ function ThreadRouteContent(
     if (launched._tag !== "Success") return;
     navigation.dispatch(
       StackActions.replace("Thread", {
-        environmentId: String(selectedThread.environmentId),
+        machineId: String(selectedThread.machineId),
         threadId: metadata.threadId,
       }),
     );
@@ -868,7 +868,7 @@ function ThreadRouteContent(
       serverOwned: false,
     };
   })();
-  if (!environmentId || !threadId) {
+  if (!machineId || !threadId) {
     return <OpeningThreadLoadingScreen />;
   }
 
@@ -888,7 +888,7 @@ function ThreadRouteContent(
           detailDeleted: selectedThreadDetailState.status === "deleted",
           connectionState: routeConnectionState,
         });
-  const serverConfig = routeEnvironmentRuntime?.serverConfig ?? null;
+  const serverConfig = routeMachineRuntime?.serverConfig ?? null;
   const renderThreadRouteBody = () => (
     <>
       <GitActionProgressOverlay
@@ -922,7 +922,7 @@ function ThreadRouteContent(
           contentPresentation={contentPresentation}
           screenTone={connectionTone(routeConnectionState)}
           connectionError={routeConnectionError}
-          environmentLabel={selectedEnvironmentConnection?.environmentLabel ?? null}
+          machineLabel={selectedMachineConnection?.machineLabel ?? null}
           feedbackSubmissions={composer.feedbackSubmissions}
           onDismissFeedback={composer.dismissFeedback}
           selectedThreadFeed={composer.selectedThreadFeed}
@@ -978,7 +978,7 @@ function ThreadRouteContent(
           isSavingQueuedEdit={composer.isSavingQueuedEdit}
           onCancelQueuedRunEdit={composer.cancelQueuedRunEdit}
           onRemoveQueuedEditAttachment={composer.onRemoveQueuedEditAttachment}
-          environmentId={selectedThread.environmentId}
+          machineId={selectedThread.machineId}
           projectWorkspaceRoot={selectedThreadProject?.workspaceRoot ?? null}
           threadCwd={selectedThreadCwd}
           selectedThreadQueueCount={composer.selectedThreadQueueCount}
@@ -1001,7 +1001,7 @@ function ThreadRouteContent(
           onStopThread={awaitingBootstrapTurn ? handleCancelWorktreeSetup : handleStopThread}
           onResumeQueue={composer.queueHeld ? handleResumeQueue : null}
           onSendMessage={composer.onSendMessage}
-          onReconnectEnvironment={handleReconnectEnvironment}
+          onReconnectMachine={handleReconnectMachine}
           canSwitchThreadProvider={composer.canSwitchThreadProvider}
           onUpdateThreadModelSelection={composer.onUpdateModelSelection}
           onUpdateThreadRuntimeMode={composer.onUpdateRuntimeMode}

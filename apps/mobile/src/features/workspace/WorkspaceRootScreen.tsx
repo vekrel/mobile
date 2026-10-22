@@ -37,7 +37,7 @@ const TAB_TITLES = {
 
 function WorkspaceRootTitle(props: {
   readonly maxWidth: number;
-  readonly onOpenEnvironments: () => void;
+  readonly onOpenMachines: () => void;
 }) {
   const { state } = useWorkspaceTabs()!;
   return (
@@ -47,7 +47,7 @@ function WorkspaceRootTitle(props: {
           <CompactBrandTitle accessibilityLabel={`Vekrel, ${TAB_TITLES[state.selectedTab]}`} />
         }
         maxWidth={props.maxWidth}
-        onPress={props.onOpenEnvironments}
+        onPress={props.onOpenMachines}
       />
     </View>
   );
@@ -79,10 +79,10 @@ function WorkspaceRootContent() {
     () => (
       <WorkspaceRootTitle
         maxWidth={Math.max(0, width - 160)}
-        onOpenEnvironments={() =>
+        onOpenMachines={() =>
           navigation.navigate("SettingsSheet", {
             screen: "SettingsContent",
-            params: { screen: "SettingsEnvironments" },
+            params: { screen: "SettingsMachines" },
           })
         }
       />

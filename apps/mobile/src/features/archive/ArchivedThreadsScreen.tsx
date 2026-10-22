@@ -1,14 +1,14 @@
 import { Button } from "../../components/ui/Button";
 import type {
-  EnvironmentProject,
-  EnvironmentThreadShell,
+  MachineProject,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import { LegendList } from "@legendapp/list/react-native";
 import {
   AuthOrchestrationOperateScope,
-  type EnvironmentId,
-  type EnvironmentMachineKind,
-  resolveEnvironmentMachineKind,
+  type MachineId,
+  type MachineKind,
+  resolveMachineKind,
 } from "@vekrel/contracts";
 import { useNavigation } from "@react-navigation/native";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
@@ -21,34 +21,34 @@ import type { SwipeableMethods } from "react-native-gesture-handler/ReanimatedSw
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { EmptyState } from "../../components/ui/EmptyState";
-import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSymbol";
+import { MachineSymbol } from "../../components/MachineSymbol";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { relativeTime } from "../../lib/time";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { useServerConfigs } from "../../state/entities";
-import { useEnvironmentScope } from "../../state/session";
+import { useMachineScope } from "../../state/session";
 import { ThreadSwipeable } from "../home/thread-swipe-actions";
 import type { ArchivedThreadGroup, ArchivedThreadSortOrder } from "./archivedThreadList";
 import { SettingsScreenContent } from "../settings/components/SettingsScreen";
 
-export interface ArchivedThreadsHeaderEnvironment {
-  readonly environmentId: EnvironmentId;
+export interface ArchivedThreadsHeaderMachine {
+  readonly machineId: MachineId;
   readonly label: string;
 }
 
 function ArchivedThreadsHeader(props: {
-  readonly environments: ReadonlyArray<ArchivedThreadsHeaderEnvironment>;
+  readonly machines: ReadonlyArray<ArchivedThreadsHeaderMachine>;
   readonly searchQuery: string;
-  readonly selectedEnvironmentId: EnvironmentId | null;
+  readonly selectedMachineId: MachineId | null;
   readonly sortOrder: ArchivedThreadSortOrder;
-  readonly onEnvironmentChange: (environmentId: EnvironmentId | null) => void;
+  readonly onMachineChange: (machineId: MachineId | null) => void;
   readonly onRefresh: () => void;
   readonly onSearchQueryChange: (query: string) => void;
   readonly onSortOrderChange: (sortOrder: ArchivedThreadSortOrder) => void;
 }) {
   const navigation = useNavigation();
   const { width } = useWindowDimensions();
-  const hasCustomFilter = props.selectedEnvironmentId !== null || props.sortOrder !== "newest";
+  const hasCustomFilter = props.selectedMachineId !== null || props.sortOrder !== "newest";
   return (
     <AppBar
       title="Archived threads"
@@ -70,20 +70,20 @@ function ArchivedThreadsHeader(props: {
             : "line.3.horizontal.decrease.circle",
           items: [
             {
-              id: "environment",
-              title: "Environment",
+              id: "machine",
+              title: "Machine",
               items: [
                 {
-                  id: "environment:all",
-                  title: "All environments",
-                  selected: props.selectedEnvironmentId === null,
-                  onPress: () => props.onEnvironmentChange(null),
+                  id: "machine:all",
+                  title: "All machines",
+                  selected: props.selectedMachineId === null,
+                  onPress: () => props.onMachineChange(null),
                 },
-                ...props.environments.map((environment) => ({
-                  id: `environment:${environment.environmentId}`,
-                  title: environment.label,
-                  selected: props.selectedEnvironmentId === environment.environmentId,
-                  onPress: () => props.onEnvironmentChange(environment.environmentId),
+                ...props.machines.map((machine) => ({
+                  id: `machine:${machine.machineId}`,
+                  title: machine.label,
+                  selected: props.selectedMachineId === machine.machineId,
+                  onPress: () => props.onMachineChange(machine.machineId),
                 })),
               ],
             },
@@ -125,28 +125,28 @@ type ArchivedThreadListItem =
   | {
       readonly kind: "project";
       readonly key: string;
-      readonly environmentLabel: string | null;
-      readonly environmentMachine: EnvironmentMachineKind;
-      readonly project: EnvironmentProject;
+      readonly machineLabel: string | null;
+      readonly machine: MachineKind;
+      readonly project: MachineProject;
     }
   | {
       readonly kind: "thread";
       readonly key: string;
-      readonly environmentLabel: string | null;
+      readonly machineLabel: string | null;
       readonly isFirst: boolean;
       readonly isLast: boolean;
-      readonly thread: EnvironmentThreadShell;
+      readonly thread: MachineThreadShell;
     };
 
 function ProjectGroupLabel(props: {
-  readonly environmentLabel: string | null;
-  readonly environmentMachine: EnvironmentMachineKind;
-  readonly project: EnvironmentProject;
+  readonly machineLabel: string | null;
+  readonly machine: MachineKind;
+  readonly project: MachineProject;
 }) {
   return (
     <View className="flex-row items-center gap-2.5 px-1 pb-2">
       <ProjectFavicon
-        environmentId={props.project.environmentId}
+        machineId={props.project.machineId}
         faviconPath={props.project.faviconPath}
         projectIcon={props.project.projectIcon}
         projectTitle={props.project.title}
@@ -159,15 +159,15 @@ function ProjectGroupLabel(props: {
       >
         {props.project.title}
       </Text>
-      {props.environmentLabel ? (
+      {props.machineLabel ? (
         <View className="max-w-[42%] flex-row items-center gap-1">
-          <EnvironmentMachineSymbol
-            kind={props.environmentMachine}
+          <MachineSymbol
+            kind={props.machine}
             size={10}
             tintColorClassName="accent-foreground-tertiary"
           />
           <Text className="shrink text-2xs text-foreground-tertiary" numberOfLines={1}>
-            {props.environmentLabel}
+            {props.machineLabel}
           </Text>
         </View>
       ) : null}
@@ -176,7 +176,7 @@ function ProjectGroupLabel(props: {
 }
 
 function ArchivedThreadRow(props: {
-  readonly environmentLabel: string | null;
+  readonly machineLabel: string | null;
   readonly isFirst: boolean;
   readonly isLast: boolean;
   readonly onDelete: () => void;
@@ -184,16 +184,16 @@ function ArchivedThreadRow(props: {
   readonly onSwipeableWillOpen: (methods: SwipeableMethods) => void;
   readonly simultaneousSwipeGesture?: ComponentProps<typeof ThreadSwipeable>["simultaneousWith"];
   readonly onUnarchive: () => void;
-  readonly thread: EnvironmentThreadShell;
+  readonly thread: MachineThreadShell;
 }) {
   const { width: windowWidth } = useWindowDimensions();
   const cardColor = useUniwindTheme()["--color-grouped-card"];
-  const canOperateThread = useEnvironmentScope(
-    props.thread.environmentId,
+  const canOperateThread = useMachineScope(
+    props.thread.machineId,
     AuthOrchestrationOperateScope,
   );
   const timestamp = relativeTime(props.thread.archivedAt ?? props.thread.updatedAt);
-  const subtitle = [props.environmentLabel, props.thread.branch].filter((part): part is string =>
+  const subtitle = [props.machineLabel, props.thread.branch].filter((part): part is string =>
     Boolean(part),
   );
   const rowContent = (
@@ -251,8 +251,8 @@ function ArchivedThreadRow(props: {
 
   return (
     <ThreadSwipeable
-      resetKey={`${props.thread.environmentId}:${props.thread.id}`}
-      threadKey={`${props.thread.environmentId}:${props.thread.id}`}
+      resetKey={`${props.thread.machineId}:${props.thread.id}`}
+      threadKey={`${props.thread.machineId}:${props.thread.id}`}
       backgroundColor={cardColor}
       containerStyle={containerStyle}
       fullSwipeWidth={windowWidth - 32}
@@ -288,41 +288,41 @@ function ArchiveError(props: { readonly message: string; readonly onRetry: () =>
 }
 
 export function ArchivedThreadsScreen(props: {
-  readonly environments: ReadonlyArray<ArchivedThreadsHeaderEnvironment>;
+  readonly machines: ReadonlyArray<ArchivedThreadsHeaderMachine>;
   readonly error: string | null;
   readonly groups: ReadonlyArray<ArchivedThreadGroup>;
   readonly isLoading: boolean;
   readonly searchQuery: string;
-  readonly selectedEnvironmentId: EnvironmentId | null;
+  readonly selectedMachineId: MachineId | null;
   readonly sortOrder: ArchivedThreadSortOrder;
-  readonly onDeleteThread: (thread: EnvironmentThreadShell) => void;
-  readonly onEnvironmentChange: (environmentId: EnvironmentId | null) => void;
+  readonly onDeleteThread: (thread: MachineThreadShell) => void;
+  readonly onMachineChange: (machineId: MachineId | null) => void;
   readonly onRefresh: () => void;
   readonly onSearchQueryChange: (query: string) => void;
   readonly onSortOrderChange: (sortOrder: ArchivedThreadSortOrder) => void;
-  readonly onUnarchiveThread: (thread: EnvironmentThreadShell) => void;
+  readonly onUnarchiveThread: (thread: MachineThreadShell) => void;
 }) {
   const { onDeleteThread, onUnarchiveThread } = props;
   const openSwipeableRef = useRef<SwipeableMethods | null>(null);
   const archiveScrollGesture = useNativeGesture();
-  const environmentLabelsById = useMemo(
+  const machineLabelsById = useMemo(
     () =>
       new Map(
-        props.environments.map((environment) => [environment.environmentId, environment.label]),
+        props.machines.map((machine) => [machine.machineId, machine.label]),
       ),
-    [props.environments],
+    [props.machines],
   );
   const serverConfigs = useServerConfigs();
   const listItems = useMemo<ReadonlyArray<ArchivedThreadListItem>>(() => {
     const items: ArchivedThreadListItem[] = [];
     for (const group of props.groups) {
-      const environmentLabel = environmentLabelsById.get(group.project.environmentId) ?? null;
+      const machineLabel = machineLabelsById.get(group.project.machineId) ?? null;
       items.push({
         kind: "project",
         key: `${group.key}:project`,
-        environmentLabel,
-        environmentMachine: resolveEnvironmentMachineKind(
-          serverConfigs.get(group.project.environmentId) ?? null,
+        machineLabel,
+        machine: resolveMachineKind(
+          serverConfigs.get(group.project.machineId) ?? null,
         ),
         project: group.project,
       });
@@ -330,8 +330,8 @@ export function ArchivedThreadsScreen(props: {
       group.threads.forEach((thread, index) => {
         items.push({
           kind: "thread",
-          key: `${thread.environmentId}:${thread.id}`,
-          environmentLabel,
+          key: `${thread.machineId}:${thread.id}`,
+          machineLabel,
           isFirst: index === 0,
           isLast: index === group.threads.length - 1,
           thread,
@@ -339,7 +339,7 @@ export function ArchivedThreadsScreen(props: {
       });
     }
     return items;
-  }, [environmentLabelsById, props.groups, serverConfigs]);
+  }, [machineLabelsById, props.groups, serverConfigs]);
   const handleSwipeableWillOpen = useCallback((methods: SwipeableMethods) => {
     if (openSwipeableRef.current && openSwipeableRef.current !== methods) {
       openSwipeableRef.current.close();
@@ -352,15 +352,15 @@ export function ArchivedThreadsScreen(props: {
     }
   }, []);
   const isInitialLoad = props.isLoading && props.groups.length === 0 && props.error === null;
-  const isFiltered = props.searchQuery.trim().length > 0 || props.selectedEnvironmentId !== null;
+  const isFiltered = props.searchQuery.trim().length > 0 || props.selectedMachineId !== null;
   const renderListItem = useCallback(
     ({ item }: { item: ArchivedThreadListItem }) => {
       if (item.kind === "project") {
         return (
           <View className="pt-4">
             <ProjectGroupLabel
-              environmentLabel={item.environmentLabel}
-              environmentMachine={item.environmentMachine}
+              machineLabel={item.machineLabel}
+              machine={item.machine}
               project={item.project}
             />
           </View>
@@ -369,7 +369,7 @@ export function ArchivedThreadsScreen(props: {
 
       return (
         <ArchivedThreadRow
-          environmentLabel={item.environmentLabel}
+          machineLabel={item.machineLabel}
           isFirst={item.isFirst}
           isLast={item.isLast}
           onDelete={() => onDeleteThread(item.thread)}
@@ -403,7 +403,7 @@ export function ArchivedThreadsScreen(props: {
       <EmptyState
         detail={
           isFiltered
-            ? "Try another search or environment."
+            ? "Try another search or machine."
             : "Threads you archive will appear here."
         }
         title={isFiltered ? "No matching threads" : "No archived threads"}
@@ -416,13 +416,13 @@ export function ArchivedThreadsScreen(props: {
     // treats the flattened background as a header and shrinks the list to zero.
     <View collapsable={false} className="flex-1 bg-sheet">
       <ArchivedThreadsHeader
-        environments={props.environments}
+        machines={props.machines}
         searchQuery={props.searchQuery}
-        onEnvironmentChange={props.onEnvironmentChange}
+        onMachineChange={props.onMachineChange}
         onRefresh={props.onRefresh}
         onSearchQueryChange={props.onSearchQueryChange}
         onSortOrderChange={props.onSortOrderChange}
-        selectedEnvironmentId={props.selectedEnvironmentId}
+        selectedMachineId={props.selectedMachineId}
         sortOrder={props.sortOrder}
       />
 

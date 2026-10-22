@@ -27,8 +27,8 @@ beforeEach(() => {
 describe("PDF navigation", () => {
   it("resolves web links against the original PDF rather than its download cache", () => {
     expect(
-      pdfLinkUrl("../next.pdf#page=2", "https://environment.test/api/assets/token/files/a.pdf"),
-    ).toBe("https://environment.test/api/assets/token/next.pdf#page=2");
+      pdfLinkUrl("../next.pdf#page=2", "https://machine.test/api/assets/token/files/a.pdf"),
+    ).toBe("https://machine.test/api/assets/token/next.pdf#page=2");
     expect(pdfLinkUrl("https://example.com/?q=one#section", "file:///cache/preview.pdf")).toBe(
       "https://example.com/?q=one#section",
     );
@@ -42,21 +42,21 @@ describe("PDF navigation", () => {
     "intent://open",
     "https://[",
   ])("ignores unsupported or invalid PDF links: %s", (href) => {
-    expect(pdfLinkUrl(href, "https://environment.test/a.pdf")).toBeNull();
+    expect(pdfLinkUrl(href, "https://machine.test/a.pdf")).toBeNull();
   });
 
   it("recognizes signed PDF links with queries and page fragments", () => {
     expect(
-      isPdfPreviewUri("https://environment.test/api/assets/token/Syllabus.PDF?x=1#page=8"),
+      isPdfPreviewUri("https://machine.test/api/assets/token/Syllabus.PDF?x=1#page=8"),
     ).toBe(true);
     expect(isPdfPreviewUri("file:///local/document.pdf")).toBe(true);
-    expect(isPdfPreviewUri("https://environment.test/index.html?file=syllabus.pdf")).toBe(false);
+    expect(isPdfPreviewUri("https://machine.test/index.html?file=syllabus.pdf")).toBe(false);
     expect(isPdfPreviewUri("invalid")).toBe(false);
   });
 });
 
 describe("preparing native PDFs", () => {
-  it("downloads from the selected environment without sending the page fragment", async () => {
+  it("downloads from the selected machine without sending the page fragment", async () => {
     const signal = new AbortController().signal;
     const result = await preparePdfPreview("https://remote.test/a.pdf?token=secret#page=8", signal);
     expect(mocks.download).toHaveBeenCalledWith({

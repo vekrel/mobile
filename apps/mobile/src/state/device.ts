@@ -1,6 +1,6 @@
-import { createDeviceEnvironmentAtoms } from "@vekrel/client-runtime/state/device";
+import { createDeviceMachineAtoms } from "@vekrel/client-runtime/state/device";
 import { resolveDeviceHubAccess } from "@vekrel/client-runtime/state/deviceHubAccess";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import { Atom } from "effect/reactivity";
@@ -8,31 +8,31 @@ import { useMemo } from "react";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 import { appAtomRegistry } from "./atom-registry";
-import { useEnvironmentQuery } from "./query";
-import { environmentSession, usePreparedConnection } from "./session";
+import { useMachineQuery } from "./query";
+import { machineSession, usePreparedConnection } from "./session";
 
-export const deviceEnvironment = createDeviceEnvironmentAtoms(connectionAtomRuntime);
+export const deviceMachine = createDeviceMachineAtoms(connectionAtomRuntime);
 
-const deviceHubAccessAtom = Atom.family((environmentId: EnvironmentId) =>
+const deviceHubAccessAtom = Atom.family((machineId: MachineId) =>
   connectionAtomRuntime
     .atom((get) => {
       const prepared = Option.getOrNull(
-        get(environmentSession.preparedConnectionValueAtom(environmentId)),
+        get(machineSession.preparedConnectionValueAtom(machineId)),
       );
       return prepared === null
         ? Effect.never
         : resolveDeviceHubAccess({ prepared, hubBasePath: "/api/device-hub" });
     })
-    .pipe(Atom.setIdleTTL(60_000), Atom.withLabel(`mobile-device-hub-access:${environmentId}`)),
+    .pipe(Atom.setIdleTTL(60_000), Atom.withLabel(`mobile-device-hub-access:${machineId}`)),
 );
 
-export function refreshDeviceHubAccess(environmentId: EnvironmentId) {
-  appAtomRegistry.refresh(deviceHubAccessAtom(environmentId));
+export function refreshDeviceHubAccess(machineId: MachineId) {
+  appAtomRegistry.refresh(deviceHubAccessAtom(machineId));
 }
 
-export function useDeviceHubAccess(environmentId: EnvironmentId, hostId: string) {
-  const prepared = usePreparedConnection(environmentId);
-  const query = useEnvironmentQuery(deviceHubAccessAtom(environmentId));
+export function useDeviceHubAccess(machineId: MachineId, hostId: string) {
+  const prepared = usePreparedConnection(machineId);
+  const query = useMachineQuery(deviceHubAccessAtom(machineId));
   const access = useMemo(
     () =>
       query.data && query.error === null && Option.isSome(prepared)

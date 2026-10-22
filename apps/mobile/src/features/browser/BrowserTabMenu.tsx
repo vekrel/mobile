@@ -3,7 +3,7 @@ import { useAtomValue } from "@effect/atom-react";
 import type { MenuAction } from "@react-native-menu/menu";
 import {
   DEFAULT_PREVIEW_ZOOM_FACTOR,
-  type EnvironmentId,
+  type MachineId,
   FILL_PREVIEW_VIEWPORT,
   PREVIEW_ZOOM_LEVELS,
   type PreviewAdjustInput,
@@ -14,7 +14,7 @@ import { PREVIEW_VIEWPORT_PRESETS } from "@vekrel/shared/previewViewport";
 
 import { ControlPill } from "../../components/ui/ControlPill";
 import { Menu } from "../../components/ui/Menu";
-import { previewEnvironment } from "../../state/preview";
+import { previewMachine } from "../../state/preview";
 import { useAtomCommand } from "../../state/use-atom-command";
 
 const APPEARANCES = [
@@ -39,20 +39,20 @@ const VIEWPORTS = [
 ];
 
 export function BrowserTabMenu({
-  environmentId,
+  machineId,
   tab,
   streaming,
   onPaste,
 }: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly tab: PreviewSessionSnapshot;
   readonly streaming: boolean;
   readonly onPaste?: () => void;
 }) {
-  const adjust = useAtomCommand(previewEnvironment.adjust, "browser tab change");
-  const resize = useAtomCommand(previewEnvironment.resize, "browser viewport change");
-  const close = useAtomCommand(previewEnvironment.close, "browser tab close");
-  const canClose = useAtomValue(previewEnvironment.close.permissionAtom(environmentId));
+  const adjust = useAtomCommand(previewMachine.adjust, "browser tab change");
+  const resize = useAtomCommand(previewMachine.resize, "browser viewport change");
+  const close = useAtomCommand(previewMachine.close, "browser tab close");
+  const canClose = useAtomValue(previewMachine.close.permissionAtom(machineId));
   const target = { threadId: tab.threadId as PreviewAdjustInput["threadId"], tabId: tab.tabId };
   const colorScheme = tab.colorScheme ?? "system";
   const zoomFactor = tab.zoomFactor ?? DEFAULT_PREVIEW_ZOOM_FACTOR;
@@ -120,13 +120,13 @@ export function BrowserTabMenu({
   ];
 
   const run = async (change: Omit<PreviewAdjustInput, "threadId" | "tabId">) => {
-    const result = await adjust({ environmentId, input: { ...target, ...change } });
+    const result = await adjust({ machineId, input: { ...target, ...change } });
     if (result._tag === "Failure") Dialog.alert("Could not change this browser tab");
   };
 
   const onAction = (id: string) => {
     if (id === "close") {
-      void close({ environmentId, input: target }).then((result) => {
+      void close({ machineId, input: target }).then((result) => {
         if (result._tag === "Failure") Dialog.alert("Could not close this browser tab");
       });
       return;
@@ -146,7 +146,7 @@ export function BrowserTabMenu({
     if (id.startsWith("viewport:")) {
       const option = VIEWPORTS.find((candidate) => `viewport:${candidate.id}` === id);
       if (!option) return;
-      void resize({ environmentId, input: { ...target, viewport: option.setting } }).then(
+      void resize({ machineId, input: { ...target, viewport: option.setting } }).then(
         (result) => {
           if (result._tag === "Failure") Dialog.alert("Could not change the viewport");
         },

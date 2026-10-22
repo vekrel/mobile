@@ -16,7 +16,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
+import type { MachineProject } from "@vekrel/client-runtime/state/shell";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -27,9 +27,9 @@ import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScroll
 import { AppText as Text } from "../../components/ui/AppText";
 import { ProjectFavicon } from "../../components/ProjectFavicon";
 import { useProjects, useServerConfigs } from "../../state/entities";
-import { projectEnvironment } from "../../state/projects";
+import { projectMachine } from "../../state/projects";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { useRemoteConnectionStatus } from "../../state/use-remote-environment-registry";
+import { useRemoteConnectionStatus } from "../../state/use-remote-machine-registry";
 import type { WorkspaceState } from "../../state/workspaceModel";
 import { useWorkspaceState } from "../../state/workspace";
 
@@ -54,16 +54,16 @@ function deriveProjectEmptyState(catalogState: WorkspaceState): {
 } {
   if (catalogState.isLoadingConnections) {
     return {
-      title: "Loading environments",
-      detail: "Checking saved environments on this device.",
+      title: "Loading machines",
+      detail: "Checking saved machines on this device.",
       loading: true,
     };
   }
 
   if (!catalogState.hasConnections) {
     return {
-      title: "No environments connected",
-      detail: "Add an environment before creating a task.",
+      title: "No machines connected",
+      detail: "Add a machine before creating a task.",
       loading: false,
     };
   }
@@ -79,29 +79,29 @@ function deriveProjectEmptyState(catalogState: WorkspaceState): {
       title:
         catalogState.connectionState === "unsupported"
           ? "Client not supported"
-          : "Environment unavailable",
+          : "Machine unavailable",
       detail:
         catalogState.connectionError ??
-        "The saved environment is offline. Check the URL or start the environment, then retry.",
+        "The saved machine is offline. Check the URL or start the machine, then retry.",
       loading: false,
     };
   }
 
   if (
-    catalogState.hasConnectingEnvironment &&
+    catalogState.hasConnectingMachine &&
     !catalogState.hasLoadedShellSnapshot &&
     catalogState.connectionError === null
   ) {
     return {
-      title: "Connecting to environment",
-      detail: "Loading projects from the saved environment.",
+      title: "Connecting to machine",
+      detail: "Loading projects from the saved machine.",
       loading: true,
     };
   }
 
   return {
     title: "No projects found",
-    detail: "The connected environment did not report any projects.",
+    detail: "The connected machine did not report any projects.",
     loading: false,
   };
 }
@@ -151,7 +151,7 @@ function NewTaskHeader(props: {
 export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRouteParams | undefined>) {
   const projects = useProjects();
   const [searchText, setSearchText] = useState("");
-  const { projectScopes, selectedEnvironmentId, setProject } = useNewTaskFlow();
+  const { projectScopes, selectedMachineId, setProject } = useNewTaskFlow();
   const { state: catalogState } = useWorkspaceState();
   const navigation = useNavigation();
   const isFocused = useIsFocused();
@@ -175,7 +175,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
   const listScopes = projectScopes.filter(
     (scope) =>
       !scope.projects.every((project) =>
-        isScratchProject(project, serverConfigs.get(project.environmentId)?.scratchWorkspaceRoot),
+        isScratchProject(project, serverConfigs.get(project.machineId)?.scratchWorkspaceRoot),
       ),
   );
   const visibleScopes = filterProjectScopes(listScopes, searchText);
@@ -183,31 +183,31 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
   const reservedDestinationProject = incomingShare?.destination
     ? (projects.find(
         (project) =>
-          project.environmentId === incomingShare.destination?.environmentId &&
+          project.machineId === incomingShare.destination?.machineId &&
           project.id === incomingShare.destination?.projectId,
       ) ?? null)
     : null;
-  const { connectedEnvironments } = useRemoteConnectionStatus();
-  const openScratch = useAtomCommand(projectEnvironment.openScratch, {
+  const { connectedMachines } = useRemoteConnectionStatus();
+  const openScratch = useAtomCommand(projectMachine.openScratch, {
     reportFailure: false,
   });
-  const scratchEnvironments = connectedEnvironments.filter(
-    (environment) =>
+  const scratchMachines = connectedMachines.filter(
+    (machine) =>
       availableScratchWorkspaceRoot(
-        environment.connectionState,
-        serverConfigs.get(environment.environmentId),
+        machine.connectionState,
+        serverConfigs.get(machine.machineId),
       ) !== null,
   );
-  const scratchEnvironment =
-    scratchEnvironments.find(
-      (environment) => environment.environmentId === selectedEnvironmentId,
+  const scratchMachine =
+    scratchMachines.find(
+      (machine) => machine.machineId === selectedMachineId,
     ) ??
-    scratchEnvironments[0] ??
+    scratchMachines[0] ??
     null;
-  const canStartScratch = scratchEnvironment !== null && reservedDestinationProject === null;
+  const canStartScratch = scratchMachine !== null && reservedDestinationProject === null;
   const scratchStartInFlightRef = useRef(false);
 
-  async function selectProject(project: EnvironmentProject): Promise<void> {
+  async function selectProject(project: MachineProject): Promise<void> {
     if (incomingShare?.destination && !reservedDestinationProject) {
       try {
         await releaseShareReservation(incomingShare.id, incomingShare.destination);
@@ -233,7 +233,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
     }
     root?.navigate("Thread", {
       draft: {
-        environmentId: String(project.environmentId),
+        machineId: String(project.machineId),
         projectId: String(project.id),
         incomingShareId: incomingShare?.id,
       },
@@ -241,10 +241,10 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
   }
 
   async function startScratch(): Promise<void> {
-    if (!scratchEnvironment || scratchStartInFlightRef.current) return;
-    const environmentId = scratchEnvironment.environmentId;
+    if (!scratchMachine || scratchStartInFlightRef.current) return;
+    const machineId = scratchMachine.machineId;
     scratchStartInFlightRef.current = true;
-    const result = await openScratch({ environmentId, input: {} });
+    const result = await openScratch({ machineId, input: {} });
     if (result._tag === "Failure") {
       scratchStartInFlightRef.current = false;
       if (!isAtomCommandInterrupted(result)) {
@@ -275,7 +275,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
       resumedDestinationKeyRef.current = null;
       return;
     }
-    const destinationKey = `${incomingShare.id}:${destination.environmentId}:${destination.projectId}`;
+    const destinationKey = `${incomingShare.id}:${destination.machineId}:${destination.projectId}`;
     if (resumedDestinationKeyRef.current === destinationKey) {
       return;
     }
@@ -288,7 +288,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
       : navigation.getParent()
     )?.navigate("Thread", {
       draft: {
-        environmentId: reservedDestinationProject.environmentId,
+        machineId: reservedDestinationProject.machineId,
         projectId: reservedDestinationProject.id,
         title: reservedDestinationProject.title,
         incomingShareId: incomingShare.id,
@@ -301,7 +301,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
       <NewTaskHeader
         title={screenTitle}
         subtitle={incomingShareSubtitle}
-        canAddProject={catalogState.hasReadyEnvironment}
+        canAddProject={catalogState.hasReadyMachine}
         searchText={searchText}
         onSearchTextChange={setSearchText}
       />
@@ -393,10 +393,10 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
               {Platform.OS === "android" ? (
                 <>
                   <Button
-                    label={catalogState.hasReadyEnvironment ? "Add new project" : "Add environment"}
+                    label={catalogState.hasReadyMachine ? "Add new project" : "Add machine"}
                     tone="primary"
                     onPress={() =>
-                      catalogState.hasReadyEnvironment
+                      catalogState.hasReadyMachine
                         ? navigation.dispatch(StackActions.push("AddProject"))
                         : navigation.navigate("ConnectionsNew")
                     }
@@ -409,10 +409,10 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                     />
                   ) : null}
                 </>
-              ) : !catalogState.hasReadyEnvironment ? (
+              ) : !catalogState.hasReadyMachine ? (
                 <View className="mt-1">
                   <Button
-                    label="Add environment"
+                    label="Add machine"
                     tone="primary"
                     onPress={() => navigation.navigate("ConnectionsNew")}
                   />
@@ -458,7 +458,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                 const hasMultipleProjects = scope.projects.length > 1;
                 const selectionTarget = getProjectScopeSelectionTarget(
                   scope,
-                  selectedEnvironmentId,
+                  selectedMachineId,
                 );
                 if (Platform.OS === "android") {
                   return (
@@ -477,7 +477,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                       onPress={() => void selectProject(selectionTarget)}
                       leading={
                         <ProjectFavicon
-                          environmentId={scope.representative.environmentId}
+                          machineId={scope.representative.machineId}
                           faviconPath={scope.representative.faviconPath}
                           projectIcon={scope.representative.projectIcon}
                           size={24}
@@ -502,7 +502,7 @@ export function NewTaskRouteScreen({ route }: StaticScreenProps<NewTaskRoutePara
                     >
                       <View className="h-7 w-7 items-center justify-center">
                         <ProjectFavicon
-                          environmentId={scope.representative.environmentId}
+                          machineId={scope.representative.machineId}
                           faviconPath={scope.representative.faviconPath}
                           projectIcon={scope.representative.projectIcon}
                           size={20}

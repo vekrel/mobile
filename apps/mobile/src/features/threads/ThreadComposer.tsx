@@ -4,7 +4,7 @@ import * as Dialog from "../../components/ui/Dialog";
 import type { ComposerTextPaste } from "../../native/T3ComposerEditor.types";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import { settlePromise, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
 import { useAtomValue } from "@effect/atom-react";
@@ -14,7 +14,7 @@ import {
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
   PROVIDER_SEND_TURN_MAX_INPUT_CHARS,
   type ChatAttachment,
-  type EnvironmentId,
+  type MachineId,
   type MessageId,
   type ModelSelection,
   type ProviderInteractionMode,
@@ -63,7 +63,7 @@ import {
 import { appAtomRegistry } from "../../state/atom-registry";
 import type { ComposerDocumentAttachment } from "../../lib/composerContext";
 import { useProject, useThreadShells } from "../../state/entities";
-import { scopeProjectRef } from "@vekrel/client-runtime/environment";
+import { scopeProjectRef } from "@vekrel/client-runtime/machine";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { ComposerAttachmentButton } from "./ComposerAttachmentButton";
@@ -234,16 +234,16 @@ export interface ThreadComposerProps {
   readonly contentMaxWidth?: number;
   readonly bottomInset?: number;
   readonly connectionState: RemoteClientConnectionState;
-  readonly environmentLabel: string | null;
+  readonly machineLabel: string | null;
   readonly threadSyncPhase?: "loading" | "syncing" | null;
-  readonly selectedThread: EnvironmentThreadShell;
+  readonly selectedThread: MachineThreadShell;
   readonly reportedModelSelection?: ModelSelection | null;
   readonly hasCompactableConversation: boolean;
   readonly serverConfig: T3ServerConfig | null;
   readonly queueCount: number;
   readonly activeThreadBusy: boolean;
   readonly canStopThread: boolean;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly projectCwd: string | null;
   readonly sendBlockedReason?: string | null;
   readonly interactionLocked?: boolean;
@@ -442,7 +442,7 @@ export function ComposerSurface(props: {
 export const THREAD_COMPOSER_BOTTOM_GUTTER = 6;
 
 export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps) {
-  const project = useProject(scopeProjectRef(props.environmentId, props.selectedThread.projectId));
+  const project = useProject(scopeProjectRef(props.machineId, props.selectedThread.projectId));
   const { themeVariables: materialTheme } = useAppearancePreferences();
   const composerPanel = materialTheme["--color-composer-panel"];
   const navigation = useNavigation();
@@ -465,7 +465,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
 
   const [previewFile, setPreviewFile] = useState<FilePreviewSource | null>(null);
   const [previewVideo, setPreviewVideo] = useState<VideoPreviewSource | null>(null);
-  const composerOwnerKey = scopedThreadKey(props.environmentId, props.selectedThread.id);
+  const composerOwnerKey = scopedThreadKey(props.machineId, props.selectedThread.id);
   const composerDraftKey = props.draftKey ?? composerOwnerKey;
   const { text: draftMessage, attachments: draftAttachments } = useComposerDraft(composerDraftKey);
   const queuedEdit = props.queuedEdit ?? null;
@@ -490,7 +490,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
   const attachmentsUploading =
     props.connectionState === "connected" &&
     composerAttachmentsStillUploading({
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       attachments: draftAttachments,
       serverConfig: props.serverConfig,
       states: uploadStates,
@@ -524,7 +524,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
   const openDraftDocument = (attachment: ComposerDocumentAttachment) => {
     Keyboard.dismiss();
     navigation.navigate("ThreadAttachment", {
-      environmentId: String(props.environmentId),
+      machineId: String(props.machineId),
       threadId: String(props.selectedThread.id),
       attachmentId: attachment.attachmentId,
       name: attachment.name,
@@ -558,11 +558,11 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
   const composerMenu = useComposerCommandMenu({
     draftMessage: draftMessage,
     ownerKey: composerDraftKey,
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     threadShells: useThreadShells(),
     currentThreadId: props.selectedThread.id,
     projectCwd: props.projectCwd,
-    pullRequestProjectId: props.serverConfig?.environment.capabilities.pullRequests
+    pullRequestProjectId: props.serverConfig?.machine.capabilities.pullRequests
       ? (project?.id ?? null)
       : null,
     pullRequestRepository: project?.repositoryIdentity?.displayName ?? null,
@@ -607,7 +607,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
     (queuedEdit !== null && queuedEdit.existingAttachments.length > 0) ||
     stripAttachments.length > 0;
   const attachmentBlockReason = composerAttachmentUploadBlockReason({
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     attachments: draftAttachments,
     connected: props.connectionState === "connected",
     serverConfig: props.serverConfig,
@@ -681,7 +681,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
       if (openUsageLimits()) onChangeDraftMessage("");
       return;
     }
-    const threadKey = scopedThreadKey(props.environmentId, props.selectedThread.id);
+    const threadKey = scopedThreadKey(props.machineId, props.selectedThread.id);
     if (inFlightThreadIdsRef.current.has(threadKey)) return;
     inFlightThreadIdsRef.current.add(threadKey);
     const draftAtSend = getComposerDraftSnapshot(composerDraftKey);
@@ -708,9 +708,9 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
     // Armed after the send so its preference read and native Activity start don't contend
     // with the queued-message feedback on the tap frame.
     armAgentAwarenessLiveActivityForLocalWork({
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       threadTitle: props.selectedThread.title,
-      projectTitle: props.environmentLabel ?? "Vekrel",
+      projectTitle: props.machineLabel ?? "Vekrel",
     });
   };
 
@@ -737,7 +737,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
   const settingsOwnerId = composerOwnerKey;
   const settingsRouteSession = {
     ownerId: settingsOwnerId,
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     projectId: props.selectedThread.projectId,
     providerInstanceId: currentModelSelection.instanceId,
     ...(lockedProviderInstanceId ? { lockedProviderInstanceId } : {}),
@@ -812,7 +812,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
           exiting={FadeOut.duration(120)}
         >
           <ComposerQueuedEditAttachments
-            environmentId={props.environmentId}
+            machineId={props.machineId}
             attachments={queuedEdit.existingAttachments}
             disabled={isSubmissionLocked}
             onRemove={queuedEdit.onRemoveExistingAttachment}
@@ -826,7 +826,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
           exiting={FadeOut.duration(120)}
         >
           <ComposerAttachmentStrip
-            environmentId={props.environmentId}
+            machineId={props.machineId}
             attachments={stripAttachments}
             onRemove={isSubmissionLocked ? () => undefined : props.onRemoveDraftImage}
             onPressPreview={isSubmissionLocked ? undefined : onPressPreview}
@@ -962,7 +962,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                 size={hasSidebarTabBar ? "large" : "regular"}
                 disabled={isSubmissionLocked}
                 supportsFiles={Boolean(
-                  props.serverConfig?.environment.capabilities.fileAttachments,
+                  props.serverConfig?.machine.capabilities.fileAttachments,
                 )}
                 onPickMedia={props.onPickDraftMedia}
                 onPickFiles={props.onPickDraftFiles}
@@ -985,7 +985,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                 <View className="h-[44px] shrink-0 flex-row items-center gap-1 pl-1">
                   {stripAttachments.slice(0, compactAttachmentLimit).map((attachment) => (
                     <ComposerAttachmentThumbnail
-                      environmentId={props.environmentId}
+                      machineId={props.machineId}
                       key={attachment.id}
                       attachment={attachment}
                       size={30}
@@ -1056,18 +1056,18 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
               <ComposerEditor
                 hidden={props.hidden}
                 draftKey={composerDraftKey}
-                environmentId={props.environmentId}
+                machineId={props.machineId}
                 onOpenMention={(path) => {
                   Keyboard.dismiss();
                   if (props.isDraft) {
                     navigation.navigate("NewTaskFile", {
-                      environmentId: String(props.environmentId),
+                      machineId: String(props.machineId),
                       cwd: props.projectCwd ?? undefined,
                       path: fileRoutePathSegments(path),
                     });
                   } else {
                     navigation.navigate("ThreadFile", {
-                      environmentId: String(props.environmentId),
+                      machineId: String(props.machineId),
                       threadId: String(props.selectedThread.id),
                       path: fileRoutePathSegments(path),
                     });
@@ -1106,7 +1106,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                     props.onChangeDraftMessage(insertion.value);
                     composerMenu.onSelectionChange(selection);
                   };
-                  const capabilities = props.serverConfig?.environment.capabilities;
+                  const capabilities = props.serverConfig?.machine.capabilities;
                   const advertisedMax =
                     capabilities?.attachmentUploads === true
                       ? capabilities.fileAttachments?.maxUploadBytes
@@ -1225,7 +1225,7 @@ export const ThreadComposer = function ThreadComposer(props: ThreadComposerProps
                       size={hasSidebarTabBar ? "large" : "regular"}
                       disabled={isSubmissionLocked}
                       supportsFiles={Boolean(
-                        props.serverConfig?.environment.capabilities.fileAttachments,
+                        props.serverConfig?.machine.capabilities.fileAttachments,
                       )}
                       onPickMedia={props.onPickDraftMedia}
                       onPickFiles={props.onPickDraftFiles}

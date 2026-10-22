@@ -1,10 +1,10 @@
-import { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import { MachineId, ThreadId } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { resolveMarkdownMediaPreview } from "./markdownMedia";
 
 const input = {
-  environmentId: EnvironmentId.make("environment-1"),
+  machineId: MachineId.make("machine-1"),
   threadId: ThreadId.make("thread-1"),
   workspaceRoot: "/repo",
 };

@@ -1,7 +1,7 @@
 import {
   AuthOrchestrationOperateScope,
-  EnvironmentAuthorizationError,
-  EnvironmentId,
+  MachineAuthorizationError,
+  MachineId,
 } from "@vekrel/contracts";
 import { runAttachmentUploadCycle } from "@vekrel/client-runtime/state/attachments";
 import * as Cause from "effect/Cause";
@@ -9,29 +9,29 @@ import { AsyncResult, AtomRegistry } from "effect/reactivity";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const state = vi.hoisted(() => ({
-  grantedEnvironments: new Set<string>(),
+  grantedMachines: new Set<string>(),
   create: vi.fn(),
   remove: vi.fn(),
 }));
 vi.mock("../connection/runtime", () => ({ connectionAtomRuntime: {} }));
 vi.mock("./session", () => ({
-  readEnvironmentScope: (environmentId: string, scope: string) =>
-    scope === AuthOrchestrationOperateScope && state.grantedEnvironments.has(environmentId),
+  readMachineScope: (machineId: string, scope: string) =>
+    scope === AuthOrchestrationOperateScope && state.grantedMachines.has(machineId),
 }));
 vi.mock("@vekrel/client-runtime/state/attachments", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vekrel/client-runtime/state/attachments")>()),
-  createAttachmentEnvironmentAtoms: () => ({
+  createAttachmentMachineAtoms: () => ({
     createUploadUrl: { label: "create", run: state.create },
     remove: { label: "remove", run: state.remove },
   }),
 }));
 
-import { attachmentEnvironment } from "./attachments";
+import { attachmentMachine } from "./attachments";
 
-const environmentId = EnvironmentId.make("secondary");
+const machineId = MachineId.make("secondary");
 const registry = AtomRegistry.make();
 beforeEach(() => {
-  state.grantedEnvironments = new Set(["primary"]);
+  state.grantedMachines = new Set(["primary"]);
   state.create.mockReset().mockResolvedValue(
     AsyncResult.success({
       attachmentId: "pending",
@@ -46,29 +46,29 @@ afterEach(() => {
 });
 
 describe("attachment mutation grants", () => {
-  it("uses the attachment environment for both mint and deletion", async () => {
-    const mintResult = await attachmentEnvironment.createUploadUrl.run(registry, {
-      environmentId,
+  it("uses the attachment machine for both mint and deletion", async () => {
+    const mintResult = await attachmentMachine.createUploadUrl.run(registry, {
+      machineId,
       input: { name: "image.png", mimeType: "image/png", sizeBytes: 1 },
     });
-    const removeResult = await attachmentEnvironment.remove.run(registry, {
-      environmentId,
+    const removeResult = await attachmentMachine.remove.run(registry, {
+      machineId,
       input: { attachmentId: "pending" },
     });
     for (const result of [mintResult, removeResult]) {
       expect(result._tag).toBe("Failure");
       if (result._tag !== "Failure") throw new Error("Expected permission denial");
       const error = Cause.squash<unknown>(result.cause);
-      expect(error).toBeInstanceOf(EnvironmentAuthorizationError);
+      expect(error).toBeInstanceOf(MachineAuthorizationError);
       expect(error).toMatchObject({ requiredScope: AuthOrchestrationOperateScope });
     }
     expect(state.create).not.toHaveBeenCalled();
     expect(state.remove).not.toHaveBeenCalled();
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     expect(
       (
-        await attachmentEnvironment.remove.run(registry, {
-          environmentId,
+        await attachmentMachine.remove.run(registry, {
+          machineId,
           input: { attachmentId: "pending" },
         })
       )._tag,
@@ -77,17 +77,17 @@ describe("attachment mutation grants", () => {
   });
 
   it("blocks the upload cycle's asynchronous cleanup after grant revocation", async () => {
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     const transport = vi.fn();
     const result = await runAttachmentUploadCycle({
       registry,
-      ...attachmentEnvironment,
-      environmentId,
+      ...attachmentMachine,
+      machineId,
       upload: { name: "image.png", mimeType: "image/png", sizeBytes: 1 },
       resolveUploadUrl: () => "https://example.test/upload",
       transport,
       onMinted: () => {
-        state.grantedEnvironments.delete("secondary");
+        state.grantedMachines.delete("secondary");
         return "cancel";
       },
     });

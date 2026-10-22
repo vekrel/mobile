@@ -47,14 +47,14 @@ import {
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import {
   ORCHESTRATION_V2_WORKSPACE_PREPARATION_FAILURE_CODE,
-  type EnvironmentId,
+  type MachineId,
   type RunId,
   type ThreadId,
   type ToolActivityIcon,
 } from "@vekrel/contracts";
 import { useAtomValue } from "@effect/atom-react";
-import { scopeThreadRef } from "@vekrel/client-runtime/environment";
-import { environmentThreadDetails, threadEnvironment } from "../../state/threads";
+import { scopeThreadRef } from "@vekrel/client-runtime/machine";
+import { machineThreadDetails, threadMachine } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { toolActivityFaviconUrl } from "@vekrel/shared/favicon";
 import { isJavaScriptReplTool } from "@vekrel/shared/toolActivity";
@@ -202,7 +202,7 @@ export function ThreadDisclosureChevron(props: {
 function ShimmerWorkContent(props: {
   readonly textClassName?: string;
   readonly compact?: boolean;
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly highlighted: boolean;
   readonly icon: WorkContentIcon;
   readonly iconSubtleColor: ColorValue;
@@ -216,9 +216,9 @@ function ShimmerWorkContent(props: {
     <View className="flex-row items-center gap-1.5">
       {props.showIcon ? (
         <View className="h-6 w-6 shrink-0 items-center justify-center">
-          {props.toolIcon && props.environmentId ? (
+          {props.toolIcon && props.machineId ? (
             <ToolActivityIconView
-              environmentId={props.environmentId}
+              machineId={props.machineId}
               icon={props.toolIcon}
               fallback={props.icon}
               fallbackColor={props.iconSubtleColor}
@@ -253,7 +253,7 @@ export function ShimmeringWorkContent(props: {
   readonly className?: string;
   readonly textClassName?: string;
   readonly compact?: boolean;
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly icon: WorkContentIcon;
   readonly iconSubtleColor: ColorValue;
   readonly label: string;
@@ -329,7 +329,7 @@ export function ShimmeringWorkContent(props: {
       <ShimmerWorkContent
         textClassName={props.textClassName}
         compact={props.compact}
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         highlighted={false}
         icon={props.icon}
         iconSubtleColor={props.iconSubtleColor}
@@ -380,7 +380,7 @@ export function ShimmeringWorkContent(props: {
               <ShimmerWorkContent
                 textClassName={props.textClassName}
                 compact={props.compact}
-                environmentId={props.environmentId}
+                machineId={props.machineId}
                 highlighted
                 icon={props.icon}
                 iconSubtleColor={props.iconSubtleColor}
@@ -483,7 +483,7 @@ interface ThreadWorkLogProps {
   readonly continuesWorkLog?: boolean | undefined;
   readonly activities: ReadonlyArray<ThreadFeedActivity>;
   readonly anchorKey: string;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly workspaceRoot?: string | null | undefined;
   readonly copiedRowId: string | null;
   readonly expandedRows: Readonly<Record<string, boolean>>;
@@ -508,7 +508,7 @@ export function ThreadWorkLog(props: ThreadWorkLogProps) {
       anchorKey={props.anchorKey}
       copied={props.copiedRowId === row.id}
       expanded={props.expandedRows[row.id] ?? false}
-      environmentId={props.environmentId}
+      machineId={props.machineId}
       iconSubtleColor={props.iconSubtleColor}
       onCopyRow={props.onCopyRow}
       onToggleRow={props.onToggleRow}
@@ -527,7 +527,7 @@ export function ThreadWorkLog(props: ThreadWorkLogProps) {
   if (plan?.type === "proposed_plan") {
     return (
       <ProposedPlanCard
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         workspaceRoot={props.workspaceRoot}
         markdown={plan.markdown}
         renderMarkdown={props.renderReasoning}
@@ -803,18 +803,18 @@ function workLogRowKey(row: ThreadFeedActivity): string {
 }
 
 function WorkspacePreparationRetryButton(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly runId: RunId;
 }) {
   const retryable = useAtomValue(
-    environmentThreadDetails.threadAtom(scopeThreadRef(props.environmentId, props.threadId)),
+    machineThreadDetails.threadAtom(scopeThreadRef(props.machineId, props.threadId)),
     (thread) => {
       const run = thread?.projection.runs.find((candidate) => candidate.id === props.runId);
       return run?.status === "failed" && run.workspacePreparation !== undefined;
     },
   );
-  const retry = useAtomCommand(threadEnvironment.retryWorkspacePreparation, "retry setup");
+  const retry = useAtomCommand(threadMachine.retryWorkspacePreparation, "retry setup");
   const [busy, setBusy] = useState(false);
   if (!retryable) return null;
   return (
@@ -828,7 +828,7 @@ function WorkspacePreparationRetryButton(props: {
           setBusy(true);
           void Haptics.selectionAsync();
           void retry({
-            environmentId: props.environmentId,
+            machineId: props.machineId,
             input: { threadId: props.threadId, runId: props.runId },
           }).finally(() => setBusy(false));
         }}
@@ -890,11 +890,11 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
   const navigation = useNavigation();
   // Command rows stream their output, including the final output, from the server.
   const streamsOutput =
-    useCommandOutputStreaming(props.environmentId) &&
+    useCommandOutputStreaming(props.machineId) &&
     row.projectedItem.item.type === "command_execution";
   const fetchedDetail = useTurnItemDetail(
     expanded && row.fetchesDetail && !streamsOutput
-      ? { environmentId: props.environmentId, row: row.projectedItem }
+      ? { machineId: props.machineId, row: row.projectedItem }
       : null,
   );
   const failureItem = row.projectedItem.item;
@@ -962,7 +962,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
           {failureItem.failure.code === ORCHESTRATION_V2_WORKSPACE_PREPARATION_FAILURE_CODE &&
           failureItem.runId !== null ? (
             <WorkspacePreparationRetryButton
-              environmentId={props.environmentId}
+              machineId={props.machineId}
               threadId={failureItem.threadId}
               runId={failureItem.runId}
             />
@@ -1066,7 +1066,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
             // would skip the parent thread and land on Home (matches #15068).
             navigation.dispatch(
               StackActions.push("Thread", {
-                environmentId: String(props.environmentId),
+                machineId: String(props.machineId),
                 threadId: String(notifiedSubagentThreadId),
               }),
             );
@@ -1081,7 +1081,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
       >
         {row.live && !expanded ? (
           <ShimmeringWorkContent
-            environmentId={props.environmentId}
+            machineId={props.machineId}
             icon={icon}
             iconSubtleColor={props.iconSubtleColor}
             label={displayText}
@@ -1094,7 +1094,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
             <WorkLogIconSlot>
               {toolIcon ? (
                 <ToolActivityIconView
-                  environmentId={props.environmentId}
+                  machineId={props.machineId}
                   icon={toolIcon}
                   fallback={icon}
                   fallbackColor={props.iconSubtleColor}
@@ -1184,7 +1184,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
         >
           {row.workEntry.questionAnswer ? (
             <QuestionAnswerHistory
-              environmentId={props.environmentId}
+              machineId={props.machineId}
               answer={row.workEntry.questionAnswer}
             />
           ) : null}
@@ -1196,14 +1196,14 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
           <FilePreviewGallery
             value={outputImages.map((resource) => ({
               kind: "image",
-              environmentId: props.environmentId,
+              machineId: props.machineId,
               resource,
             }))}
           >
             {outputImages.map((resource) => (
               <View key={resource.index} className="pb-1.5">
                 <ThreadMarkdownImage
-                  environmentId={props.environmentId}
+                  machineId={props.machineId}
                   resource={resource}
                   alt={null}
                   onPressPreview={props.onPressPreview}
@@ -1274,7 +1274,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
           {streamsOutput ? (
             <>
               <ThreadCommandOutput
-                environmentId={props.environmentId}
+                machineId={props.machineId}
                 threadId={row.projectedItem.sourceThreadId}
                 itemId={row.projectedItem.sourceItemId}
                 themeAppearance={props.themeAppearance}
@@ -1289,7 +1289,7 @@ const ThreadWorkLogRow = function ThreadWorkLogRow(
 };
 
 export function ThreadWorkGroupToggle(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly rowSizing: ReturnType<typeof deriveThreadWorkLogSizing>;
   readonly expanded: boolean;
   readonly hiddenCount: number;
@@ -1352,7 +1352,7 @@ export function ThreadWorkGroupToggle(props: {
             {props.shimmer ? (
               <ShimmeringWorkContent
                 key={props.rowSizing.textSizeKey}
-                environmentId={props.environmentId}
+                machineId={props.machineId}
                 icon={icon}
                 iconSubtleColor={props.iconSubtleColor}
                 label={props.summary}
@@ -1364,7 +1364,7 @@ export function ThreadWorkGroupToggle(props: {
               <>
                 <WorkLogIconSlot>
                   <ToolActivityIconView
-                    environmentId={props.environmentId}
+                    machineId={props.machineId}
                     icon={props.toolIcon}
                     fallback={icon}
                     fallbackColor={props.iconSubtleColor}
@@ -1522,7 +1522,7 @@ export function ThreadThinkingRow(props: {
 }
 
 function ToolActivityIconView(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly icon?: ToolActivityIcon;
   readonly fallback: WorkContentIcon;
   readonly fallbackColor: ColorValue;
@@ -1562,7 +1562,7 @@ function ToolActivityIconView(props: {
   }
   return (
     <NativeAppToolActivityIcon
-      environmentId={props.environmentId}
+      machineId={props.machineId}
       app={props.icon.app}
       fallback={props.fallback}
       color={props.fallbackColor}
@@ -1572,13 +1572,13 @@ function ToolActivityIconView(props: {
 }
 
 function NativeAppToolActivityIcon(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly app: Extract<ToolActivityIcon, { readonly _tag: "native-app" }>["app"];
   readonly fallback: WorkContentIcon;
   readonly color: ColorValue;
   readonly themeAppearance: "light" | "dark";
 }) {
-  const source = useAssetUrl(props.environmentId, {
+  const source = useAssetUrl(props.machineId, {
     _tag: "native-app-icon",
     app: props.app,
   });

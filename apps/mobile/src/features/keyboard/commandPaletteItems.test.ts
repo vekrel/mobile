@@ -30,7 +30,7 @@ describe("filterCommandPaletteItems", () => {
     ).toEqual(["siva:one"]);
   });
 
-  it("includes server content matches scoped to the correct environment, except in actions-only mode", () => {
+  it("includes server content matches scoped to the correct machine, except in actions-only mode", () => {
     const matches = new Set(["siva:one", "project"]);
     expect(
       filterCommandPaletteItems(items, "message content", matches).map((item) => item.key),

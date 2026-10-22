@@ -1,9 +1,9 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { githubMediaFetchUrl } from "@vekrel/shared/githubMedia";
 import type { FilePreviewItem } from "../../components/FilePreviewModal.types";
 
 export interface PullRequestMediaLocation {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly cwd: string;
 }
 
@@ -12,7 +12,7 @@ export function pullRequestMediaSource(url: string, location: PullRequestMediaLo
   const fetchUrl = githubMediaFetchUrl(url);
   return location && fetchUrl
     ? {
-        environmentId: location.environmentId,
+        machineId: location.machineId,
         resource: { _tag: "github-media" as const, cwd: location.cwd, url: fetchUrl },
       }
     : { uri: url };

@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
-import { scopedThreadKey, scopeThreadRef } from "@vekrel/client-runtime/environment";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import { scopedThreadKey, scopeThreadRef } from "@vekrel/client-runtime/machine";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import {
   createLinkedPullRequestSummaryAtomFamily,
   pullRequestDetailToVcsStatus,
@@ -10,8 +10,8 @@ import { useCallback, useEffect, useMemo } from "react";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 import { appAtomRegistry } from "./atom-registry";
-import { serverEnvironment } from "./server";
-import { useEnvironmentQuery } from "./query";
+import { serverMachine } from "./server";
+import { useMachineQuery } from "./query";
 import {
   resolveThreadPrSource,
   presentThreadPr,
@@ -39,10 +39,10 @@ export {
   type ThreadPrPresentation,
 } from "./thread-pr-presentation";
 
-export function useThreadPr(thread: EnvironmentThreadShell): ThreadPrPresentation | null {
+export function useThreadPr(thread: MachineThreadShell): ThreadPrPresentation | null {
   const supportsLinks = useAtomValue(
-    serverEnvironment.configValueAtom(thread.environmentId),
-    (config) => config?.environment.capabilities.threadPullRequests === true,
+    serverMachine.configValueAtom(thread.machineId),
+    (config) => config?.machine.capabilities.threadPullRequests === true,
   );
   const { linkedPresentation, pullRequestRef } = useMemo(
     () =>
@@ -56,7 +56,7 @@ export function useThreadPr(thread: EnvironmentThreadShell): ThreadPrPresentatio
       ),
     [thread.pullRequests, thread.linkedPullRequest, thread.branchPullRequest, supportsLinks],
   );
-  const threadKey = scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id));
+  const threadKey = scopedThreadKey(scopeThreadRef(thread.machineId, thread.id));
   const snapshotIdentity = JSON.stringify(pullRequestRef);
   // Select this row's entry so writes for other rows do not re-render it.
   const snapshotEntry = useAtomValue(
@@ -67,11 +67,11 @@ export function useThreadPr(thread: EnvironmentThreadShell): ThreadPrPresentatio
     ),
   );
   const snapshot = snapshotEntry?.identity === snapshotIdentity ? snapshotEntry.presentation : null;
-  const pullRequestSummary = useEnvironmentQuery(
+  const pullRequestSummary = useMachineQuery(
     pullRequestRef === null
       ? null
       : pullRequestSummaryAtom({
-          environmentId: thread.environmentId,
+          machineId: thread.machineId,
           input: {
             projectId: pullRequestRef.projectId,
             repository: pullRequestRef.repository,

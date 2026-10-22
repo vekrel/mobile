@@ -8,7 +8,7 @@ import {
   mediaUrlReference,
   mediaReferenceFileName,
 } from "@vekrel/client-runtime/media-reference";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import { normalizeNativeMarkdownUrl } from "./markdownLinks";
 import { resolveMobileMarkdownMediaSource } from "./markdownMediaSource";
 
@@ -19,7 +19,7 @@ import type { MediaActionsSource } from "./mediaActionsSource";
 export function resolveMarkdownMediaPreview(
   href: string,
   input: {
-    readonly environmentId: EnvironmentId;
+    readonly machineId: MachineId;
     readonly threadId: ThreadId | undefined;
     readonly workspaceRoot: string | null | undefined;
     readonly captured?: boolean;
@@ -68,12 +68,12 @@ export function resolveMarkdownMediaPreview(
         kind: "pdf",
         source: {
           ...common,
-          environmentId: input.environmentId,
+          machineId: input.machineId,
           resource,
           srcFragment: markdownImageSourceFragment(href),
           actionsSource: {
             ...(reference ? { reference } : {}),
-            environmentId: input.environmentId,
+            machineId: input.machineId,
             threadId: input.threadId,
             resource,
             name,
@@ -92,7 +92,7 @@ export function resolveMarkdownMediaPreview(
     media.access === "direct"
       ? { uri: normalizeNativeMarkdownUrl(media.uri) }
       : {
-          environmentId: input.environmentId,
+          machineId: input.machineId,
           resource: media.resource,
           ...(srcFragment ? { srcFragment } : {}),
         };
@@ -101,7 +101,7 @@ export function resolveMarkdownMediaPreview(
       ? { reference, uri: media.uri, name, mimeType }
       : {
           reference,
-          environmentId: input.environmentId,
+          machineId: input.machineId,
           threadId: input.threadId,
           resource: media.resource,
           name,

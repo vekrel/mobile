@@ -1,4 +1,4 @@
-import type { ExecutionEnvironmentPlatformOs } from "@vekrel/contracts";
+import type { ExecutionMachinePlatformOs } from "@vekrel/contracts";
 
 export type PendingModifier = "ctrl" | "meta";
 export type HostPlatform = "mac" | "linux" | "windows" | "unknown";
@@ -89,7 +89,7 @@ export function chunkTerminalWrite(data: string): ReadonlyArray<string> {
 /**
  * Returns null for "unknown" so callers can fall back to a weaker signal.
  */
-export function hostPlatformFromOs(os: ExecutionEnvironmentPlatformOs | null): HostPlatform | null {
+export function hostPlatformFromOs(os: ExecutionMachinePlatformOs | null): HostPlatform | null {
   if (os === "darwin") return "mac";
   if (os === "linux") return "linux";
   if (os === "windows") return "windows";

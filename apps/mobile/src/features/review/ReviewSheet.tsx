@@ -1,6 +1,6 @@
 import { settlePromise, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import { formatDiffCount } from "@vekrel/client-runtime/diff-count";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
@@ -37,12 +37,12 @@ import { SymbolView } from "../../components/ui/AppSymbol";
 import { AndroidScreenHeader } from "../../components/ui/AndroidScreenHeader";
 import { ScreenContent } from "../../components/ui/ScreenContent";
 import { cn } from "../../lib/cn";
-import { environmentCatalog } from "../../connection/catalog";
-import { useEnvironmentPresentation } from "../../state/presentation";
+import { machineCatalog } from "../../connection/catalog";
+import { useMachinePresentation } from "../../state/presentation";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useUniwindTheme } from "../../lib/useUniwindTheme";
 import { useThreadDraftForThread } from "../../state/use-thread-composer-state";
-import { EnvironmentConnectionNotice } from "../connection/EnvironmentConnectionNotice";
+import { MachineConnectionNotice } from "../connection/MachineConnectionNotice";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import {
   useAdaptiveWorkspaceLayout,
@@ -424,7 +424,7 @@ function ReviewFileNavigator({
 }
 
 type ReviewSheetProps = StaticScreenProps<{
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
 }>;
 
@@ -436,12 +436,12 @@ export function ReviewSheet(props: ReviewSheetProps) {
   const insets = useSafeAreaInsets();
   const { themeAppearance: selectedTheme } = useAppearancePreferences();
   const headerIcon = String(useUniwindTheme()["--color-icon"]);
-  const { environmentId, threadId } = props.route.params;
-  const environment = useEnvironmentPresentation(environmentId);
-  const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, "environment retry");
-  const isEnvironmentReady = environment.presentation?.connection.phase === "connected";
-  const { draftMessage } = useThreadDraftForThread({ environmentId, threadId });
-  const reviewCache = useReviewCacheForThread({ environmentId, threadId });
+  const { machineId, threadId } = props.route.params;
+  const machine = useMachinePresentation(machineId);
+  const retryMachine = useAtomCommand(machineCatalog.retryNow, "machine retry");
+  const isMachineReady = machine.presentation?.connection.phase === "connected";
+  const { draftMessage } = useThreadDraftForThread({ machineId, threadId });
+  const reviewCache = useReviewCacheForThread({ machineId, threadId });
   const { selectedThreadCwd } = useSelectedThreadWorktree();
   const columnMetrics = useNativeColumnLayoutMetrics();
   const safeArea = columnMetrics?.safeArea ?? insets;
@@ -451,7 +451,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
 
   useEffect(() => {
     showAuxiliaryPane("inspector");
-  }, [environmentId, showAuxiliaryPane, threadId]);
+  }, [machineId, showAuxiliaryPane, threadId]);
   const {
     error,
     reviewSections,
@@ -461,8 +461,8 @@ export function ReviewSheet(props: ReviewSheetProps) {
     isSelectedSectionPending,
     diffPreviewRevision,
   } = useReviewSections({
-    enabled: isEnvironmentReady,
-    environmentId,
+    enabled: isMachineReady,
+    machineId,
     threadId,
     reviewCache,
   });
@@ -480,7 +480,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
     isPending: areFilePatchesPending,
   } = useReviewDiffData({
     threadKey: reviewCache.threadKey,
-    environmentId,
+    machineId,
     cwd: selectedThreadCwd,
     selectedSection,
     revision: diffPreviewRevision,
@@ -514,7 +514,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
   });
   const { collapsedFileIds, toggleExpandedFile, toggleViewedFile, viewedFileIds } = fileVisibility;
   const commentSelection = useReviewCommentSelectionController({
-    environmentId,
+    machineId,
     threadId,
     selectedSection,
     nativeReviewDiffData,
@@ -600,13 +600,13 @@ export function ReviewSheet(props: ReviewSheetProps) {
   const hasAnyCachedDiff = reviewSections.some((section) => section.diff != null);
   const sectionMenu = buildReviewSectionMenu(reviewSections);
   const { showConnectionNotice, showSectionToolbar } = resolveReviewAvailability({
-    hasEnvironmentPresentation: environment.isReady,
-    isEnvironmentConnected: isEnvironmentReady,
+    hasMachinePresentation: machine.isReady,
+    isMachineConnected: isMachineReady,
     hasCachedSelectedDiff,
     hasAnyCachedDiff,
   });
-  const handleRetryEnvironment = () => {
-    void retryEnvironment(environmentId);
+  const handleRetryMachine = () => {
+    void retryMachine(machineId);
   };
   const handleReturnToThread = () => {
     if (navigation.canGoBack()) {
@@ -614,7 +614,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
       return;
     }
     navigation.navigate("Thread", {
-      environmentId: String(environmentId),
+      machineId: String(machineId),
       threadId: String(threadId),
     });
   };
@@ -676,7 +676,7 @@ export function ReviewSheet(props: ReviewSheetProps) {
   return (
     <>
       <ReviewHeader
-        environmentId={environmentId}
+        machineId={machineId}
         threadId={threadId}
         title={headerTitleText}
         subtitle={headerSubtitle}
@@ -696,17 +696,17 @@ export function ReviewSheet(props: ReviewSheetProps) {
         <View className="flex-1 bg-sheet android:bg-sheet-solid">
           {showConnectionNotice ? (
             <View className="flex-1" style={{ paddingTop: topContentInset }}>
-              <EnvironmentConnectionNotice
-                environmentLabel={environment.presentation?.entry.target.label ?? "Environment"}
+              <MachineConnectionNotice
+                machineLabel={machine.presentation?.entry.target.label ?? "Machine"}
                 connection={
-                  environment.presentation?.connection ?? {
+                  machine.presentation?.connection ?? {
                     phase: "available",
                     error: null,
                     traceId: null,
                   }
                 }
                 resourceName="review"
-                onRetry={handleRetryEnvironment}
+                onRetry={handleRetryMachine}
               />
             </View>
           ) : selectedSection && parsedDiff.kind === "files" && NativeReviewDiffView ? (

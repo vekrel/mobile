@@ -1,23 +1,23 @@
-import { type EnvironmentShellSummary } from "@vekrel/client-runtime/state/shell";
-import type { EnvironmentId, ServerConfig } from "@vekrel/contracts";
+import { type MachineShellSummary } from "@vekrel/client-runtime/state/shell";
+import type { MachineId, ServerConfig } from "@vekrel/contracts";
 
 import {
-  type EnvironmentConnectionPhase,
+  type MachineConnectionPhase,
   type NetworkStatus,
 } from "@vekrel/client-runtime/connection";
 
-import type { EnvironmentConnectionSummary as WorkspaceEnvironment } from "@vekrel/client-runtime/state/presentation";
+import type { MachineConnectionSummary as WorkspaceMachine } from "@vekrel/client-runtime/state/presentation";
 
-export { projectEnvironmentConnectionSummary as projectWorkspaceEnvironment } from "@vekrel/client-runtime/state/presentation";
-export type { EnvironmentConnectionSummary as WorkspaceEnvironment } from "@vekrel/client-runtime/state/presentation";
+export { projectMachineConnectionSummary as projectWorkspaceMachine } from "@vekrel/client-runtime/state/presentation";
+export type { MachineConnectionSummary as WorkspaceMachine } from "@vekrel/client-runtime/state/presentation";
 
 export interface WorkspaceConnectionState {
   readonly isLoadingConnections: boolean;
   readonly hasConnections: boolean;
-  readonly hasReadyEnvironment: boolean;
-  readonly hasConnectingEnvironment: boolean;
-  readonly connectingEnvironments: ReadonlyArray<WorkspaceEnvironment>;
-  readonly connectionState: EnvironmentConnectionPhase;
+  readonly hasReadyMachine: boolean;
+  readonly hasConnectingMachine: boolean;
+  readonly connectingMachines: ReadonlyArray<WorkspaceMachine>;
+  readonly connectionState: MachineConnectionPhase;
   readonly connectionError: string | null;
   readonly networkStatus: NetworkStatus;
 }
@@ -25,36 +25,36 @@ export interface WorkspaceConnectionState {
 export interface WorkspaceState extends WorkspaceConnectionState {
   readonly hasLoadedShellSnapshot: boolean;
   readonly hasPendingShellSnapshot: boolean;
-  readonly hasSyncingConnectedEnvironment: boolean;
+  readonly hasSyncingConnectedMachine: boolean;
   readonly shellSnapshotError: string | null;
 }
 
 function overallConnectionState(
-  environments: ReadonlyArray<WorkspaceEnvironment>,
+  machines: ReadonlyArray<WorkspaceMachine>,
   networkStatus: NetworkStatus,
-): EnvironmentConnectionPhase {
-  if (environments.length === 0) {
+): MachineConnectionPhase {
+  if (machines.length === 0) {
     return "available";
   }
   if (networkStatus === "offline") {
     return "offline";
   }
-  if (environments.some((environment) => environment.connectionState === "connected")) {
+  if (machines.some((machine) => machine.connectionState === "connected")) {
     return "connected";
   }
-  if (environments.some((environment) => environment.connectionState === "reconnecting")) {
+  if (machines.some((machine) => machine.connectionState === "reconnecting")) {
     return "reconnecting";
   }
-  if (environments.some((environment) => environment.connectionState === "connecting")) {
+  if (machines.some((machine) => machine.connectionState === "connecting")) {
     return "connecting";
   }
-  if (environments.some((environment) => environment.connectionState === "unsupported")) {
+  if (machines.some((machine) => machine.connectionState === "unsupported")) {
     return "unsupported";
   }
-  if (environments.some((environment) => environment.connectionState === "error")) {
+  if (machines.some((machine) => machine.connectionState === "error")) {
     return "error";
   }
-  if (environments.some((environment) => environment.connectionState === "offline")) {
+  if (machines.some((machine) => machine.connectionState === "offline")) {
     return "offline";
   }
   return "available";
@@ -63,26 +63,26 @@ function overallConnectionState(
 export function projectWorkspaceConnectionState(input: {
   readonly isReady: boolean;
   readonly networkStatus: NetworkStatus;
-  readonly environments: ReadonlyArray<WorkspaceEnvironment>;
+  readonly machines: ReadonlyArray<WorkspaceMachine>;
 }): WorkspaceConnectionState {
-  const activeEnvironments = input.environments.filter((environment) => environment.isEnabled);
-  const connectingEnvironments = activeEnvironments.filter(
-    (environment) =>
-      environment.connectionState === "connecting" ||
-      environment.connectionState === "reconnecting",
+  const activeMachines = input.machines.filter((machine) => machine.isEnabled);
+  const connectingMachines = activeMachines.filter(
+    (machine) =>
+      machine.connectionState === "connecting" ||
+      machine.connectionState === "reconnecting",
   );
 
   return {
     isLoadingConnections: !input.isReady,
-    hasConnections: input.environments.length > 0,
-    hasReadyEnvironment:
+    hasConnections: input.machines.length > 0,
+    hasReadyMachine:
       input.networkStatus !== "offline" &&
-      activeEnvironments.some((environment) => environment.connectionState === "connected"),
-    hasConnectingEnvironment: connectingEnvironments.length > 0,
-    connectingEnvironments,
-    connectionState: overallConnectionState(activeEnvironments, input.networkStatus),
+      activeMachines.some((machine) => machine.connectionState === "connected"),
+    hasConnectingMachine: connectingMachines.length > 0,
+    connectingMachines,
+    connectionState: overallConnectionState(activeMachines, input.networkStatus),
     connectionError:
-      activeEnvironments.find((environment) => environment.connectionError !== null)
+      activeMachines.find((machine) => machine.connectionError !== null)
         ?.connectionError ?? null,
     networkStatus: input.networkStatus,
   };
@@ -91,17 +91,17 @@ export function projectWorkspaceConnectionState(input: {
 export function projectWorkspaceState(input: {
   readonly isReady: boolean;
   readonly networkStatus: NetworkStatus;
-  readonly environments: ReadonlyArray<WorkspaceEnvironment>;
-  readonly shellSummary: EnvironmentShellSummary;
-  readonly hasSyncingConnectedEnvironment: boolean;
+  readonly machines: ReadonlyArray<WorkspaceMachine>;
+  readonly shellSummary: MachineShellSummary;
+  readonly hasSyncingConnectedMachine: boolean;
 }): WorkspaceState {
   return {
     ...projectWorkspaceConnectionState(input),
     hasLoadedShellSnapshot: input.shellSummary.hasSnapshot,
     hasPendingShellSnapshot: input.shellSummary.hasSynchronizingShell,
-    hasSyncingConnectedEnvironment: input.hasSyncingConnectedEnvironment,
+    hasSyncingConnectedMachine: input.hasSyncingConnectedMachine,
     shellSnapshotError: input.shellSummary.firstError,
   };
 }
 
-export type ServerConfigByEnvironmentId = ReadonlyMap<EnvironmentId, ServerConfig>;
+export type ServerConfigByMachineId = ReadonlyMap<MachineId, ServerConfig>;

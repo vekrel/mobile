@@ -1,21 +1,21 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import type {
-  HomeListFilterMenuEnvironment,
+  HomeListFilterMenuMachine,
   HomeListFilterMenuProject,
 } from "./home-list-filter-menu";
 
-export type HomeHeaderEnvironment = HomeListFilterMenuEnvironment;
+export type HomeHeaderMachine = HomeListFilterMenuMachine;
 
 export interface HomeHeaderProps {
-  readonly environments: ReadonlyArray<HomeHeaderEnvironment>;
+  readonly machines: ReadonlyArray<HomeHeaderMachine>;
   readonly projects: ReadonlyArray<HomeListFilterMenuProject>;
   readonly searchQuery: string;
-  readonly selectedEnvironmentId: EnvironmentId | null;
+  readonly selectedMachineId: MachineId | null;
   readonly selectedProjectKey: string | null;
   readonly onSearchQueryChange: (query: string) => void;
-  readonly onEnvironmentChange: (environmentId: EnvironmentId | null) => void;
+  readonly onMachineChange: (machineId: MachineId | null) => void;
   readonly onProjectChange: (projectKey: string | null) => void;
-  readonly onOpenEnvironments: () => void;
+  readonly onOpenMachines: () => void;
   readonly onOpenSettings: () => void;
   readonly onStartNewTask: () => void;
 }

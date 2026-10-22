@@ -25,7 +25,7 @@ import { useRestingTopOffset } from "../../native/useRestingTopOffset";
 import { NativePrimaryColumnContext } from "../../native/v5-workspace-context";
 import { useWorkspaceState } from "../../state/workspace";
 import { useProjects } from "../../state/entities";
-import { environmentServerConfigsAtom } from "../../state/server";
+import { machineServerConfigsAtom } from "../../state/server";
 import { PullRequestListRow } from "./PullRequestListRow";
 import { PullRequestListFilters } from "./PullRequestListFilters";
 import { PullRequestCardRow } from "./PullRequestControls";
@@ -38,7 +38,7 @@ import {
   pullRequestListInput,
   pullRequestListRowsAreEqual,
   scopedPullRequestListKey as pullRequestKey,
-  type EnvironmentPullRequestListEntry,
+  type MachinePullRequestListEntry,
   withoutScratchProjectScope,
 } from "./pullRequestList";
 import { useDebouncedValue } from "../../state/queries";
@@ -92,8 +92,8 @@ export function PullRequestsScreen(
   const navigation = useNavigation();
   const primaryColumn = use(NativePrimaryColumnContext);
   const workspace = useWorkspaceTabs()!;
-  const { environments } = useWorkspaceState();
-  const configs = useAtomValue(environmentServerConfigsAtom);
+  const { machines } = useWorkspaceState();
+  const configs = useAtomValue(machineServerConfigsAtom);
   const insets = useSafeAreaInsets();
   const [initialOffset] = useState(() => workspace.getScrollOffset("pullRequests"));
   const listRef = useRef<LegendListRef>(null);
@@ -110,16 +110,16 @@ export function PullRequestsScreen(
   const typedQuery = tab.searchMode === "resting" ? "" : tab.query;
   const typedDraft = parsePullRequestQuery(typedQuery).filters.draft;
   const listControls = usePullRequestListControls();
-  const selectedEnvironmentId = listControls.environmentId;
-  const environmentId = environments.some((item) => item.environmentId === selectedEnvironmentId)
-    ? selectedEnvironmentId
+  const selectedMachineId = listControls.machineId;
+  const machineId = machines.some((item) => item.machineId === selectedMachineId)
+    ? selectedMachineId
     : null;
   const selectAndroidWorkspace = useAndroidWorkspaceSelection();
   const selectPullRequest = useCallback(
-    (item: EnvironmentPullRequestListEntry) => {
+    (item: MachinePullRequestListEntry) => {
       Keyboard.dismiss();
       const params = {
-        environmentId: String(item.environmentId),
+        machineId: String(item.machineId),
         projectId: String(item.projectId),
         repository: item.repository,
         number: item.number,
@@ -132,44 +132,44 @@ export function PullRequestsScreen(
     [navigation, selectAndroidWorkspace],
   );
   const allProjects = useProjects();
-  const savedControls = listControls.controlsFor(environmentId);
+  const savedControls = listControls.controlsFor(machineId);
   const controls = useMemo(
     () => withoutScratchProjectScope(savedControls, allProjects),
     [allProjects, savedControls],
   );
   const targets = useMemo(
     () =>
-      environments
+      machines
         .filter(
-          (environment) =>
-            configs.get(environment.environmentId)?.environment.capabilities.pullRequests ===
+          (machine) =>
+            configs.get(machine.machineId)?.machine.capabilities.pullRequests ===
               true &&
-            (environmentId === null || environment.environmentId === environmentId) &&
-            (!controls.projectEnvironmentId ||
-              environment.environmentId === controls.projectEnvironmentId),
+            (machineId === null || machine.machineId === machineId) &&
+            (!controls.projectMachineId ||
+              machine.machineId === controls.projectMachineId),
         )
-        .sort((left, right) => left.environmentId.localeCompare(right.environmentId))
-        .map((environment) => ({
-          environmentId: environment.environmentId,
+        .sort((left, right) => left.machineId.localeCompare(right.machineId))
+        .map((machine) => ({
+          machineId: machine.machineId,
           input: pullRequestListInput(controls, query),
         })),
-    [environments, environmentId, configs, controls, query],
+    [machines, machineId, configs, controls, query],
   );
   const result = usePullRequestList(targets);
   const connectedTargets = targets.filter((target) =>
-    environments.some(
-      (environment) =>
-        environment.environmentId === target.environmentId &&
-        environment.connectionState === "connected",
+    machines.some(
+      (machine) =>
+        machine.machineId === target.machineId &&
+        machine.connectionState === "connected",
     ),
   );
   const { actions, select, busyKey } = usePullRequestListActions(
-    connectedTargets.map((target) => target.environmentId),
+    connectedTargets.map((target) => target.machineId),
     result.updateEntry,
   );
   const sidebar = props.sidebar === true || primaryColumn !== null;
   const selectedKey = props.selectedPullRequestKey ?? primaryColumn?.selectedPullRequestKey;
-  const connectedKey = connectedTargets.map((target) => target.environmentId).join("\n");
+  const connectedKey = connectedTargets.map((target) => target.machineId).join("\n");
   const entries = useMemo(
     () =>
       filterPullRequestList(
@@ -183,20 +183,20 @@ export function PullRequestsScreen(
     [result.entries, controls, query, result.data, connectedKey],
   );
   const facets = useMemo(() => pullRequestListFacets(result.entries), [result.entries]);
-  const [knownFacets, setKnownFacets] = useState({ environmentId, source: facets, ...facets });
-  if (knownFacets.environmentId !== environmentId || knownFacets.source !== facets) {
+  const [knownFacets, setKnownFacets] = useState({ machineId, source: facets, ...facets });
+  if (knownFacets.machineId !== machineId || knownFacets.source !== facets) {
     setKnownFacets((previous) => ({
       source: facets,
-      environmentId,
+      machineId,
       authors: [
         ...new Set([
-          ...(previous.environmentId === environmentId ? previous.authors : []),
+          ...(previous.machineId === machineId ? previous.authors : []),
           ...facets.authors,
         ]),
       ].sort(),
       labels: [
         ...new Set([
-          ...(previous.environmentId === environmentId ? previous.labels : []),
+          ...(previous.machineId === machineId ? previous.labels : []),
           ...facets.labels,
         ]),
       ].sort(),
@@ -204,10 +204,10 @@ export function PullRequestsScreen(
   }
   const projects = allProjects.filter(
     (project) =>
-      !project.isScratch && (environmentId === null || project.environmentId === environmentId),
+      !project.isScratch && (machineId === null || project.machineId === machineId),
   );
   const renderPullRequest = useCallback(
-    ({ item }: { readonly item: EnvironmentPullRequestListEntry }) => (
+    ({ item }: { readonly item: MachinePullRequestListEntry }) => (
       <PullRequestListRow
         item={item}
         onSelect={selectPullRequest}
@@ -287,12 +287,12 @@ export function PullRequestsScreen(
           <>
             <PullRequestListFilters
               sidebar={sidebar}
-              environments={environments.map((item) => ({
-                id: String(item.environmentId),
-                label: item.environmentLabel,
+              machines={machines.map((item) => ({
+                id: String(item.machineId),
+                label: item.machineLabel,
               }))}
-              environmentId={environmentId}
-              onEnvironmentChange={listControls.setEnvironmentId}
+              machineId={machineId}
+              onMachineChange={listControls.setMachineId}
               value={
                 typedDraft
                   ? { ...controls, filters: { ...controls.filters, draft: typedDraft } }
@@ -304,7 +304,7 @@ export function PullRequestsScreen(
                   controls.filters,
                   next.filters,
                 );
-                listControls.setControls(environmentId, { ...next, filters: update.filters });
+                listControls.setControls(machineId, { ...next, filters: update.filters });
                 if (update.query !== typedQuery)
                   workspace.dispatch({ type: "query", tab: "pullRequests", query: update.query });
                 void listRef.current?.scrollToOffset({
@@ -313,10 +313,10 @@ export function PullRequestsScreen(
                 });
               }}
               authors={
-                knownFacets.environmentId === environmentId ? knownFacets.authors : facets.authors
+                knownFacets.machineId === machineId ? knownFacets.authors : facets.authors
               }
               labels={
-                knownFacets.environmentId === environmentId ? knownFacets.labels : facets.labels
+                knownFacets.machineId === machineId ? knownFacets.labels : facets.labels
               }
               projects={projects}
             />
@@ -325,7 +325,7 @@ export function PullRequestsScreen(
                 key={JSON.stringify(targets)}
                 messages={result.data.errors.map(
                   (error) =>
-                    `${error.projectTitle || environments.find((environment) => environment.environmentId === error.environmentId)?.environmentLabel || "Environment"}: ${error.message}`,
+                    `${error.projectTitle || machines.find((machine) => machine.machineId === error.machineId)?.machineLabel || "Machine"}: ${error.message}`,
                 )}
               />
             ) : null}
@@ -362,20 +362,20 @@ export function PullRequestsScreen(
                   result.error
                     ? "Couldn't load pull requests"
                     : targets.length && connectedTargets.length === 0
-                      ? "Environment offline"
+                      ? "Machine offline"
                       : targets.length
                         ? query
                           ? "No results"
                           : "No matching pull requests"
-                        : "Connect an environment"
+                        : "Connect a machine"
                 }
                 detail={
                   result.error ??
                   (targets.length && connectedTargets.length === 0
                     ? "Reconnect to load pull requests that aren't saved on this device."
                     : targets.length
-                      ? "Pull requests from the selected environments' projects appear here."
-                      : "Add an environment in Settings to browse its pull requests.")
+                      ? "Pull requests from the selected machines' projects appear here."
+                      : "Add a machine in Settings to browse its pull requests.")
                 }
                 variant="plain"
               />

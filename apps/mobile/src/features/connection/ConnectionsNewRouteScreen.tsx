@@ -11,7 +11,7 @@ import {
   useRoute,
   type StaticScreenProps,
 } from "@react-navigation/native";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { AsyncResult } from "effect/reactivity";
 import { useEffect, useRef, useState } from "react";
 import { Linking, Pressable, StyleSheet, View } from "react-native";
@@ -27,17 +27,17 @@ import { buildPairingUrl, extractPairingUrlFromQrPayload, parsePairingUrl } from
 import {
   setPendingConnectionError,
   useRemoteConnections,
-} from "../../state/use-remote-environment-registry";
+} from "../../state/use-remote-machine-registry";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { hasCloudPublicConfig } from "../cloud/publicConfig";
-import { CloudEnvironmentRows } from "./CloudEnvironmentRows";
-import { splitEnvironmentSections } from "./environmentSections";
+import { CloudMachineRows } from "./CloudMachineRows";
+import { splitMachineSections } from "./machineSections";
 
 type ConnectionsNewRouteParams = {
   readonly mode?: string;
   readonly pairingUrl?: string;
   readonly autoConnect?: string;
-  readonly routeFor?: EnvironmentId;
+  readonly routeFor?: MachineId;
 };
 
 export function ConnectionsNewRouteScreen({
@@ -189,10 +189,10 @@ export function ConnectionsNewRouteScreen({
   return (
     <SettingsScreen
       formSheet={routeName === "ConnectionsNew"}
-      title="Add environment"
+      title="Add machine"
       actions={[
         {
-          accessibilityLabel: isSubmitting ? "Connecting" : "Add environment",
+          accessibilityLabel: isSubmitting ? "Connecting" : "Add machine",
           loading: isSubmitting,
           icon: "checkmark",
           tintColor: headerIconColor,
@@ -366,11 +366,11 @@ function PairingScanCard(props: {
 function T3ConnectSection() {
   const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
   const navigation = useNavigation();
-  const { connectedEnvironments, onSetEnvironmentEnabled, onRemoveEnvironmentPress } =
+  const { connectedMachines, onSetMachineEnabled, onRemoveMachinePress } =
     useRemoteConnections();
-  const { connectedCloudEnvironments } = splitEnvironmentSections({
-    connectedEnvironments,
-    cloudEnvironments: null,
+  const { connectedCloudMachines } = splitMachineSections({
+    connectedMachines,
+    cloudMachines: null,
   });
 
   return (
@@ -379,10 +379,10 @@ function T3ConnectSection() {
         Or use the managed relay
       </Text>
       {isSignedIn ? (
-        <CloudEnvironmentRows
-          connectedCloudEnvironments={connectedCloudEnvironments}
-          onSetEnvironmentEnabled={onSetEnvironmentEnabled}
-          onRemoveEnvironment={onRemoveEnvironmentPress}
+        <CloudMachineRows
+          connectedCloudMachines={connectedCloudMachines}
+          onSetMachineEnabled={onSetMachineEnabled}
+          onRemoveMachine={onRemoveMachinePress}
           showHeader={false}
         />
       ) : (

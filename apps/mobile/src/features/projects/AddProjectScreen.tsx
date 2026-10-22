@@ -10,7 +10,7 @@ import {
   addProjectRemoteSourceProvider,
   buildAddProjectRemoteSourceReadiness,
   buildProjectCreateCommand,
-  canCreateProjectInEnvironment,
+  canCreateProjectInMachine,
   findExistingAddProject,
   getAddProjectInitialQuery,
   getCloneDestinationBrowsePath,
@@ -29,7 +29,7 @@ import {
 } from "@vekrel/client-runtime/operations/projects";
 import {
   connectionStatusText,
-  type EnvironmentConnectionPhase,
+  type MachineConnectionPhase,
 } from "@vekrel/client-runtime/connection";
 import {
   canPreloadBrowsePath,
@@ -48,10 +48,10 @@ import {
   AuthSourceControlWriteScope,
   AuthFilesystemReadScope,
   CommandId,
-  type EnvironmentId,
-  type EnvironmentMachineKind,
+  type MachineId,
+  type MachineKind,
   ProjectId,
-  resolveEnvironmentMachineKind,
+  resolveMachineKind,
   SourceControlProviderKind,
 } from "@vekrel/contracts";
 import {
@@ -71,14 +71,14 @@ import * as Order from "effect/Order";
 import { AsyncResult } from "effect/reactivity";
 import { cn } from "../../lib/cn";
 import { useProjects, useServerConfigs, waitForProject } from "../../state/entities";
-import { filesystemEnvironment } from "../../state/filesystem";
-import { projectEnvironment } from "../../state/projects";
-import { useEnvironmentQuery } from "../../state/query";
-import { environmentSession, useEnvironmentScope, readEnvironmentScope } from "../../state/session";
-import { useEnvironmentPresentation } from "../../state/presentation";
-import { sourceControlEnvironment } from "../../state/sourceControl";
+import { filesystemMachine } from "../../state/filesystem";
+import { projectMachine } from "../../state/projects";
+import { useMachineQuery } from "../../state/query";
+import { machineSession, useMachineScope, readMachineScope } from "../../state/session";
+import { useMachinePresentation } from "../../state/presentation";
+import { sourceControlMachine } from "../../state/sourceControl";
 import { AppText as Text, AppTextInput as TextInput } from "../../components/ui/AppText";
-import { EnvironmentMachineSymbol } from "../../components/EnvironmentMachineSymbol";
+import { MachineSymbol } from "../../components/MachineSymbol";
 import { ErrorBanner } from "../../components/ui/ErrorBanner";
 import { SourceControlIcon } from "./SourceControlIcon";
 import { sourceControlClients } from "@vekrel/client-runtime/source-control-clients";
@@ -88,34 +88,34 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import {
   useRemoteConnectionStatus,
-  useRemoteEnvironmentRuntime,
+  useRemoteMachineRuntime,
   useSavedRemoteConnections,
-} from "../../state/use-remote-environment-registry";
-import { resolveAddProjectEnvironment } from "./AddProjectScreen.logic";
+} from "../../state/use-remote-machine-registry";
+import { resolveAddProjectMachine } from "./AddProjectScreen.logic";
 import {
   createNewTaskDraft,
   setComposerDraftText,
   waitForComposerDraftsLoaded,
 } from "../../state/use-composer-drafts";
 
-interface EnvironmentOption {
-  readonly environmentId: EnvironmentId;
+interface MachineOption {
+  readonly machineId: MachineId;
   readonly label: string;
   readonly platform: string;
-  readonly machine: EnvironmentMachineKind;
+  readonly machine: MachineKind;
   readonly baseDirectory: string | null;
   readonly newProjectsRoot: string | null;
-  readonly connectionState: EnvironmentConnectionPhase;
+  readonly connectionState: MachineConnectionPhase;
   readonly connectionError: string | null;
   readonly connectionErrorTraceId: string | null;
   readonly supportsCloneTracking: boolean;
 }
 
-const environmentOptionOrder = Order.mapInput(
+const machineOptionOrder = Order.mapInput(
   Order.Struct({
     label: Order.String,
   }),
-  (environment: EnvironmentOption) => ({ label: environment.label }),
+  (machine: MachineOption) => ({ label: machine.label }),
 );
 
 function platformFromOs(os: string | null | undefined): string {
@@ -290,19 +290,19 @@ function ProjectPathInput(props: {
   );
 }
 
-function useBrowsePathInput(environment: EnvironmentOption | null, pinnedDirectoryName = "") {
-  const environmentId = environment?.environmentId ?? null;
-  const environmentBaseDirectory = environment?.baseDirectory ?? null;
-  const clonePathCaseSensitive = !isWindowsPlatform(environment?.platform ?? "");
+function useBrowsePathInput(machine: MachineOption | null, pinnedDirectoryName = "") {
+  const machineId = machine?.machineId ?? null;
+  const machineBaseDirectory = machine?.baseDirectory ?? null;
+  const clonePathCaseSensitive = !isWindowsPlatform(machine?.platform ?? "");
   const [pathInput, commitPathInput] = useState(() =>
     getCloneDestinationPath(
-      getAddProjectInitialQuery(environmentBaseDirectory),
+      getAddProjectInitialQuery(machineBaseDirectory),
       pinnedDirectoryName,
     ),
   );
-  const previousEnvironmentIdRef = useRef(environmentId);
-  const environmentRuntime = useRemoteEnvironmentRuntime(environmentId);
-  const loadBrowsePath = useAtomQueryRunner(filesystemEnvironment.browse, {
+  const previousMachineIdRef = useRef(machineId);
+  const machineRuntime = useRemoteMachineRuntime(machineId);
+  const loadBrowsePath = useAtomQueryRunner(filesystemMachine.browse, {
     reportFailure: false,
     reportDefect: false,
   });
@@ -333,12 +333,12 @@ function useBrowsePathInput(environment: EnvironmentOption | null, pinnedDirecto
     const committed = await browseNavigation.run(
       async () => {
         if (
-          environment &&
-          readEnvironmentScope(environment.environmentId, AuthFilesystemReadScope) &&
-          canPreloadBrowsePath(environmentRuntime?.connectionState)
+          machine &&
+          readMachineScope(machine.machineId, AuthFilesystemReadScope) &&
+          canPreloadBrowsePath(machineRuntime?.connectionState)
         ) {
           await loadBrowsePath({
-            environmentId: environment.environmentId,
+            machineId: machine.machineId,
             input: { partialPath: selectedDirectoryPath },
           });
         }
@@ -352,16 +352,16 @@ function useBrowsePathInput(environment: EnvironmentOption | null, pinnedDirecto
   };
 
   useEffect(() => {
-    if (environmentId !== null && environmentId !== previousEnvironmentIdRef.current) {
-      previousEnvironmentIdRef.current = environmentId;
+    if (machineId !== null && machineId !== previousMachineIdRef.current) {
+      previousMachineIdRef.current = machineId;
       setPathInput(
         getCloneDestinationPath(
-          getAddProjectInitialQuery(environmentBaseDirectory),
+          getAddProjectInitialQuery(machineBaseDirectory),
           pinnedDirectoryName,
         ),
       );
     }
-  }, [environmentBaseDirectory, environmentId, pinnedDirectoryName, setPathInput]);
+  }, [machineBaseDirectory, machineId, pinnedDirectoryName, setPathInput]);
 
   useEffect(
     () => () => {
@@ -373,75 +373,75 @@ function useBrowsePathInput(environment: EnvironmentOption | null, pinnedDirecto
   return { isBrowseNavigating, pathInput, setPathInput, navigateToBrowsePath };
 }
 
-function useEnvironmentOptions(): ReadonlyArray<EnvironmentOption> {
-  const serverConfigByEnvironmentId = useServerConfigs();
+function useMachineOptions(): ReadonlyArray<MachineOption> {
+  const serverConfigByMachineId = useServerConfigs();
   const { savedConnectionsById } = useSavedRemoteConnections();
-  const { connectedEnvironments } = useRemoteConnectionStatus();
+  const { connectedMachines } = useRemoteConnectionStatus();
 
-  return ((): ReadonlyArray<EnvironmentOption> => {
-    const runtimeByEnvironmentId = new Map(
-      connectedEnvironments.map((environment) => [environment.environmentId, environment] as const),
+  return ((): ReadonlyArray<MachineOption> => {
+    const runtimeByMachineId = new Map(
+      connectedMachines.map((machine) => [machine.machineId, machine] as const),
     );
     const options = Object.values(savedConnectionsById).map((connection) => {
-      const config = serverConfigByEnvironmentId.get(connection.environmentId);
-      const runtime = runtimeByEnvironmentId.get(connection.environmentId);
+      const config = serverConfigByMachineId.get(connection.machineId);
+      const runtime = runtimeByMachineId.get(connection.machineId);
       return {
-        environmentId: connection.environmentId,
-        label: connection.environmentLabel,
-        platform: platformFromOs(config?.environment.platform.os ?? null),
-        machine: resolveEnvironmentMachineKind(config ?? null),
+        machineId: connection.machineId,
+        label: connection.machineLabel,
+        platform: platformFromOs(config?.machine.platform.os ?? null),
+        machine: resolveMachineKind(config ?? null),
         baseDirectory: config?.settings.addProjectBaseDirectory ?? null,
         newProjectsRoot: config?.newProjectsRoot ?? null,
         connectionState: runtime?.connectionState ?? "available",
         connectionError: runtime?.connectionError ?? null,
         connectionErrorTraceId: runtime?.connectionErrorTraceId ?? null,
-        supportsCloneTracking: config?.environment.capabilities.projectCloneTracking === true,
+        supportsCloneTracking: config?.machine.capabilities.projectCloneTracking === true,
       };
     });
     return Arr.sort(
-      options.filter((environment) => canCreateProjectInEnvironment(environment.connectionState)),
-      environmentOptionOrder,
+      options.filter((machine) => canCreateProjectInMachine(machine.connectionState)),
+      machineOptionOrder,
     );
   })();
 }
 
-function useSelectedEnvironment(): {
-  readonly environmentOptions: ReadonlyArray<EnvironmentOption>;
-  readonly selectedEnvironment: EnvironmentOption | null;
-  readonly setSelectedEnvironmentId: (environmentId: EnvironmentId) => void;
+function useSelectedMachine(): {
+  readonly machineOptions: ReadonlyArray<MachineOption>;
+  readonly selectedMachine: MachineOption | null;
+  readonly setSelectedMachineId: (machineId: MachineId) => void;
 } {
-  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState<EnvironmentId | null>(null);
-  const environmentOptions = useEnvironmentOptions();
-  const selectedEnvironment =
-    environmentOptions.find(
-      (environment) =>
-        environment.environmentId === selectedEnvironmentId &&
-        canCreateProjectInEnvironment(environment.connectionState),
+  const [selectedMachineId, setSelectedMachineId] = useState<MachineId | null>(null);
+  const machineOptions = useMachineOptions();
+  const selectedMachine =
+    machineOptions.find(
+      (machine) =>
+        machine.machineId === selectedMachineId &&
+        canCreateProjectInMachine(machine.connectionState),
     ) ??
-    environmentOptions.find((environment) =>
-      canCreateProjectInEnvironment(environment.connectionState),
+    machineOptions.find((machine) =>
+      canCreateProjectInMachine(machine.connectionState),
     ) ??
     null;
 
   return {
-    environmentOptions,
-    selectedEnvironment,
-    setSelectedEnvironmentId,
+    machineOptions,
+    selectedMachine,
+    setSelectedMachineId,
   };
 }
 
-function EmptyEnvironmentState() {
+function EmptyMachineState() {
   const navigation = useNavigation();
 
   return (
     <View className="items-center gap-3 rounded-2xl bg-grouped-card px-5 py-8">
-      <Text className="text-center text-lg font-t3-bold">Environment unavailable</Text>
+      <Text className="text-center text-lg font-t3-bold">Machine unavailable</Text>
       <Text className="text-center text-sm leading-normal text-foreground-muted">
-        Start or reconnect an environment before adding a project.
+        Start or reconnect a machine before adding a project.
       </Text>
       <View className="mt-1">
         <Button
-          label="Add environment"
+          label="Add machine"
           tone="primary"
           onPress={() => navigation.dispatch(StackActions.replace("ConnectionsNew"))}
         />
@@ -452,7 +452,7 @@ function EmptyEnvironmentState() {
 
 function SourceControlRow(props: {
   readonly source: AddProjectRemoteSource;
-  readonly selectedEnvironmentId: EnvironmentId;
+  readonly selectedMachineId: MachineId;
   readonly ready: boolean;
   readonly hint: string;
   readonly isFirst: boolean;
@@ -495,7 +495,7 @@ function SourceControlRow(props: {
       onPress={() =>
         navigation.dispatch(
           StackActions.push("AddProjectRepository", {
-            environmentId: props.selectedEnvironmentId,
+            machineId: props.selectedMachineId,
             source: props.source,
           }),
         )
@@ -506,22 +506,22 @@ function SourceControlRow(props: {
 
 export function AddProjectSourceScreen() {
   const navigation = useNavigation();
-  const { environmentOptions, selectedEnvironment, setSelectedEnvironmentId } =
-    useSelectedEnvironment();
-  const canWriteSourceControl = useEnvironmentScope(
-    selectedEnvironment?.environmentId ?? null,
+  const { machineOptions, selectedMachine, setSelectedMachineId } =
+    useSelectedMachine();
+  const canWriteSourceControl = useMachineScope(
+    selectedMachine?.machineId ?? null,
     AuthSourceControlWriteScope,
   );
-  const canCreateProject = useEnvironmentScope(
-    selectedEnvironment?.environmentId ?? null,
+  const canCreateProject = useMachineScope(
+    selectedMachine?.machineId ?? null,
     AuthOrchestrationOperateScope,
   );
   const canCloneProject = canWriteSourceControl && canCreateProject;
-  const discoveryState = useEnvironmentQuery(
-    selectedEnvironment === null
+  const discoveryState = useMachineQuery(
+    selectedMachine === null
       ? null
-      : sourceControlEnvironment.discovery({
-          environmentId: selectedEnvironment.environmentId,
+      : sourceControlMachine.discovery({
+          machineId: selectedMachine.machineId,
           input: {},
         }),
   );
@@ -529,37 +529,37 @@ export function AddProjectSourceScreen() {
 
   return (
     <AddProjectShell title="Add project">
-      {selectedEnvironment === null ? <EmptyEnvironmentState /> : null}
+      {selectedMachine === null ? <EmptyMachineState /> : null}
 
-      {environmentOptions.length > 1 ? (
+      {machineOptions.length > 1 ? (
         <>
-          <SectionTitle>Environments</SectionTitle>
+          <SectionTitle>Machines</SectionTitle>
           <ListSection>
-            {environmentOptions.map((environment, index) => (
+            {machineOptions.map((machine, index) => (
               <ListRow
-                key={environment.environmentId}
-                title={environment.label}
+                key={machine.machineId}
+                title={machine.label}
                 subtitle={
-                  canCreateProjectInEnvironment(environment.connectionState)
+                  canCreateProjectInMachine(machine.connectionState)
                     ? undefined
                     : connectionStatusText({
-                        phase: environment.connectionState,
-                        error: environment.connectionError,
-                        traceId: environment.connectionErrorTraceId,
+                        phase: machine.connectionState,
+                        error: machine.connectionError,
+                        traceId: machine.connectionErrorTraceId,
                       })
                 }
                 icon={
-                  <EnvironmentMachineSymbol
-                    kind={environment.machine}
+                  <MachineSymbol
+                    kind={machine.machine}
                     size={Platform.OS === "android" ? 24 : 17}
                     tintColorClassName="accent-icon"
                   />
                 }
-                selected={environment.environmentId === selectedEnvironment?.environmentId}
-                disabled={!canCreateProjectInEnvironment(environment.connectionState)}
+                selected={machine.machineId === selectedMachine?.machineId}
+                disabled={!canCreateProjectInMachine(machine.connectionState)}
                 isFirst={index === 0}
                 right={
-                  environment.environmentId === selectedEnvironment?.environmentId ? (
+                  machine.machineId === selectedMachine?.machineId ? (
                     <SymbolView
                       name="checkmark"
                       size={Platform.OS === "android" ? 20 : 14}
@@ -568,17 +568,17 @@ export function AddProjectSourceScreen() {
                     />
                   ) : null
                 }
-                onPress={() => setSelectedEnvironmentId(environment.environmentId)}
+                onPress={() => setSelectedMachineId(machine.machineId)}
               />
             ))}
           </ListSection>
         </>
       ) : null}
 
-      {selectedEnvironment ? (
+      {selectedMachine ? (
         <>
           <ListSection>
-            {selectedEnvironment.newProjectsRoot !== null ? (
+            {selectedMachine.newProjectsRoot !== null ? (
               <ListRow
                 title="New project"
                 subtitle="Start a new Git repository from a name"
@@ -594,7 +594,7 @@ export function AddProjectSourceScreen() {
                 onPress={() =>
                   navigation.dispatch(
                     StackActions.push("AddProjectNew", {
-                      environmentId: selectedEnvironment.environmentId,
+                      machineId: selectedMachine.machineId,
                     }),
                   )
                 }
@@ -615,12 +615,12 @@ export function AddProjectSourceScreen() {
                   type="monochrome"
                 />
               }
-              isFirst={selectedEnvironment.newProjectsRoot === null}
+              isFirst={selectedMachine.newProjectsRoot === null}
               disabled={!canCreateProject}
               onPress={() =>
                 navigation.dispatch(
                   StackActions.push("AddProjectLocal", {
-                    environmentId: selectedEnvironment.environmentId,
+                    machineId: selectedMachine.machineId,
                   }),
                 )
               }
@@ -630,7 +630,7 @@ export function AddProjectSourceScreen() {
                 <SourceControlRow
                   key={candidate}
                   source={candidate}
-                  selectedEnvironmentId={selectedEnvironment.environmentId}
+                  selectedMachineId={selectedMachine.machineId}
                   ready={canCloneProject && readiness(candidate).ready}
                   hint={
                     !canCloneProject
@@ -659,7 +659,7 @@ function openNewTaskDraft(
     getState: () => NavigationState<ParamListBase> | undefined;
   },
   params: {
-    environmentId: EnvironmentId;
+    machineId: MachineId;
     projectId: ProjectId;
     title: string;
     cloning?: "1";
@@ -677,26 +677,26 @@ function openNewTaskDraft(
 }
 
 async function draftWithPrompt(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   projectId: ProjectId,
   prompt: string,
 ): Promise<string> {
   await waitForComposerDraftsLoaded();
-  const draftId = createNewTaskDraft({ environmentId, projectId });
+  const draftId = createNewTaskDraft({ machineId, projectId });
   setComposerDraftText(draftId, prompt);
   return draftId;
 }
 
-function useCreateProject(environment: EnvironmentOption | null) {
+function useCreateProject(machine: MachineOption | null) {
   const navigation = useNavigation();
-  const createProject = useAtomCommand(projectEnvironment.create, { reportFailure: false });
+  const createProject = useAtomCommand(projectMachine.create, { reportFailure: false });
   const projects = useProjects();
 
   return async (workspaceRoot: string) => {
     if (
-      !environment ||
-      !canCreateProjectInEnvironment(environment.connectionState) ||
-      !readEnvironmentScope(environment.environmentId, AuthOrchestrationOperateScope)
+      !machine ||
+      !canCreateProjectInMachine(machine.connectionState) ||
+      !readMachineScope(machine.machineId, AuthOrchestrationOperateScope)
     ) {
       Dialog.alert(
         "Project not added",
@@ -707,13 +707,13 @@ function useCreateProject(environment: EnvironmentOption | null) {
 
     const existing = findExistingAddProject({
       projects,
-      environmentId: environment.environmentId,
+      machineId: machine.machineId,
       path: workspaceRoot,
     });
     if (existing) {
       Dialog.alert("Project already exists", existing.title);
       openNewTaskDraft(navigation, {
-        environmentId: existing.environmentId,
+        machineId: existing.machineId,
         projectId: existing.id,
         title: existing.title,
       });
@@ -727,14 +727,14 @@ function useCreateProject(environment: EnvironmentOption | null) {
       workspaceRoot,
     });
     const result = await createProject({
-      environmentId: environment.environmentId,
+      machineId: machine.machineId,
       input: command,
     });
     if (AsyncResult.isFailure(result)) {
       return result;
     }
     openNewTaskDraft(navigation, {
-      environmentId: environment.environmentId,
+      machineId: machine.machineId,
       projectId,
       title: inferProjectTitleFromPath(workspaceRoot),
     });
@@ -742,30 +742,30 @@ function useCreateProject(environment: EnvironmentOption | null) {
   };
 }
 
-function useEnvironmentFromParam(
-  environmentIdParam: string | string[] | undefined,
-): EnvironmentOption | null {
-  const environmentOptions = useEnvironmentOptions();
-  const environmentId = stringParam(environmentIdParam) as EnvironmentId | null;
-  return resolveAddProjectEnvironment(environmentOptions, environmentId);
+function useMachineFromParam(
+  machineIdParam: string | string[] | undefined,
+): MachineOption | null {
+  const machineOptions = useMachineOptions();
+  const machineId = stringParam(machineIdParam) as MachineId | null;
+  return resolveAddProjectMachine(machineOptions, machineId);
 }
 
 export function AddProjectRepositoryScreen(props: {
-  readonly environmentId?: string | string[];
+  readonly machineId?: string | string[];
   readonly source?: string | string[];
 }) {
-  const lookupRepositoryQuery = useAtomQueryRunner(sourceControlEnvironment.repository, {
+  const lookupRepositoryQuery = useAtomQueryRunner(sourceControlMachine.repository, {
     reportFailure: false,
   });
   const navigation = useNavigation();
-  const environment = useEnvironmentFromParam(props.environmentId);
+  const machine = useMachineFromParam(props.machineId);
   const source = sourceFromParam(props.source);
   const [repositoryInput, setRepositoryInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const lookupRepository = async () => {
-    if (!environment || repositoryInput.trim().length === 0 || isSubmitting) return;
+    if (!machine || repositoryInput.trim().length === 0 || isSubmitting) return;
     setError(null);
     setIsSubmitting(true);
     const provider = addProjectRemoteSourceProvider(source);
@@ -773,7 +773,7 @@ export function AddProjectRepositoryScreen(props: {
       const remoteUrl = normalizePastedCloneUrl(repositoryInput);
       navigation.dispatch(
         StackActions.push("AddProjectDestination", {
-          environmentId: environment.environmentId,
+          machineId: machine.machineId,
           source,
           remoteUrl,
           repositoryTitle: remoteUrl,
@@ -785,7 +785,7 @@ export function AddProjectRepositoryScreen(props: {
     }
 
     const result = await lookupRepositoryQuery({
-      environmentId: environment.environmentId,
+      machineId: machine.machineId,
       input: {
         provider,
         repository: repositoryInput.trim(),
@@ -797,7 +797,7 @@ export function AddProjectRepositoryScreen(props: {
       const repository = result.value;
       navigation.dispatch(
         StackActions.push("AddProjectDestination", {
-          environmentId: environment.environmentId,
+          machineId: machine.machineId,
           source,
           remoteUrl: getDefaultCloneUrl(repository),
           repositoryTitle: repository.nameWithOwner,
@@ -811,7 +811,7 @@ export function AddProjectRepositoryScreen(props: {
   return (
     <AddProjectShell title={source === "url" ? "Git URL" : addProjectRemoteSourceLabel(source)}>
       {error ? <ErrorBanner message={error} /> : null}
-      {environment ? (
+      {machine ? (
         <>
           <TextInput
             className="h-12 min-h-12 rounded-[24px] px-4 py-0 text-base leading-snug"
@@ -835,14 +835,14 @@ export function AddProjectRepositoryScreen(props: {
           />
         </>
       ) : (
-        <EmptyEnvironmentState />
+        <EmptyMachineState />
       )}
     </AddProjectShell>
   );
 }
 
 function FolderBrowser(props: {
-  readonly environment: EnvironmentOption;
+  readonly machine: MachineOption;
   readonly pathInput: string;
   readonly setPathInput: (path: string) => void;
   readonly navigateToBrowsePath: (input: {
@@ -851,30 +851,30 @@ function FolderBrowser(props: {
   }) => Promise<boolean>;
   readonly pinnedDirectoryName?: string;
 }) {
-  const browsePath = getFilesystemBrowsePath(props.pathInput, props.environment.platform);
+  const browsePath = getFilesystemBrowsePath(props.pathInput, props.machine.platform);
   const browseInput =
     browsePath.directoryPath.length > 0 ? { partialPath: browsePath.directoryPath } : null;
-  const fileAccessSession = useEnvironmentQuery(
-    environmentSession.sessionStateAtom(props.environment.environmentId),
+  const fileAccessSession = useMachineQuery(
+    machineSession.sessionStateAtom(props.machine.machineId),
   );
-  const fileEnvironment = useEnvironmentPresentation(props.environment.environmentId);
+  const fileMachine = useMachinePresentation(props.machine.machineId);
   const fileAccess = resolveFilesystemReadAccess({
-    isCatalogReady: fileEnvironment.isReady,
-    connection: fileEnvironment.presentation?.connection ?? null,
+    isCatalogReady: fileMachine.isReady,
+    connection: fileMachine.presentation?.connection ?? null,
     session: fileAccessSession.data,
     sessionError: fileAccessSession.error,
   });
   const { canReadFiles } = fileAccess;
-  const browseState = useEnvironmentQuery(
+  const browseState = useMachineQuery(
     !canReadFiles || browseInput === null
       ? null
-      : filesystemEnvironment.browse({
-          environmentId: props.environment.environmentId,
+      : filesystemMachine.browse({
+          machineId: props.machine.machineId,
           input: browseInput,
         }),
   );
   const pinnedDirectoryName = props.pinnedDirectoryName ?? "";
-  const pinnedDirectoryMatches = isWindowsPlatform(props.environment.platform)
+  const pinnedDirectoryMatches = isWindowsPlatform(props.machine.platform)
     ? browsePath.filterQuery.toLowerCase() === pinnedDirectoryName.toLowerCase()
     : browsePath.filterQuery === pinnedDirectoryName;
   const browseFilterQuery = pinnedDirectoryMatches ? "" : browsePath.filterQuery;
@@ -945,24 +945,24 @@ function FolderBrowser(props: {
   );
 }
 
-export function AddProjectNewScreen(props: { readonly environmentId?: string | string[] }) {
+export function AddProjectNewScreen(props: { readonly machineId?: string | string[] }) {
   const navigation = useNavigation();
-  const environmentOptions = useEnvironmentOptions().filter(
+  const machineOptions = useMachineOptions().filter(
     (option) => option.newProjectsRoot !== null,
   );
-  const [selectedEnvironmentId, setSelectedEnvironmentId] = useState(
-    () => stringParam(props.environmentId) as EnvironmentId | null,
+  const [selectedMachineId, setSelectedMachineId] = useState(
+    () => stringParam(props.machineId) as MachineId | null,
   );
-  const environment = resolveAddProjectEnvironment(environmentOptions, selectedEnvironmentId);
-  const createNew = useAtomCommand(projectEnvironment.createNew, { reportFailure: false });
-  const publishRepository = useAtomCommand(sourceControlEnvironment.publishRepository, {
+  const machine = resolveAddProjectMachine(machineOptions, selectedMachineId);
+  const createNew = useAtomCommand(projectMachine.createNew, { reportFailure: false });
+  const publishRepository = useAtomCommand(sourceControlMachine.publishRepository, {
     reportFailure: false,
   });
-  const discoveryState = useEnvironmentQuery(
-    environment === null
+  const discoveryState = useMachineQuery(
+    machine === null
       ? null
-      : sourceControlEnvironment.discovery({
-          environmentId: environment.environmentId,
+      : sourceControlMachine.discovery({
+          machineId: machine.machineId,
           input: {},
         }),
   );
@@ -975,22 +975,22 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
   const [error, setError] = useState<string | null>(null);
   const trimmedName = name.trim();
   const pathPreview =
-    environment?.newProjectsRoot != null
-      ? getNewProjectPathPreview(environment.newProjectsRoot, trimmedName)
+    machine?.newProjectsRoot != null
+      ? getNewProjectPathPreview(machine.newProjectsRoot, trimmedName)
       : null;
 
   const showMachines =
-    environmentOptions.length > 1 || (environment === null && environmentOptions.length > 0);
+    machineOptions.length > 1 || (machine === null && machineOptions.length > 0);
   const machineRows = showMachines ? (
     <ListSection>
-      {environmentOptions.map((option, index) => {
-        const selected = option.environmentId === environment?.environmentId;
+      {machineOptions.map((option, index) => {
+        const selected = option.machineId === machine?.machineId;
         return (
           <ListRow
-            key={option.environmentId}
+            key={option.machineId}
             title={option.label}
             icon={
-              <EnvironmentMachineSymbol
+              <MachineSymbol
                 kind={option.machine}
                 size={Platform.OS === "android" ? 24 : 17}
                 tintColorClassName="accent-icon"
@@ -1009,7 +1009,7 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
                 />
               ) : null
             }
-            onPress={() => setSelectedEnvironmentId(option.environmentId)}
+            onPress={() => setSelectedMachineId(option.machineId)}
           />
         );
       })}
@@ -1019,12 +1019,12 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
   // State lags a render behind, so a double tap could start a second create.
   const submittingRef = useRef(false);
   const submit = async () => {
-    if (!environment || trimmedName.length === 0 || submittingRef.current) return;
+    if (!machine || trimmedName.length === 0 || submittingRef.current) return;
     submittingRef.current = true;
     setError(null);
     setIsSubmitting(true);
     const result = await createNew({
-      environmentId: environment.environmentId,
+      machineId: machine.machineId,
       input: { name: trimmedName },
     });
     if (AsyncResult.isFailure(result)) {
@@ -1039,7 +1039,7 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
     }
     if (publishes && publishTarget !== null) {
       void publishRepository({
-        environmentId: environment.environmentId,
+        machineId: machine.machineId,
         input: {
           cwd: workspaceRoot,
           provider: publishTarget.definition.kind,
@@ -1058,7 +1058,7 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
     // The draft screen resolves its project from the client store, so it
     // must not open before the create event has arrived.
     const project = await waitForProject(
-      { environmentId: environment.environmentId, projectId },
+      { machineId: machine.machineId, projectId },
       15_000,
     );
     submittingRef.current = false;
@@ -1071,7 +1071,7 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
       return;
     }
     openNewTaskDraft(navigation, {
-      environmentId: environment.environmentId,
+      machineId: machine.machineId,
       projectId,
       title: trimmedName,
     });
@@ -1080,7 +1080,7 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
   return (
     <AddProjectShell title="New project">
       {error ? <ErrorBanner message={error} /> : null}
-      {environment ? (
+      {machine ? (
         <>
           <TextInput
             className="h-12 min-h-12 rounded-[24px] px-4 py-0 text-base leading-snug"
@@ -1096,8 +1096,8 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
             <Text className="px-1 text-sm leading-snug text-foreground-muted" numberOfLines={2}>
               {trimmedName.length > 0
                 ? `Creates ${pathPreview}`
-                : `Goes in ${environment.newProjectsRoot}`}
-              {showMachines ? ` on ${environment.label}` : null}
+                : `Goes in ${machine.newProjectsRoot}`}
+              {showMachines ? ` on ${machine.label}` : null}
             </Text>
           ) : null}
           {machineRows}
@@ -1187,34 +1187,34 @@ export function AddProjectNewScreen(props: { readonly environmentId?: string | s
             />
           </ListSection>
         </>
-      ) : environmentOptions.length > 0 ? (
+      ) : machineOptions.length > 0 ? (
         machineRows
       ) : (
-        <EmptyEnvironmentState />
+        <EmptyMachineState />
       )}
     </AddProjectShell>
   );
 }
 
-export function AddProjectLocalFolderScreen(props: { readonly environmentId?: string | string[] }) {
-  const environment = useEnvironmentFromParam(props.environmentId);
-  const canCreateProject = useEnvironmentScope(
-    environment?.environmentId ?? null,
+export function AddProjectLocalFolderScreen(props: { readonly machineId?: string | string[] }) {
+  const machine = useMachineFromParam(props.machineId);
+  const canCreateProject = useMachineScope(
+    machine?.machineId ?? null,
     AuthOrchestrationOperateScope,
   );
-  const createProject = useCreateProject(environment);
+  const createProject = useCreateProject(machine);
   const { isBrowseNavigating, navigateToBrowsePath, pathInput, setPathInput } =
-    useBrowsePathInput(environment);
+    useBrowsePathInput(machine);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const submitPath = async () => {
-    if (!environment || isBrowseNavigating || isSubmitting) return;
+    if (!machine || isBrowseNavigating || isSubmitting) return;
     setError(null);
     const resolved = resolveAddProjectPath({
       rawPath: pathInput,
       currentProjectCwd: null,
-      platform: environment.platform,
+      platform: machine.platform,
     });
     if (!resolved.ok) {
       setError(resolved.error);
@@ -1232,7 +1232,7 @@ export function AddProjectLocalFolderScreen(props: { readonly environmentId?: st
   return (
     <AddProjectShell title="Local folder">
       {error ? <ErrorBanner message={error} /> : null}
-      {environment ? (
+      {machine ? (
         <>
           {!canCreateProject ? (
             <ErrorBanner message="This connection cannot add projects." />
@@ -1245,50 +1245,50 @@ export function AddProjectLocalFolderScreen(props: { readonly environmentId?: st
             loading={isSubmitting}
           />
           <FolderBrowser
-            environment={environment}
+            machine={machine}
             navigateToBrowsePath={navigateToBrowsePath}
             pathInput={pathInput}
             setPathInput={setPathInput}
           />
         </>
       ) : (
-        <EmptyEnvironmentState />
+        <EmptyMachineState />
       )}
     </AddProjectShell>
   );
 }
 
 export function AddProjectDestinationScreen(props: {
-  readonly environmentId?: string | string[];
+  readonly machineId?: string | string[];
   readonly remoteUrl?: string | string[];
   readonly repositoryTitle?: string | string[];
   readonly repositoryName?: string | string[];
   readonly prompt?: string | string[];
 }) {
-  const cloneRepository = useAtomCommand(sourceControlEnvironment.cloneRepository, {
+  const cloneRepository = useAtomCommand(sourceControlMachine.cloneRepository, {
     reportFailure: false,
   });
-  const startProjectClone = useAtomCommand(sourceControlEnvironment.startProjectClone, {
+  const startProjectClone = useAtomCommand(sourceControlMachine.startProjectClone, {
     reportFailure: false,
   });
   const navigation = useNavigation();
-  const environment = useEnvironmentFromParam(props.environmentId);
-  const canWriteSourceControl = useEnvironmentScope(
-    environment?.environmentId ?? null,
+  const machine = useMachineFromParam(props.machineId);
+  const canWriteSourceControl = useMachineScope(
+    machine?.machineId ?? null,
     AuthSourceControlWriteScope,
   );
-  const canCreateProject = useEnvironmentScope(
-    environment?.environmentId ?? null,
+  const canCreateProject = useMachineScope(
+    machine?.machineId ?? null,
     AuthOrchestrationOperateScope,
   );
   const canCloneProject = canWriteSourceControl && canCreateProject;
-  const createProject = useCreateProject(environment);
+  const createProject = useCreateProject(machine);
   const remoteUrl = stringParam(props.remoteUrl);
   const repositoryTitle = stringParam(props.repositoryTitle);
   const prompt = stringParam(props.prompt);
   const repositoryName = stringParam(props.repositoryName)?.trim() ?? "";
   const { isBrowseNavigating, navigateToBrowsePath, pathInput, setPathInput } = useBrowsePathInput(
-    environment,
+    machine,
     repositoryName,
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -1296,9 +1296,9 @@ export function AddProjectDestinationScreen(props: {
 
   const submitPath = async () => {
     if (
-      !environment ||
-      !readEnvironmentScope(environment.environmentId, AuthSourceControlWriteScope) ||
-      !readEnvironmentScope(environment.environmentId, AuthOrchestrationOperateScope) ||
+      !machine ||
+      !readMachineScope(machine.machineId, AuthSourceControlWriteScope) ||
+      !readMachineScope(machine.machineId, AuthOrchestrationOperateScope) ||
       !remoteUrl ||
       isBrowseNavigating ||
       isSubmitting
@@ -1309,7 +1309,7 @@ export function AddProjectDestinationScreen(props: {
     const resolved = resolveAddProjectPath({
       rawPath: pathInput,
       currentProjectCwd: null,
-      platform: environment.platform,
+      platform: machine.platform,
     });
     if (!resolved.ok) {
       setError(resolved.error);
@@ -1317,11 +1317,11 @@ export function AddProjectDestinationScreen(props: {
     }
 
     setIsSubmitting(true);
-    if (environment.supportsCloneTracking) {
+    if (machine.supportsCloneTracking) {
       const projectId = ProjectId.make(uuidv4());
       const title = inferProjectTitleFromPath(resolved.path);
       const startResult = await startProjectClone({
-        environmentId: environment.environmentId,
+        machineId: machine.machineId,
         input: {
           projectId,
           title,
@@ -1337,7 +1337,7 @@ export function AddProjectDestinationScreen(props: {
         // must not open before the create event has arrived (it would fall back
         // to the project picker and lose the clone controls).
         const project = await waitForProject(
-          { environmentId: environment.environmentId, projectId },
+          { machineId: machine.machineId, projectId },
           15_000,
         );
         if (project === null) {
@@ -1346,12 +1346,12 @@ export function AddProjectDestinationScreen(props: {
           );
         } else {
           openNewTaskDraft(navigation, {
-            environmentId: environment.environmentId,
+            machineId: machine.machineId,
             projectId,
             title,
             cloning: "1",
             ...(prompt
-              ? await draftWithPrompt(environment.environmentId, projectId, prompt).then(
+              ? await draftWithPrompt(machine.machineId, projectId, prompt).then(
                   (draftId) => ({ draftId }),
                   () => ({}),
                 )
@@ -1363,7 +1363,7 @@ export function AddProjectDestinationScreen(props: {
       return;
     }
     const cloneResult = await cloneRepository({
-      environmentId: environment.environmentId,
+      machineId: machine.machineId,
       input: {
         remoteUrl,
         destinationPath: resolved.path,
@@ -1391,7 +1391,7 @@ export function AddProjectDestinationScreen(props: {
           </Text>
         </View>
       ) : null}
-      {environment ? (
+      {machine ? (
         <>
           <ProjectPathInput value={pathInput} onChangeText={setPathInput} onSubmit={submitPath} />
           <PrimaryActionButton
@@ -1406,7 +1406,7 @@ export function AddProjectDestinationScreen(props: {
             </Text>
           ) : null}
           <FolderBrowser
-            environment={environment}
+            machine={machine}
             navigateToBrowsePath={navigateToBrowsePath}
             pathInput={pathInput}
             setPathInput={setPathInput}
@@ -1414,7 +1414,7 @@ export function AddProjectDestinationScreen(props: {
           />
         </>
       ) : (
-        <EmptyEnvironmentState />
+        <EmptyMachineState />
       )}
     </AddProjectShell>
   );

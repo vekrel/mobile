@@ -32,12 +32,12 @@ function NativeVideoPreview(props: {
   const localAttachment = source.type === "local" ? source.attachment : null;
   const identifier = useId();
   const onRequestClose = useEffectEvent(props.onRequestClose);
-  const environmentId =
-    source.type === "media" && "environmentId" in source ? source.environmentId : null;
+  const machineId =
+    source.type === "media" && "machineId" in source ? source.machineId : null;
   const resource = source.type === "media" && "resource" in source ? source.resource : null;
-  const preparedConnection = usePreparedConnection(environmentId);
-  const assetUrl = useAssetUrlState(environmentId, resource);
-  const refreshAssetUrl = useEffectEvent(useRefreshAssetUrl(environmentId, resource));
+  const preparedConnection = usePreparedConnection(machineId);
+  const assetUrl = useAssetUrlState(machineId, resource);
+  const refreshAssetUrl = useEffectEvent(useRefreshAssetUrl(machineId, resource));
   const name = source.type === "media" ? source.name : source.attachment.name;
   // The first minted URL is kept so a background refresh does not restart playback.
   const resolvedUrl =
@@ -48,7 +48,7 @@ function NativeVideoPreview(props: {
   const loadError =
     resource !== null && playbackUrl === null
       ? preparedConnection._tag === "None"
-        ? "Reconnect to this environment and open the video again."
+        ? "Reconnect to this machine and open the video again."
         : assetUrl._tag === "Failure"
           ? "Could not load this video. Check the connection and try again."
           : null

@@ -22,7 +22,7 @@ import {
 import { use, useCallback, useEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { View } from "react-native";
 import { Split, type SplitHostCommands } from "react-native-screens";
-import { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import { MachineId, ThreadId } from "@vekrel/contracts";
 import { scopedThreadKey } from "../../lib/scopedEntities";
 import { WorkspaceTabsProvider, useWorkspaceTabs } from "../workspace/WorkspaceTabsContext";
 import { WorkspaceNativeTabs } from "../workspace/WorkspaceNativeTabs.ios";
@@ -194,24 +194,24 @@ function WorkspaceColumns(
   const pullRequestParams = props.detail.findLast(isPullRequestRoute)?.params;
   const selectedPullRequestKey =
     pullRequestParams &&
-    "environmentId" in pullRequestParams &&
+    "machineId" in pullRequestParams &&
     "host" in pullRequestParams &&
     "repository" in pullRequestParams &&
     "number" in pullRequestParams &&
-    typeof pullRequestParams.environmentId === "string" &&
+    typeof pullRequestParams.machineId === "string" &&
     typeof pullRequestParams.host === "string" &&
     typeof pullRequestParams.repository === "string" &&
     typeof pullRequestParams.number === "number"
-      ? `${pullRequestParams.environmentId}:${pullRequestParams.host}:${pullRequestParams.repository}:${pullRequestParams.number}`
+      ? `${pullRequestParams.machineId}:${pullRequestParams.host}:${pullRequestParams.repository}:${pullRequestParams.number}`
       : null;
   const selectedThreadKey =
     threadParams &&
-    "environmentId" in threadParams &&
+    "machineId" in threadParams &&
     "threadId" in threadParams &&
-    typeof threadParams.environmentId === "string" &&
+    typeof threadParams.machineId === "string" &&
     typeof threadParams.threadId === "string"
       ? scopedThreadKey(
-          EnvironmentId.make(threadParams.environmentId),
+          MachineId.make(threadParams.machineId),
           ThreadId.make(threadParams.threadId),
         )
       : null;

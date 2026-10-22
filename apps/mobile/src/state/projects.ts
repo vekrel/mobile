@@ -1,16 +1,16 @@
-import { createEnvironmentProjectAtoms } from "@vekrel/client-runtime/state/projects";
-import { createProjectEnvironmentAtoms } from "@vekrel/client-runtime/state/projects";
+import { createMachineProjectAtoms } from "@vekrel/client-runtime/state/projects";
+import { createProjectMachineAtoms } from "@vekrel/client-runtime/state/projects";
 
-import { environmentCatalog } from "../connection/catalog";
+import { machineCatalog } from "../connection/catalog";
 import { connectionAtomRuntime } from "../connection/runtime";
-import { environmentSnapshotAtom } from "./shell";
-import { serverEnvironment } from "./server";
+import { machineSnapshotAtom } from "./shell";
+import { serverMachine } from "./server";
 
-export const environmentProjects = createEnvironmentProjectAtoms({
-  catalogValueAtom: environmentCatalog.catalogValueAtom,
-  snapshotAtom: environmentSnapshotAtom,
-  serverConfigValueAtom: serverEnvironment.configValueAtom,
+export const machineProjects = createMachineProjectAtoms({
+  catalogValueAtom: machineCatalog.catalogValueAtom,
+  snapshotAtom: machineSnapshotAtom,
+  serverConfigValueAtom: serverMachine.configValueAtom,
 });
-export const projectEnvironment = createProjectEnvironmentAtoms(connectionAtomRuntime, {
-  projectAtom: environmentProjects.projectAtom,
+export const projectMachine = createProjectMachineAtoms(connectionAtomRuntime, {
+  projectAtom: machineProjects.projectAtom,
 });

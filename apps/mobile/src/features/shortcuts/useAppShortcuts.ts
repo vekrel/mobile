@@ -94,11 +94,11 @@ function useRecentThreadShortcutSync(state: NavigationState): void {
   }, []);
 
   const loaded = recents !== null;
-  const environmentId = threadRef?.environmentId ?? null;
+  const machineId = threadRef?.machineId ?? null;
   const threadId = threadRef?.threadId ?? null;
   const title = threadShell?.title ?? "";
   useEffect(() => {
-    if (!loaded || environmentId === null || threadId === null) {
+    if (!loaded || machineId === null || threadId === null) {
       return;
     }
 
@@ -106,13 +106,13 @@ function useRecentThreadShortcutSync(state: NavigationState): void {
       if (current === null) {
         return current;
       }
-      const next = withRecentThreadShortcut(current, { environmentId, threadId, title });
+      const next = withRecentThreadShortcut(current, { machineId, threadId, title });
       if (next !== current) {
         persistableRef.current = true;
       }
       return next;
     });
-  }, [loaded, environmentId, threadId, title]);
+  }, [loaded, machineId, threadId, title]);
 
   useEffect(() => {
     if (recents === null) {

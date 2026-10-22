@@ -100,7 +100,7 @@ describe("mobile DPoP", () => {
       const proofKey = yield* generateDpopProofKeyPair();
       const connect = yield* createDpopProof({
         method: "POST",
-        url: "https://relay.example.test/v1/environments/env-1/connect",
+        url: "https://relay.example.test/v1/machines/env-1/connect",
         accessToken: "clerk-token",
         proofKey,
       });
@@ -116,7 +116,7 @@ describe("mobile DPoP", () => {
         verifyDpopProof({
           proof: connect.proof,
           method: "POST",
-          url: "https://relay.example.test/v1/environments/env-1/connect",
+          url: "https://relay.example.test/v1/machines/env-1/connect",
           expectedThumbprint: proofKey.thumbprint,
           expectedAccessToken: "clerk-token",
           nowEpochSeconds: proofIat(connect.proof),
@@ -139,19 +139,19 @@ describe("mobile DPoP", () => {
       const proofKey = yield* generateDpopProofKeyPair();
       const proof = yield* createDpopProof({
         method: "POST",
-        url: "https://relay.example.test/v1/environments/env-1/connect?debug=1#ignored",
+        url: "https://relay.example.test/v1/machines/env-1/connect?debug=1#ignored",
         accessToken: "clerk-token",
         proofKey,
       });
 
       expect(proofHtu(proof.proof)).toBe(
-        "https://relay.example.test/v1/environments/env-1/connect",
+        "https://relay.example.test/v1/machines/env-1/connect",
       );
       expect(
         verifyDpopProof({
           proof: proof.proof,
           method: "POST",
-          url: "https://relay.example.test/v1/environments/env-1/connect?debug=1#ignored",
+          url: "https://relay.example.test/v1/machines/env-1/connect?debug=1#ignored",
           expectedThumbprint: proofKey.thumbprint,
           expectedAccessToken: "clerk-token",
           nowEpochSeconds: proofIat(proof.proof),

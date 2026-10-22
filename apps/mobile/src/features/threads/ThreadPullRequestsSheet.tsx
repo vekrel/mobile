@@ -23,14 +23,14 @@ import { useLinkedPullRequestActions } from "./useLinkedPullRequestActions";
 const TITLE = "Linked pull requests";
 
 export function ThreadPullRequestsSheet(
-  _props: StaticScreenProps<{ readonly environmentId: string; readonly threadId: string }>,
+  _props: StaticScreenProps<{ readonly machineId: string; readonly threadId: string }>,
 ) {
   const { layout } = useAdaptiveWorkspaceLayout();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { selectedThread, selectedThreadProject, selectedEnvironmentRuntime } =
+  const { selectedThread, selectedThreadProject, selectedMachineRuntime } =
     useThreadSelection();
-  const lines = useLinkedPullRequestLines(selectedThread, selectedEnvironmentRuntime);
+  const lines = useLinkedPullRequestLines(selectedThread, selectedMachineRuntime);
   const openCount = useMemo(
     () =>
       lines.filter((line) => line.link.snapshot === null || line.link.snapshot.state === "open")
@@ -44,7 +44,7 @@ export function ThreadPullRequestsSheet(
   const actions = useLinkedPullRequestActions({
     thread: selectedThread,
     project: selectedThreadProject,
-    runtime: selectedEnvironmentRuntime,
+    runtime: selectedMachineRuntime,
   });
   const rowInputs = useMemo(() => ({ lines, actions }), [lines, actions]);
 

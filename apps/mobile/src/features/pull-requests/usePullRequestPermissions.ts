@@ -5,14 +5,14 @@ import { composerPullRequests } from "../../state/pull-requests";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 
 export function usePullRequestPermissions(params: PullRequestParams, pr: PullRequestDetail | null) {
-  const { environmentId } = pullRequestTarget(params);
-  const connected = usePullRequestConnected(environmentId);
-  const canWrite = useAtomValue(composerPullRequests.runAction.permissionAtom(environmentId));
-  const canComment = useAtomValue(composerPullRequests.comment.permissionAtom(environmentId));
-  const canReview = useAtomValue(composerPullRequests.submitReview.permissionAtom(environmentId));
-  const canReply = useAtomValue(composerPullRequests.replyToThread.permissionAtom(environmentId));
+  const { machineId } = pullRequestTarget(params);
+  const connected = usePullRequestConnected(machineId);
+  const canWrite = useAtomValue(composerPullRequests.runAction.permissionAtom(machineId));
+  const canComment = useAtomValue(composerPullRequests.comment.permissionAtom(machineId));
+  const canReview = useAtomValue(composerPullRequests.submitReview.permissionAtom(machineId));
+  const canReply = useAtomValue(composerPullRequests.replyToThread.permissionAtom(machineId));
   const canResolve = useAtomValue(
-    composerPullRequests.setThreadResolution.permissionAtom(environmentId),
+    composerPullRequests.setThreadResolution.permissionAtom(machineId),
   );
   return {
     connected,

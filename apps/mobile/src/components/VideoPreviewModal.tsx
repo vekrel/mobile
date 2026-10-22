@@ -34,11 +34,11 @@ interface PlaybackState {
 }
 
 function useMediaPlayback(source: MediaVideoPreviewSource): PlaybackState {
-  const environmentId = "environmentId" in source ? source.environmentId : null;
+  const machineId = "machineId" in source ? source.machineId : null;
   const resource = "resource" in source ? source.resource : null;
-  const connection = usePreparedConnection(environmentId);
-  const asset = useAssetUrlState(environmentId, resource);
-  const refreshAssetUrl = useRefreshAssetUrl(environmentId, resource);
+  const connection = usePreparedConnection(machineId);
+  const asset = useAssetUrlState(machineId, resource);
+  const refreshAssetUrl = useRefreshAssetUrl(machineId, resource);
   const uri = mediaVideoPreviewUri(source, asset._tag === "Success" ? asset.url : null);
   return {
     uri,
@@ -47,7 +47,7 @@ function useMediaPlayback(source: MediaVideoPreviewSource): PlaybackState {
       : {}),
     unavailable:
       uri === null &&
-      environmentId !== null &&
+      machineId !== null &&
       (connection._tag === "None" || asset._tag === "Failure"),
     error: null,
     actionsSource: source.actionsSource,

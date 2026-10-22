@@ -1,16 +1,16 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 
-export function resolveAutoSettleReferenceEnvironmentId(
-  environments: ReadonlyArray<{
-    readonly environmentId: EnvironmentId;
+export function resolveAutoSettleReferenceMachineId(
+  machines: ReadonlyArray<{
+    readonly machineId: MachineId;
     readonly canWriteSettings: boolean | null;
   }>,
-): EnvironmentId | null {
-  for (const environment of environments) {
-    if (environment.canWriteSettings === null) return null;
-    if (environment.canWriteSettings) return environment.environmentId;
+): MachineId | null {
+  for (const machine of machines) {
+    if (machine.canWriteSettings === null) return null;
+    if (machine.canWriteSettings) return machine.machineId;
   }
-  return environments[0]?.environmentId ?? null;
+  return machines[0]?.machineId ?? null;
 }
 
 export function resolveAgentAwarenessPlatformPresentation(platform: string): {

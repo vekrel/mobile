@@ -22,7 +22,7 @@ import {
 import * as Haptics from "expo-haptics";
 import { KeyboardAwareLegendList } from "@legendapp/list/keyboard";
 import { useViewabilityAmount, type LegendListRef } from "@legendapp/list/react-native";
-import { scopeThreadRef } from "@vekrel/client-runtime/environment";
+import { scopeThreadRef } from "@vekrel/client-runtime/machine";
 import type { HandoffEndpoints } from "@vekrel/client-runtime/handoff";
 import { resolveUserMessagePresentation } from "@vekrel/client-runtime/user-message";
 import { canForkProjectedAssistantItem } from "@vekrel/client-runtime/state/thread-workflows";
@@ -36,7 +36,7 @@ import {
   type ChatAttachment,
   type ChatFileAttachment,
   type ChatImageAttachment,
-  type EnvironmentId,
+  type MachineId,
   type MessageId,
   type OrchestrationV2ProjectedTurnItem,
   type RunId,
@@ -227,14 +227,14 @@ import { htmlRenderRowHeight, ThreadHtmlRender } from "./HtmlRenderWebView";
 import { ThreadMcpApp } from "./McpAppWebView";
 import { useMarkdownCodeHighlight } from "./markdownCodeHighlightState";
 import {
-  assetEnvironment,
+  assetMachine,
   useAssetUrl,
   useAssetUrlState,
   useRefreshAssetUrl,
 } from "../../state/assets";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
-import { readEnvironmentScope, usePreparedConnection } from "../../state/session";
-import { projectEnvironment } from "../../state/projects";
+import { readMachineScope, usePreparedConnection } from "../../state/session";
+import { projectMachine } from "../../state/projects";
 import {
   needsWorkspaceBasenameLookup,
   pickWorkspaceBasenameMatch,
@@ -242,12 +242,12 @@ import {
 } from "@vekrel/client-runtime/workspace-basename-lookup";
 import { useLiveThreadLinkLabels } from "../../state/entities";
 import { useThreadSelection } from "../../state/use-thread-selection";
-import { useEnvironmentQuery } from "../../state/query";
-import { serverEnvironment } from "../../state/server";
+import { useMachineQuery } from "../../state/query";
+import { serverMachine } from "../../state/server";
 import { composerDocumentAttachmentRecord } from "../../lib/composerContext";
 import * as Option from "effect/Option";
 import { appAtomRegistry } from "../../state/atom-registry";
-import { environmentThreadShells, threadEnvironment } from "../../state/threads";
+import { machineThreadShells, threadMachine } from "../../state/threads";
 import { ThreadWorkflowOpening, useWorkflowOpening } from "./thread-workflow-opening";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useV2ItemSupport } from "../../state/v2-item-support";
@@ -325,7 +325,7 @@ export interface ThreadFeedProps {
   readonly queuedMessages: ReadonlyArray<QueuedThreadMessage>;
   readonly dispatchingMessageId: MessageId | null;
   readonly onEditPendingMessage: ((message: QueuedThreadMessage) => void) | null;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly threadTitle: string;
   readonly workspaceRoot?: string | null;
@@ -356,10 +356,10 @@ export interface ThreadFeedProps {
 }
 
 async function waitForThreadShell(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   threadId: ThreadId,
 ): Promise<boolean> {
-  const atom = environmentThreadShells.threadShellAtom(scopeThreadRef(environmentId, threadId));
+  const atom = machineThreadShells.threadShellAtom(scopeThreadRef(machineId, threadId));
   return waitForThreadShellReady({
     read: () => appAtomRegistry.get(atom) !== null,
   });
@@ -400,17 +400,17 @@ function UserMessageCopyButton(props: {
 }
 
 function AssistantForkButton(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly iconColor: ColorValue;
   readonly projectedItem: OrchestrationV2ProjectedTurnItem;
   readonly sourceTitle: string;
 }) {
   const support = useV2ItemSupport({
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     sourceThreadId: props.projectedItem.sourceThreadId,
     sourceItemId: props.projectedItem.sourceItemId,
   });
-  const forkFromRun = useAtomCommand(threadEnvironment.forkFromRun, "fork from response");
+  const forkFromRun = useAtomCommand(threadMachine.forkFromRun, "fork from response");
   const navigation = useNavigation();
   const [busy, setBusy] = useState(false);
   const canFork = canForkProjectedAssistantItem({
@@ -431,7 +431,7 @@ function AssistantForkButton(props: {
         setBusy(true);
         void Haptics.selectionAsync();
         void forkFromRun({
-          environmentId: props.environmentId,
+          machineId: props.machineId,
           input: {
             sourceThreadId: props.projectedItem.sourceThreadId,
             targetThreadId,
@@ -442,7 +442,7 @@ function AssistantForkButton(props: {
         })
           .then(async (result) => {
             if (result._tag !== "Success") return;
-            const targetThreadReady = await waitForThreadShell(props.environmentId, targetThreadId);
+            const targetThreadReady = await waitForThreadShell(props.machineId, targetThreadId);
             if (!targetThreadReady) {
               Dialog.alert(
                 "Fork created",
@@ -451,7 +451,7 @@ function AssistantForkButton(props: {
               return;
             }
             navigation.navigate("Thread", {
-              environmentId: props.environmentId,
+              machineId: props.machineId,
               threadId: targetThreadId,
             });
           })
@@ -474,7 +474,7 @@ function AssistantForkButton(props: {
 }
 
 function MessageAttachmentImage(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachmentId: string;
   readonly name: string;
   readonly mimeType: string;
@@ -492,8 +492,8 @@ function MessageAttachmentImage(props: {
     }),
     [props.attachmentId, props.name, props.mimeType],
   );
-  const uri = useAssetUrl(props.environmentId, resource);
-  const refreshAssetUrl = useRefreshAssetUrl(props.environmentId, resource);
+  const uri = useAssetUrl(props.machineId, resource);
+  const refreshAssetUrl = useRefreshAssetUrl(props.machineId, resource);
   const retriedImage = useRef(false);
   const imageStyle = useResolveClassNames(props.className);
 
@@ -514,14 +514,14 @@ function MessageAttachmentImage(props: {
           props.onPressPreview(
             withGallery({
               kind: "image",
-              environmentId: props.environmentId,
+              machineId: props.machineId,
               resource,
               name: props.name,
               sourceIdentifier,
               actionsSource: {
                 name: props.name,
                 mimeType: props.mimeType,
-                environmentId: props.environmentId,
+                machineId: props.machineId,
                 resource,
               },
             }),
@@ -529,7 +529,7 @@ function MessageAttachmentImage(props: {
         }
       >
         <ExpoImage
-          source={assetImageSource(props.environmentId, resource, uri)}
+          source={assetImageSource(props.machineId, resource, uri)}
           cachePolicy="memory-disk"
           style={imageStyle}
           contentFit="cover"
@@ -556,7 +556,7 @@ function isFileAttachment(attachment: ChatAttachment): attachment is ChatFileAtt
 }
 
 function MessageAttachmentFile(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachment: ChatFileAttachment;
   readonly onPressPreview: (source: FilePreviewSource) => void;
   readonly onPressVideo: (attachment: ChatFileAttachment, sourceIdentifier: string) => void;
@@ -564,11 +564,11 @@ function MessageAttachmentFile(props: {
   const sourceIdentifier = useId();
   const navigation = useNavigation();
   const { selectedThread } = useThreadSelection();
-  const createAssetUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
+  const createAssetUrl = useAtomQueryRunner(assetMachine.createUrl, {
     refresh: true,
     reportFailure: false,
   });
-  const preparedConnection = usePreparedConnection(props.environmentId);
+  const preparedConnection = usePreparedConnection(props.machineId);
   const { attachment } = props;
   const videoType = videoMimeType(attachment);
   const isPdf = isPdfFile(attachment);
@@ -577,7 +577,7 @@ function MessageAttachmentFile(props: {
     : (attachment.name.match(/\.([a-z0-9]{1,8})$/i)?.[1]?.toUpperCase() ?? "File");
   const sizeLabel = formatAttachmentSize(attachment.sizeBytes);
   const thumbnailUrl = useAssetUrl(
-    props.environmentId,
+    props.machineId,
     videoType === null
       ? null
       : {
@@ -600,7 +600,7 @@ function MessageAttachmentFile(props: {
         openingRef.current?.abort();
         openingRef.current = null;
       };
-    }, [props.environmentId, attachment.id, httpBaseUrl]),
+    }, [props.machineId, attachment.id, httpBaseUrl]),
   );
 
   const shareFile = (sourceIdentifier?: string) => {
@@ -619,7 +619,7 @@ function MessageAttachmentFile(props: {
     };
     void (async () => {
       const result = await createAssetUrl({
-        environmentId: props.environmentId,
+        machineId: props.machineId,
         input: {
           resource: {
             _tag: "attachment",
@@ -653,14 +653,14 @@ function MessageAttachmentFile(props: {
   };
 
   if (videoType !== null) {
-    const sourceIdentifier = `attachment:${props.environmentId}:${attachment.id}`;
+    const sourceIdentifier = `attachment:${props.machineId}:${attachment.id}`;
     return (
       <VideoAttachmentTile
         name={attachment.name}
         sourceIdentifier={sourceIdentifier}
         thumbnailSource={thumbnailUrl}
         actionsSource={
-          attachmentVideoPreviewSource(props.environmentId, attachment, sourceIdentifier)
+          attachmentVideoPreviewSource(props.machineId, attachment, sourceIdentifier)
             .actionsSource
         }
         disabled={opening || httpBaseUrl === null}
@@ -691,7 +691,7 @@ function MessageAttachmentFile(props: {
               ? props.onPressPreview({
                   kind: "pdf",
                   name: attachment.name,
-                  environmentId: props.environmentId,
+                  machineId: props.machineId,
                   resource: {
                     _tag: "attachment",
                     attachmentId: attachment.id,
@@ -701,7 +701,7 @@ function MessageAttachmentFile(props: {
                   sourceIdentifier,
                 })
               : navigation.navigate("ThreadAttachment", {
-                  environmentId: String(props.environmentId),
+                  machineId: String(props.machineId),
                   ...(selectedThread ? { threadId: String(selectedThread.id) } : {}),
                   attachmentId: attachment.id,
                   name: attachment.name,
@@ -837,14 +837,14 @@ function ArtifactTemplateCard(props: {
 
 const AssistantMarkdownContent = memo(function AssistantMarkdownContent(props: {
   readonly markdown: string;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly markdownStyles: MarkdownStyleSet;
   readonly linkHandlers: MarkdownLinkHandlers;
   readonly onUseArtifactTemplate?: ((template: CodexArtifactTemplate) => void) | undefined;
   readonly renderImage: MarkdownImageRenderer;
   readonly skills?: ReadonlyArray<SelectableMarkdownSkill> | undefined;
 }) {
-  const liveMarkdown = useLiveThreadLinkLabels(props.markdown, props.environmentId);
+  const liveMarkdown = useLiveThreadLinkLabels(props.markdown, props.machineId);
   const segments = useMemo(() => splitCodexArtifactTemplateMarkdown(liveMarkdown), [liveMarkdown]);
 
   return segments.map((segment) => {
@@ -970,7 +970,7 @@ function useMarkdownStyles(): MarkdownStyleSets {
 }
 
 function AgentMessageAttribution(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly senderThreadId?: ThreadId;
 }) {
   const navigation = useNavigation();
@@ -987,7 +987,7 @@ function AgentMessageAttribution(props: {
       hitSlop={4}
       onPress={() =>
         navigation.navigate("Thread", {
-          environmentId: String(props.environmentId),
+          machineId: String(props.machineId),
           threadId: String(senderThreadId),
         })
       }
@@ -1001,7 +1001,7 @@ function AgentMessageAttribution(props: {
 
 /** Automation prompts are long, repeated runbooks; a folded bubble keeps them out of the way. */
 function ThreadAutomationMessageRow(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly text: string;
   readonly context?: OrchestrationMessageContext;
   readonly scheduledTaskId: ScheduledTaskId | undefined;
@@ -1019,9 +1019,9 @@ function ThreadAutomationMessageRow(props: {
   readonly renderImage: MarkdownImageRenderer;
 }) {
   const navigation = useNavigation();
-  const tasks = useEnvironmentQuery(
+  const tasks = useMachineQuery(
     props.scheduledTaskId
-      ? serverEnvironment.scheduledTasksLive({ environmentId: props.environmentId, input: {} })
+      ? serverMachine.scheduledTasksLive({ machineId: props.machineId, input: {} })
       : null,
   );
   const taskTitle = tasks.data?.tasks.find((task) => task.id === props.scheduledTaskId)?.title;
@@ -1074,7 +1074,7 @@ function ThreadAutomationMessageRow(props: {
             <MarkdownImageAvailableWidthContext value={props.contentMaxWidth}>
               <UserMessageContent
                 text={renderAssistantCitationsAsText(props.text)}
-                environmentId={props.environmentId}
+                machineId={props.machineId}
                 context={props.context}
                 markdownStyles={props.markdownStyles}
                 reviewCommentColors={props.reviewCommentColors}
@@ -1122,7 +1122,7 @@ function renderFeedEntry(
   info: { item: PendingThreadFeedEntry; index: number },
   props: Pick<
     ThreadFeedProps,
-    | "environmentId"
+    | "machineId"
     | "onUseArtifactTemplate"
     | "skills"
     | "dispatchingMessageId"
@@ -1210,7 +1210,7 @@ function renderFeedEntry(
   if (entry.type === "html-render") {
     return (
       <ThreadHtmlRender
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         threadId={props.threadId}
         render={entry.render}
         frameWidth={props.contentWidth}
@@ -1223,7 +1223,7 @@ function renderFeedEntry(
     return (
       <ThreadMcpApp
         key={entry.app.attachmentId}
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         threadId={entry.sourceThreadId}
         conversationThreadId={props.threadId}
         itemId={entry.itemId}
@@ -1237,7 +1237,7 @@ function renderFeedEntry(
   if (entry.type === "work-toggle") {
     return (
       <ThreadWorkGroupToggle
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         rowSizing={props.workRowSizing}
         expanded={entry.expanded}
         hiddenCount={entry.hiddenCount}
@@ -1267,7 +1267,7 @@ function renderFeedEntry(
   if (entry.type === "activity-group" && isContextHandoffActivityGroup(entry)) {
     return (
       <ThreadHandoffRow
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         projectedItem={entry.activities[0]!.projectedItem}
         iconColor={iconSubtleColor}
         surfaceColor={props.screenColor}
@@ -1278,7 +1278,7 @@ function renderFeedEntry(
   if (entry.type === "activity-group" && isSecretRequestActivityGroup(entry)) {
     return (
       <SecretRequestCard
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         projectedItem={entry.activities[0]!.projectedItem}
         iconColor={iconSubtleColor}
       />
@@ -1329,7 +1329,7 @@ function renderFeedEntry(
     if (isUser && props.workflowOpening?.messageId === message.id) {
       return (
         <ThreadWorkflowOpening
-          environmentId={props.environmentId}
+          machineId={props.machineId}
           threadId={props.threadId}
           opening={props.workflowOpening}
         />
@@ -1339,7 +1339,7 @@ function renderFeedEntry(
       const rowId = `automation:${message.id}`;
       return (
         <ThreadAutomationMessageRow
-          environmentId={props.environmentId}
+          machineId={props.machineId}
           text={presentation.text}
           context={message.context}
           scheduledTaskId={presentation.scheduledTaskId}
@@ -1385,7 +1385,7 @@ function renderFeedEntry(
             </Text>
           ) : presentation.attribution === "agent" ? (
             <AgentMessageAttribution
-              environmentId={props.environmentId}
+              machineId={props.machineId}
               senderThreadId={message.senderThreadId}
             />
           ) : null}
@@ -1405,7 +1405,7 @@ function renderFeedEntry(
               attachment.type === "image" && attachment.uploadedAttachmentId ? (
                 <MessageAttachmentImage
                   key={attachment.id}
-                  environmentId={props.environmentId}
+                  machineId={props.machineId}
                   attachmentId={attachment.uploadedAttachmentId}
                   name={attachment.name}
                   mimeType={attachment.mimeType}
@@ -1442,7 +1442,7 @@ function renderFeedEntry(
                   return isImageAttachment(attachment) ? (
                     <MessageAttachmentImage
                       key={attachment.id}
-                      environmentId={props.environmentId}
+                      machineId={props.machineId}
                       attachmentId={attachment.id}
                       name={attachment.name}
                       mimeType={attachment.mimeType}
@@ -1456,7 +1456,7 @@ function renderFeedEntry(
                   ) : isFileAttachment(attachment) ? (
                     <MessageAttachmentFile
                       key={attachment.id}
-                      environmentId={props.environmentId}
+                      machineId={props.machineId}
                       attachment={attachment}
                       onPressPreview={props.onPressPreview}
                       onPressVideo={props.onPressVideo}
@@ -1473,7 +1473,7 @@ function renderFeedEntry(
               >
                 <UserMessageContent
                   text={renderedText}
-                  environmentId={props.environmentId}
+                  machineId={props.machineId}
                   context={message.context}
                   markdownStyles={styles}
                   reviewCommentColors={props.reviewCommentColors}
@@ -1537,7 +1537,7 @@ function renderFeedEntry(
                     ? () =>
                         writeComposerContextClipboard(message.text, {
                           version: 1,
-                          source: { environmentId: props.environmentId, messageId: message.id },
+                          source: { machineId: props.machineId, messageId: message.id },
                           records: message.context!.records,
                         })
                     : undefined
@@ -1569,7 +1569,7 @@ function renderFeedEntry(
           <MarkdownImageAvailableWidthContext value={props.markdownContentWidth}>
             <AssistantMarkdownContent
               markdown={renderedText}
-              environmentId={props.environmentId}
+              machineId={props.machineId}
               markdownStyles={styles}
               linkHandlers={props.markdownLinkHandlers}
               onUseArtifactTemplate={props.onUseArtifactTemplate}
@@ -1582,7 +1582,7 @@ function renderFeedEntry(
           return isImageAttachment(attachment) ? (
             <MessageAttachmentImage
               key={attachment.id}
-              environmentId={props.environmentId}
+              machineId={props.machineId}
               attachmentId={attachment.id}
               name={attachment.name}
               mimeType={attachment.mimeType}
@@ -1592,7 +1592,7 @@ function renderFeedEntry(
           ) : isFileAttachment(attachment) ? (
             <MessageAttachmentFile
               key={attachment.id}
-              environmentId={props.environmentId}
+              machineId={props.machineId}
               attachment={attachment}
               onPressPreview={props.onPressPreview}
               onPressVideo={props.onPressVideo}
@@ -1618,7 +1618,7 @@ function renderFeedEntry(
             />
             {message.projectedItem ? (
               <AssistantForkButton
-                environmentId={props.environmentId}
+                machineId={props.machineId}
                 iconColor={iconSubtleColor}
                 projectedItem={message.projectedItem}
                 sourceTitle={props.threadTitle}
@@ -1638,7 +1638,7 @@ function renderFeedEntry(
       key={`${entry.id}:${props.workRowSizing.textSizeKey}`}
       activities={entry.activities}
       continuesWorkLog={entry.continuesWorkLog}
-      environmentId={props.environmentId}
+      machineId={props.machineId}
       workspaceRoot={props.workspaceRoot}
       anchorKey={entry.id}
       copiedRowId={props.copiedRowId}
@@ -1685,7 +1685,7 @@ function TurnDiffStat(props: {
 
 type UserMessageContentProps = {
   readonly text: string;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly context?: OrchestrationMessageContext;
   readonly markdownStyles: MarkdownStyleSet;
   readonly reviewCommentColors: ReviewCommentColors;
@@ -1698,7 +1698,7 @@ function UserMessageContent(props: UserMessageContentProps) {
   const [selected, setSelected] = useState<{ contextId: string; label: string } | null>(null);
   const navigation = useNavigation();
   const { selectedThread } = useThreadSelection();
-  const liveText = useLiveThreadLinkLabels(props.text, props.environmentId);
+  const liveText = useLiveThreadLinkLabels(props.text, props.machineId);
   const text = replaceComposerContextReferences(liveText, (ref) => {
     const available = props.context?.records.some((record) => record.contextId === ref.contextId);
     return `[${ref.label}${available ? "" : " (unavailable)"}](t3-context://v1/${ref.kind}/${ref.contextId})`;
@@ -1715,7 +1715,7 @@ function UserMessageContent(props: UserMessageContentProps) {
     }
     if (record?.kind === "thread" && "threadId" in record) {
       navigation.navigate("Thread", {
-        environmentId: String(record.environmentId),
+        machineId: String(record.machineId),
         threadId: String(record.threadId),
       });
       return;
@@ -1723,7 +1723,7 @@ function UserMessageContent(props: UserMessageContentProps) {
     const document = composerDocumentAttachmentRecord(record);
     if (document) {
       navigation.navigate("ThreadAttachment", {
-        environmentId: String(props.environmentId),
+        machineId: String(props.machineId),
         ...(selectedThread ? { threadId: String(selectedThread.id) } : {}),
         attachmentId: document.attachmentId,
         name: document.name,
@@ -1771,7 +1771,7 @@ function UserMessageContent(props: UserMessageContentProps) {
                 }),
                 {
                   version: 1,
-                  source: { environmentId: props.environmentId },
+                  source: { machineId: props.machineId },
                   records: [record],
                 },
               )
@@ -1789,7 +1789,7 @@ function UserMessageContent(props: UserMessageContentProps) {
       {selected ? (
         <ComposerContextSheet
           label={selected.label}
-          environmentId={props.environmentId}
+          machineId={props.machineId}
           records={props.context?.records}
           record={props.context?.records.find((record) => record.contextId === selected.contextId)}
           onClose={() => setSelected(null)}
@@ -1806,7 +1806,7 @@ function UserMessageMarkdownContent(props: UserMessageContentProps) {
   const contextClipboardFragment = props.context
     ? (encodeComposerContextFragment({
         version: 1,
-        source: { environmentId: props.environmentId },
+        source: { machineId: props.machineId },
         records: props.context.records,
       }) ?? undefined)
     : undefined;
@@ -1917,7 +1917,7 @@ function useThreadFeedPresentation(
 
 export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const { listRef, onEndFollowEnabledChange, onHeaderMaterialVisibilityChange } = props;
-  const workflowOpening = useWorkflowOpening(props.environmentId, props.threadId);
+  const workflowOpening = useWorkflowOpening(props.machineId, props.threadId);
   const deviceType = useDeviceType();
   const duoColumns = useNativeWorkspaceColumnsSupported() && isDuoDevice(deviceType);
   const openPullRequest = useOpenPullRequest();
@@ -1925,15 +1925,15 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const onOpenTurnDiff = useCallback(
     (checkpoint: ThreadCheckpointSummary) => {
       setReviewSelectedSectionId(
-        scopedThreadKey(props.environmentId, props.threadId),
+        scopedThreadKey(props.machineId, props.threadId),
         getReviewSectionIdForCheckpoint(checkpoint),
       );
       navigation.navigate("ThreadReview", {
-        environmentId: props.environmentId,
+        machineId: props.machineId,
         threadId: props.threadId,
       });
     },
-    [navigation, props.environmentId, props.threadId],
+    [navigation, props.machineId, props.threadId],
   );
   const { themeAppearance } = useAppearancePreferences();
   const copyFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2019,7 +2019,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const markdownLinkRequest = useRef<AbortController | null>(null);
   useFocusEffect(useCallback(() => () => markdownLinkRequest.current?.abort(), []));
   const markdownLinkScope = JSON.stringify([
-    props.environmentId,
+    props.machineId,
     props.threadId,
     props.contentPresentation.kind,
   ]);
@@ -2031,14 +2031,14 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   }, [markdownLinkScope]);
   const fileShareSourceIdentifier = useId();
   const shareFileChip = useFileChipShare(
-    props.environmentId,
+    props.machineId,
     props.threadId,
     fileShareSourceIdentifier,
   );
   useEffect(() => {
     setExpandedVideo(null);
     setExpandedFile(null);
-  }, [props.environmentId, props.threadId, props.contentPresentation.kind]);
+  }, [props.machineId, props.threadId, props.contentPresentation.kind]);
   const horizontalPadding = props.layoutVariant === "split" ? 20 : 16;
   const contentLeftInset = props.contentSideInsets?.left ?? 0;
   const contentRightInset = props.contentSideInsets?.right ?? 0;
@@ -2080,7 +2080,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const openSkillInstructions = (path: string) => {
     void Haptics.selectionAsync();
     navigation.navigate("ThreadFile", {
-      environmentId: String(props.environmentId),
+      machineId: String(props.machineId),
       threadId: String(props.threadId),
       path: fileRoutePathSegments(path),
     });
@@ -2088,9 +2088,9 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const resolveLinkedThread = (href: string) => {
     const linkedThreadId = parseThreadLinkHref(href);
     if (!linkedThreadId) return null;
-    const source = scopeThreadRef(props.environmentId, linkedThreadId);
+    const source = scopeThreadRef(props.machineId, linkedThreadId);
     return (
-      resolveThreadLinkRef(source, appAtomRegistry.get(environmentThreadShells.threadRefsAtom)) ??
+      resolveThreadLinkRef(source, appAtomRegistry.get(machineThreadShells.threadRefsAtom)) ??
       source
     );
   };
@@ -2107,13 +2107,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     const target = resolveLinkedThread(href);
     if (target) {
       navigation.navigate("Thread", {
-        environmentId: String(target.environmentId),
+        machineId: String(target.machineId),
         threadId: String(target.threadId),
       });
       return;
     }
     const media = resolveMarkdownMediaPreview(href, {
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       threadId: props.threadId,
       workspaceRoot: props.workspaceRoot,
       imageEmbed,
@@ -2132,12 +2132,12 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       const mediaPath = resource && "path" in resource ? resource.path : null;
       if (
         typeof mediaPath === "string" &&
-        readEnvironmentScope(props.environmentId, AuthFilesystemReadScope)
+        readMachineScope(props.machineId, AuthFilesystemReadScope)
       ) {
         void executeAtomQuery(
           appAtomRegistry,
-          projectEnvironment.fileMetadata({
-            environmentId: props.environmentId,
+          projectMachine.fileMetadata({
+            machineId: props.machineId,
             input: { path: mediaPath },
           }),
           { signal: request.signal, reportFailure: false, reportDefect: false },
@@ -2145,7 +2145,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
           if (request.signal.aborted) return;
           if (result._tag === "Success" && result.value?.kind === "directory") {
             navigation.navigate("ThreadFile", {
-              environmentId: String(props.environmentId),
+              machineId: String(props.machineId),
               threadId: String(props.threadId),
               path: fileRoutePathSegments(mediaPath),
             });
@@ -2164,7 +2164,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         if (request.signal.aborted) return;
         void Haptics.selectionAsync();
         navigation.navigate("ThreadFile", {
-          environmentId: String(props.environmentId),
+          machineId: String(props.machineId),
           threadId: String(props.threadId),
           path: fileRoutePathSegments(target),
           ...(presentation.line ? { line: String(presentation.line) } : {}),
@@ -2175,13 +2175,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
         relativePath &&
         !/[\\/]$/.test(presentation.path) &&
         needsWorkspaceBasenameLookup(relativePath) &&
-        readEnvironmentScope(props.environmentId, AuthFilesystemReadScope)
+        readMachineScope(props.machineId, AuthFilesystemReadScope)
       ) {
         const originalPath = resolveWorkspaceFilePath(props.workspaceRoot, relativePath);
         void executeAtomQuery(
           appAtomRegistry,
-          projectEnvironment.searchEntries({
-            environmentId: props.environmentId,
+          projectMachine.searchEntries({
+            machineId: props.machineId,
             input: {
               cwd: props.workspaceRoot,
               query: relativePath,
@@ -2203,8 +2203,8 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
             if (request.signal.aborted) return;
             void executeAtomQuery(
               appAtomRegistry,
-              projectEnvironment.fileMetadata({
-                environmentId: props.environmentId,
+              projectMachine.fileMetadata({
+                machineId: props.machineId,
                 input: { path: originalPath },
               }),
               { signal: request.signal, reportFailure: false, reportDefect: false },
@@ -2235,7 +2235,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     }
   };
   const resolveImageSource = useMarkdownImageSource({
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     threadId: props.threadId,
     workspaceRoot: props.workspaceRoot ?? null,
   });
@@ -2262,7 +2262,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
       if (thread) {
         return {
           title:
-            appAtomRegistry.get(environmentThreadShells.threadShellAtom(thread))?.title ?? "Thread",
+            appAtomRegistry.get(machineThreadShells.threadShellAtom(thread))?.title ?? "Thread",
           actions: [
             { id: "open-thread", title: "Open thread" },
             { id: "copy-thread-link", title: "Copy link" },
@@ -2305,7 +2305,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   };
   const renderMarkdownImage: MarkdownImageRenderer = (image) => {
     const media = resolveMarkdownMediaPreview(image.href, {
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       threadId: props.threadId,
       workspaceRoot: props.workspaceRoot,
       imageEmbed: true,
@@ -2342,7 +2342,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     }
     return (
       <ThreadMarkdownImage
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         resource={{
           _tag: "media-file",
           threadId: props.threadId,
@@ -2362,7 +2362,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     });
     const media = viewedImage
       ? resolveMarkdownMediaPreview(image.href, {
-          environmentId: props.environmentId,
+          machineId: props.machineId,
           threadId: props.threadId,
           workspaceRoot: props.workspaceRoot,
           imageEmbed: true,
@@ -2371,7 +2371,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     const actionsSource = media?.source.actionsSource;
     return viewedImage ? (
       <ThreadMarkdownImage
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         resource={viewedImage.resource}
         alt={viewedImage.alt}
         srcFragment={viewedImage.srcFragment}
@@ -2388,7 +2388,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
   const renderReasoning = (text: string) => (
     <AssistantMarkdownContent
       markdown={text}
-      environmentId={props.environmentId}
+      machineId={props.machineId}
       markdownStyles={markdownStyles.assistant}
       linkHandlers={markdownLinkHandlers}
       renderImage={renderMarkdownImage}
@@ -2487,7 +2487,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
 
   useEffect(() => clearUserScrollSettle, [clearUserScrollSettle]);
 
-  const feedThreadKey = scopedThreadKey(props.environmentId, props.threadId);
+  const feedThreadKey = scopedThreadKey(props.machineId, props.threadId);
   const workGroupScrollPositions = new Map<string, ThreadWorkGroupScrollPosition>();
   // Only a new thread or a send resets following. Listed as dependencies, these handlers also ran
   // whenever a parent passed a new follow callback, as a fold does: following re-armed under a
@@ -2763,7 +2763,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     markdownLinkRequest.current?.abort();
     setExpandedVideo(
       (current) =>
-        current ?? attachmentVideoPreviewSource(props.environmentId, attachment, sourceIdentifier),
+        current ?? attachmentVideoPreviewSource(props.machineId, attachment, sourceIdentifier),
     );
   };
 
@@ -2823,13 +2823,13 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
     >
       <MessageImageGalleryScope
         entry={info.item}
-        environmentId={props.environmentId}
+        machineId={props.machineId}
         threadId={props.threadId}
         workspaceRoot={props.workspaceRoot}
       >
         <ThreadMediaVisibility>
           {renderFeedEntry(info, {
-            environmentId: props.environmentId,
+            machineId: props.machineId,
             dispatchingMessageId: props.dispatchingMessageId,
             onEditPendingMessage: props.onEditPendingMessage,
             onUseArtifactTemplate: props.onUseArtifactTemplate,
@@ -3033,7 +3033,7 @@ export const ThreadFeed = memo(function ThreadFeed(props: ThreadFeedProps) {
             ListFooterComponent={
               props.pendingHandoff ? (
                 <ThreadHandoffDivider
-                  environmentId={props.environmentId}
+                  machineId={props.machineId}
                   endpoints={props.pendingHandoff}
                   iconColor={iconSubtleColor}
                   surfaceColor={screenColor}
@@ -3104,16 +3104,16 @@ function ThreadFeedLoadEarlierControl(props: ThreadFeedHistoryControls) {
 
 function MessageImageGalleryScope(props: {
   entry: PendingThreadFeedEntry;
-  environmentId: EnvironmentId;
+  machineId: MachineId;
   threadId: ThreadId;
   workspaceRoot: string | null | undefined;
   children: ReactNode;
 }) {
-  const { entry, environmentId, threadId, workspaceRoot } = props;
+  const { entry, machineId, threadId, workspaceRoot } = props;
   const images =
     entry.type === "message"
       ? [
-          ...messageImageGallery(entry.message, { environmentId, threadId, workspaceRoot }),
+          ...messageImageGallery(entry.message, { machineId, threadId, workspaceRoot }),
           ...composerImageGallery(entry.pendingMessage?.attachments ?? []),
         ]
       : [];

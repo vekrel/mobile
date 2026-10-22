@@ -1,10 +1,10 @@
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { useSelectedThreadGitActions } from "../../state/use-selected-thread-git-actions";
 import { useSelectedThreadGitState } from "../../state/use-selected-thread-git-state";
 import { useThreadSelection } from "../../state/use-thread-selection";
-import { vcsEnvironment } from "../../state/vcs";
+import { vcsMachine } from "../../state/vcs";
 import { useThreadGitMenuDefinition } from "../threads/ThreadGitControls";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import type { ReviewSectionItem } from "./reviewModel";
 import type { AppBarMenuItem, AppBarMenu } from "../../components/ui/AppBar.types";
 import type { AppSymbolName } from "../../components/ui/AppSymbol";
@@ -18,7 +18,7 @@ interface ReviewHeaderPresentation {
 }
 
 export function useReviewHeaderPresentation(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly title: string;
   readonly subtitle: string;
@@ -30,10 +30,10 @@ export function useReviewHeaderPresentation(props: {
   const { selectedThread } = useThreadSelection();
   const gitState = useSelectedThreadGitState();
   const gitActions = useSelectedThreadGitActions();
-  const gitStatusQuery = useEnvironmentQuery(
+  const gitStatusQuery = useMachineQuery(
     selectedThread !== null && props.selectedThreadCwd !== null
-      ? vcsEnvironment.status({
-          environmentId: selectedThread.environmentId,
+      ? vcsMachine.status({
+          machineId: selectedThread.machineId,
           input: { cwd: props.selectedThreadCwd },
         })
       : null,
@@ -43,7 +43,7 @@ export function useReviewHeaderPresentation(props: {
   const gitMenuAvailable =
     selectedThread !== null && String(selectedThread.id) === String(props.threadId);
   const gitMenu = useThreadGitMenuDefinition({
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     threadId: props.threadId,
     currentBranch: selectedThread?.branch ?? null,
     gitStatus: gitStatusQuery.data,

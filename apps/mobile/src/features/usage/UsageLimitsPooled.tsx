@@ -1,6 +1,6 @@
 import { useAtomValue } from "@effect/atom-react";
 import { useNavigation, type StaticScreenProps } from "@react-navigation/native";
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import {
   collectLimitAccounts,
   collectExternalUsageLinks,
@@ -23,7 +23,7 @@ import { SymbolView } from "../../components/ui/AppSymbol";
 import { AppText as Text } from "../../components/ui/AppText";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { SettingsScreen } from "../settings/components/SettingsScreen";
-import { environmentPresentations } from "../../state/presentation";
+import { machinePresentations } from "../../state/presentation";
 import { ResetCredits } from "./UsageLimitsSection";
 import { usageProviderKind, useProviderColors } from "./usageProviders";
 
@@ -137,14 +137,14 @@ function PoolWindowCard({
   pool,
   color,
   now,
-  environmentIds,
+  machineIds,
   label,
   description,
 }: {
   readonly pool: LimitPoolWindow;
   readonly color: string;
   readonly now: number;
-  readonly environmentIds: readonly string[] | null;
+  readonly machineIds: readonly string[] | null;
   readonly label?: string;
   readonly description?: string;
 }) {
@@ -159,7 +159,7 @@ function PoolWindowCard({
           accountKey: account.key,
           windowId: pool.id,
           windowKind: pool.kind,
-          environmentIds,
+          machineIds,
           now,
         },
       },
@@ -291,19 +291,19 @@ function PoolWindowCard({
 export function UsageLimitsSection({
   now,
   failedLabels,
-  selectedEnvironmentIds,
+  selectedMachineIds,
   cursorPrompt,
 }: {
   readonly now: number;
   readonly failedLabels: readonly string[];
-  readonly selectedEnvironmentIds: ReadonlySet<EnvironmentId> | null;
+  readonly selectedMachineIds: ReadonlySet<MachineId> | null;
   readonly cursorPrompt?: ReactNode;
 }) {
-  const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
+  const presentations = useAtomValue(machinePresentations.presentationsWithProvidersAtom);
   const selected =
-    selectedEnvironmentIds === null
+    selectedMachineIds === null
       ? presentations
-      : new Map([...presentations].filter(([id]) => selectedEnvironmentIds.has(id)));
+      : new Map([...presentations].filter(([id]) => selectedMachineIds.has(id)));
   const pools = collectLimitPools(collectLimitAccounts(selected), now);
   const notices = collectLimitNotices(selected);
   const externalLinks = collectExternalUsageLinks(selected);
@@ -322,8 +322,8 @@ export function UsageLimitsSection({
       externalLinks.length === 0 ? (
         <Text className="py-12 text-center text-base text-foreground-muted">
           {selected.size === 0
-            ? "Select an environment to see limits."
-            : "No provider on the selected environments reports subscription limits."}
+            ? "Select a machine to see limits."
+            : "No provider on the selected machines reports subscription limits."}
         </Text>
       ) : null}
       {pools.map((pool, index) => {
@@ -347,8 +347,8 @@ export function UsageLimitsSection({
                     pool={window}
                     color={colors[usageProviderKind(pool.driver) ?? "codex"]}
                     now={now}
-                    environmentIds={
-                      selectedEnvironmentIds === null ? null : [...selectedEnvironmentIds]
+                    machineIds={
+                      selectedMachineIds === null ? null : [...selectedMachineIds]
                     }
                     label={details?.label}
                     description={details?.description}
@@ -410,16 +410,16 @@ type AccountScreenProps = StaticScreenProps<{
   accountKey: string;
   windowId: string;
   windowKind: LimitPoolWindow["kind"];
-  environmentIds: readonly string[] | null;
+  machineIds: readonly string[] | null;
   now: number;
 }>;
 
 export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
   const insets = useSafeAreaInsets();
-  const presentations = useAtomValue(environmentPresentations.presentationsWithProvidersAtom);
-  const { accountKey, windowId, windowKind, environmentIds, now } = route.params;
+  const presentations = useAtomValue(machinePresentations.presentationsWithProvidersAtom);
+  const { accountKey, windowId, windowKind, machineIds, now } = route.params;
   const selectedIds =
-    environmentIds === null ? null : new Set(environmentIds.map((id) => EnvironmentId.make(id)));
+    machineIds === null ? null : new Set(machineIds.map((id) => MachineId.make(id)));
   const selected =
     selectedIds === null
       ? presentations
@@ -442,7 +442,7 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
       >
         {!account || !window ? (
           <Text className="text-base text-foreground-muted">
-            This account is no longer reporting limits on the selected environments.
+            This account is no longer reporting limits on the selected machines.
           </Text>
         ) : (
           <>
@@ -498,12 +498,12 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
             </View>
             <View className="gap-2 rounded-[24px] border-continuous bg-grouped-card p-4">
               <Text className="text-sm font-t3-medium text-foreground">
-                {account.environments.length ? "Signed in" : "Source"}
+                {account.machines.length ? "Signed in" : "Source"}
               </Text>
-              {account.environments.length ? (
-                account.environments.map((environment) => (
-                  <Text key={environment.environmentId} className="text-sm text-foreground-muted">
-                    {environment.label}
+              {account.machines.length ? (
+                account.machines.map((machine) => (
+                  <Text key={machine.machineId} className="text-sm text-foreground-muted">
+                    {machine.label}
                   </Text>
                 ))
               ) : (
@@ -515,7 +515,7 @@ export function UsageLimitAccountScreen({ route }: AccountScreenProps) {
                 <Text className="text-sm font-t3-medium text-foreground">Reset credits</Text>
                 <ResetCredits
                   key={account.key}
-                  environmentId={account.redeem.environmentId}
+                  machineId={account.redeem.machineId}
                   input={account.redeem.input}
                   credits={account.limits.resetCredits}
                   now={now}

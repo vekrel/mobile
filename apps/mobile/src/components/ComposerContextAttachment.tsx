@@ -2,7 +2,7 @@ import { Button } from "./ui/Button";
 import { settlePromise, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
 import * as Dialog from "./ui/Dialog";
-import type { ComposerContextRecord, EnvironmentId } from "@vekrel/contracts";
+import type { ComposerContextRecord, MachineId } from "@vekrel/contracts";
 import { Pressable, View } from "react-native";
 import { Image } from "expo-image";
 import { useEffect, useId, useState } from "react";
@@ -18,7 +18,7 @@ import { PresentationSource } from "./ui/NativePresentation";
 
 export function ComposerContextAttachment(props: {
   record: Extract<ComposerContextRecord, { attachmentId: string }>;
-  environmentId?: EnvironmentId;
+  machineId?: MachineId;
   attachment?: DraftComposerAttachment;
 }) {
   const { record, attachment } = props;
@@ -32,9 +32,9 @@ export function ComposerContextAttachment(props: {
     ? (attachment as DraftComposerAttachment & { fileUri: string })
     : undefined;
   const inlineUri = composerAttachmentInlineUri(attachment);
-  const remoteEnvironmentId = local || inlineUri ? null : (props.environmentId ?? null);
-  const asset = useAssetUrlState(remoteEnvironmentId, resource);
-  const refresh = useRefreshAssetUrl(remoteEnvironmentId, resource);
+  const remoteMachineId = local || inlineUri ? null : (props.machineId ?? null);
+  const asset = useAssetUrlState(remoteMachineId, resource);
+  const refresh = useRefreshAssetUrl(remoteMachineId, resource);
   const [localUri, setLocalUri] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
@@ -76,7 +76,7 @@ export function ComposerContextAttachment(props: {
         return;
       }
       const url = await refresh();
-      if (!url) throw new Error("Reconnect to the environment and try again.");
+      if (!url) throw new Error("Reconnect to the machine and try again.");
       await downloadAndShareAttachment({
         url,
         attachment: record,
@@ -103,9 +103,9 @@ export function ComposerContextAttachment(props: {
         >
           <Image
             source={
-              remoteEnvironmentId === null
+              remoteMachineId === null
                 ? { uri }
-                : assetImageSource(remoteEnvironmentId, resource, uri)
+                : assetImageSource(remoteMachineId, resource, uri)
             }
             style={{ width: "100%", height: 280 }}
             contentFit="contain"
@@ -139,8 +139,8 @@ export function ComposerContextAttachment(props: {
               mimeType: record.mimeType,
               ...(attachment && isFileBackedComposerAttachment(attachment)
                 ? { attachment }
-                : inlineUri === undefined && props.environmentId
-                  ? { environmentId: props.environmentId, resource }
+                : inlineUri === undefined && props.machineId
+                  ? { machineId: props.machineId, resource }
                   : { uri }),
             },
           }}

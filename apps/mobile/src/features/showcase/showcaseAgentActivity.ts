@@ -1,6 +1,6 @@
 import type {
-  EnvironmentProject,
-  EnvironmentThreadShell,
+  MachineProject,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 
 import type {
@@ -40,8 +40,8 @@ const ACTIVE_PHASES: ReadonlySet<AgentActivityPhase> = new Set([
 
 /** Returns null until every staged thread and its project have loaded. */
 export function buildShowcaseAgentActivity(
-  threads: ReadonlyArray<EnvironmentThreadShell>,
-  projects: ReadonlyArray<EnvironmentProject>,
+  threads: ReadonlyArray<MachineThreadShell>,
+  projects: ReadonlyArray<MachineProject>,
   now: number,
 ): AgentActivityProps | null {
   const rows: AgentActivityRowProps[] = [];
@@ -50,13 +50,13 @@ export function buildShowcaseAgentActivity(
     const project = thread
       ? projects.find(
           (candidate) =>
-            candidate.environmentId === thread.environmentId && candidate.id === thread.projectId,
+            candidate.machineId === thread.machineId && candidate.id === thread.projectId,
         )
       : undefined;
     if (!thread || !project) return null;
-    const environmentId = String(thread.environmentId);
+    const machineId = String(thread.machineId);
     rows.push({
-      environmentId,
+      machineId,
       threadId: definition.threadId,
       projectTitle: project.title,
       threadTitle: thread.title,
@@ -64,7 +64,7 @@ export function buildShowcaseAgentActivity(
       phase: definition.phase,
       status: STATUS_BY_PHASE[definition.phase],
       updatedAt: new Date(now - definition.minutesAgo * 60_000).toISOString(),
-      deepLink: `/threads/${encodeURIComponent(environmentId)}/${encodeURIComponent(definition.threadId)}`,
+      deepLink: `/threads/${encodeURIComponent(machineId)}/${encodeURIComponent(definition.threadId)}`,
     });
   }
   return {
@@ -83,7 +83,7 @@ export function showcaseAgentAlert(activity: AgentActivityProps) {
     title: row.threadTitle,
     body: `${row.status}: ${row.projectTitle}`,
     path: row.deepLink,
-    environmentId: row.environmentId,
+    machineId: row.machineId,
     threadId: row.threadId,
   };
 }

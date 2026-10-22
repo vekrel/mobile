@@ -1,23 +1,23 @@
 import * as Dialog from "../../components/ui/Dialog";
 import { resolveAssetUrl } from "@vekrel/client-runtime/state/assets";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import * as Option from "effect/Option";
 import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 
 import { downloadAndShareAttachment } from "../../lib/attachmentDownload";
-import { assetEnvironment } from "../../state/assets";
+import { assetMachine } from "../../state/assets";
 import { usePreparedConnection } from "../../state/session";
 import { useAtomQueryRunner } from "../../state/use-atom-query-runner";
 import { fileChipShareSource, type FileChipTarget } from "./fileChipMenu";
 
 export function useFileChipShare(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   threadId: ThreadId,
   sourceIdentifier: string,
 ) {
-  const connection = usePreparedConnection(environmentId);
+  const connection = usePreparedConnection(machineId);
   const httpBaseUrl = Option.isSome(connection) ? connection.value.httpBaseUrl : null;
-  const createUrl = useAtomQueryRunner(assetEnvironment.createUrl, {
+  const createUrl = useAtomQueryRunner(assetMachine.createUrl, {
     refresh: true,
     reportFailure: false,
   });
@@ -36,8 +36,8 @@ export function useFileChipShare(
       requestRef.current = request;
       const httpBaseUrl = connectionRef.current;
       void (async () => {
-        if (httpBaseUrl === null) throw new Error("Reconnect to the environment and try again.");
-        const result = await createUrl({ environmentId, input: { resource: source.resource } });
+        if (httpBaseUrl === null) throw new Error("Reconnect to the machine and try again.");
+        const result = await createUrl({ machineId, input: { resource: source.resource } });
         if (request.signal.aborted) return;
         const url =
           result._tag === "Success" ? resolveAssetUrl(httpBaseUrl, result.value.relativeUrl) : null;
@@ -63,7 +63,7 @@ export function useFileChipShare(
           }
         });
     },
-    [createUrl, environmentId, sourceIdentifier, threadId],
+    [createUrl, machineId, sourceIdentifier, threadId],
   );
   return share;
 }

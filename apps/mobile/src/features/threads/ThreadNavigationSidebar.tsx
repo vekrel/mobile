@@ -5,12 +5,12 @@ import { resolveScratchProjectScopeKey } from "@vekrel/client-runtime/state/proj
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { computeThreadMoveAvailability } from "./threadOrder";
 import type {
-  EnvironmentProject,
-  EnvironmentThreadShell,
+  MachineProject,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import {
   threadSearchMatchKey,
-  type EnvironmentThreadSearchMatch,
+  type MachineThreadSearchMatch,
 } from "@vekrel/client-runtime/state/thread-search";
 import { AnimatedLegendList } from "@legendapp/list/reanimated";
 import { THREAD_SIDEBAR_ROW_LAYOUT } from "./threadListAnimations";
@@ -35,11 +35,11 @@ import { useProjects, useNavigationThreadShells } from "../../state/entities";
 import { useThreadSearch } from "../../state/queries";
 import { useThreadListV2ShelfPreferences } from "./use-thread-list-v2-shelf-preferences";
 import { usePendingThreadOrder } from "../../state/thread-order";
-import { threadListEnvironmentsAtom } from "../../state/server";
+import { threadListMachinesAtom } from "../../state/server";
 import { usePendingNewTasks, type PendingNewTask } from "../../state/use-pending-new-tasks";
 import { useQueuedThreadKeys } from "../../state/use-thread-outbox";
 import { useWorkspaceState } from "../../state/workspace";
-import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
+import { useSavedRemoteConnections } from "../../state/use-remote-machine-registry";
 import { useHardwareKeyboardCommand } from "../keyboard/hardwareKeyboardCommands";
 import { useThreadJumpShortcuts } from "../keyboard/threadKeyboardShortcuts";
 import { useHomeListOptions } from "../home/home-list-options";
@@ -92,14 +92,14 @@ interface ThreadNavigationSidebarProps {
   readonly visible: boolean;
   readonly selectedThreadKey: string | null;
   readonly onOpenSettings: () => void;
-  readonly onOpenEnvironmentSettings: () => void;
-  readonly onNewThreadOnBranch: (thread: EnvironmentThreadShell) => void;
-  readonly onNewThreadInProject: (project: EnvironmentProject) => void;
+  readonly onOpenMachineSettings: () => void;
+  readonly onNewThreadOnBranch: (thread: MachineThreadShell) => void;
+  readonly onNewThreadInProject: (project: MachineProject) => void;
   readonly onOpenPendingTask: (pendingTask: PendingNewTask) => void;
   readonly onSearchQueryChange: (query: string) => void;
-  readonly onSelectThread: (thread: EnvironmentThreadShell) => void;
+  readonly onSelectThread: (thread: MachineThreadShell) => void;
   readonly onOpenThreadPullRequests: (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     pr: ThreadPrPresentation,
   ) => void;
   readonly onRequestVisibility: () => void;
@@ -137,7 +137,7 @@ function ThreadNavigationSidebarPane(
   const { fabClearance } = useAndroidControlSizing();
   const projects = useProjects();
   const threads = useNavigationThreadShells();
-  const { environments: workspaceEnvironments, state: catalogState } = useWorkspaceState();
+  const { machines: workspaceMachines, state: catalogState } = useWorkspaceState();
   const { savedConnectionsById } = useSavedRemoteConnections();
   const searchInputRef = useRef<TextInputInstance>(null);
   const searchBarRef = useRef<SearchBarCommands>(null);
@@ -161,34 +161,34 @@ function ThreadNavigationSidebarPane(
   const activeNewTask = useActiveNewTask();
   const queuedThreadKeys = useQueuedThreadKeys();
   const { confirmDeletePendingTask } = usePendingTaskListActions();
-  const environments = Object.values(savedConnectionsById)
+  const machines = Object.values(savedConnectionsById)
     .map((connection) => ({
-      environmentId: connection.environmentId,
-      label: connection.environmentLabel,
+      machineId: connection.machineId,
+      label: connection.machineLabel,
     }))
     .sort((left, right) => left.label.localeCompare(right.label));
-  const availableEnvironmentIds = new Set(
-    environments.map((environment) => environment.environmentId),
+  const availableMachineIds = new Set(
+    machines.map((machine) => machine.machineId),
   );
-  const { options, setSelectedEnvironmentId, setSelectedProjectKey } =
-    useHomeListOptions(availableEnvironmentIds);
-  const searchEnvironmentIds =
-    options.selectedEnvironmentId === null
-      ? workspaceEnvironments
-          .filter((environment) => environment.connectionState === "connected")
-          .map((environment) => environment.environmentId)
-      : workspaceEnvironments.some(
-            (environment) =>
-              environment.environmentId === options.selectedEnvironmentId &&
-              environment.connectionState === "connected",
+  const { options, setSelectedMachineId, setSelectedProjectKey } =
+    useHomeListOptions(availableMachineIds);
+  const searchMachineIds =
+    options.selectedMachineId === null
+      ? workspaceMachines
+          .filter((machine) => machine.connectionState === "connected")
+          .map((machine) => machine.machineId)
+      : workspaceMachines.some(
+            (machine) =>
+              machine.machineId === options.selectedMachineId &&
+              machine.connectionState === "connected",
           )
-        ? [options.selectedEnvironmentId]
+        ? [options.selectedMachineId]
         : [];
-  const threadSearch = useThreadSearch(searchEnvironmentIds, props.searchQuery);
+  const threadSearch = useThreadSearch(searchMachineIds, props.searchQuery);
   // These maps reach LegendList's extraData, which re-renders every row whenever it changes
   // identity. The compiler leaves them unmemoized because they stay live across later hook calls.
   const threadSearchMatchByKey = useMemo(() => {
-    const matches = new Map<string, EnvironmentThreadSearchMatch>();
+    const matches = new Map<string, MachineThreadSearchMatch>();
     for (const match of threadSearch.matches) {
       if (match.source === "user" || match.source === "assistant") {
         matches.set(threadSearchMatchKey(match), match);
@@ -211,10 +211,10 @@ function ThreadNavigationSidebarPane(
     () =>
       buildHomeProjectScopes({
         projects,
-        environmentId: options.selectedEnvironmentId,
+        machineId: options.selectedMachineId,
         projectGroupingMode: options.projectGroupingMode,
       }),
-    [projects, options.selectedEnvironmentId, options.projectGroupingMode],
+    [projects, options.selectedMachineId, options.projectGroupingMode],
   );
   const projectFilterOptions = projectScopes.map((scope) => ({
     key: scope.key,
@@ -227,7 +227,7 @@ function ThreadNavigationSidebarPane(
           scope.projectRefs.map(
             (projectRef) =>
               [
-                scopedProjectKey(projectRef.environmentId, projectRef.projectId),
+                scopedProjectKey(projectRef.machineId, projectRef.projectId),
                 scope.title,
               ] as const,
           ),
@@ -243,13 +243,13 @@ function ThreadNavigationSidebarPane(
       ? null
       : new Set(
           selectedProjectScope.projectRefs.map((projectRef) =>
-            scopedProjectKey(projectRef.environmentId, projectRef.projectId),
+            scopedProjectKey(projectRef.machineId, projectRef.projectId),
           ),
         );
   const projectByKey = useMemo(() => {
-    const map = new Map<string, EnvironmentProject>();
+    const map = new Map<string, MachineProject>();
     for (const project of projects) {
-      map.set(scopedProjectKey(project.environmentId, project.id), project);
+      map.set(scopedProjectKey(project.machineId, project.id), project);
     }
     return map;
   }, [projects]);
@@ -257,7 +257,7 @@ function ThreadNavigationSidebarPane(
   const [settledVisibleCount, setSettledVisibleCount] = useState(
     THREAD_LIST_V2_SETTLED_INITIAL_COUNT,
   );
-  const settledResetKey = `${options.selectedEnvironmentId ?? "all"}:${selectedProjectKey ?? "all"}:${props.searchQuery.trim()}`;
+  const settledResetKey = `${options.selectedMachineId ?? "all"}:${selectedProjectKey ?? "all"}:${props.searchQuery.trim()}`;
   const [lastSettledResetKey, setLastSettledResetKey] = useState(settledResetKey);
   if (lastSettledResetKey !== settledResetKey) {
     setLastSettledResetKey(settledResetKey);
@@ -286,19 +286,19 @@ function ThreadNavigationSidebarPane(
     const id = setInterval(() => setNow(new Date().toISOString()), 60_000);
     return () => clearInterval(id);
   }, []);
-  const listEnvironments = useAtomValue(threadListEnvironmentsAtom);
+  const listMachines = useAtomValue(threadListMachinesAtom);
   const {
-    providersByEnvironmentId,
-    machineByEnvironmentId,
-    settlementEnvironmentIds,
-    snoozeEnvironmentIds,
-    pinningEnvironmentIds,
-    autoSettleOptOutEnvironmentIds,
-    pinReorderEnvironmentIds,
-    activeReorderEnvironmentIds,
-    titleRegenerationEnvironmentIds,
-  } = listEnvironments;
-  const resolveProviderInstance = useThreadRowProviderInstanceResolver(providersByEnvironmentId);
+    providersByMachineId,
+    machineByMachineId,
+    settlementMachineIds,
+    snoozeMachineIds,
+    pinningMachineIds,
+    autoSettleOptOutMachineIds,
+    pinReorderMachineIds,
+    activeReorderMachineIds,
+    titleRegenerationMachineIds,
+  } = listMachines;
+  const resolveProviderInstance = useThreadRowProviderInstanceResolver(providersByMachineId);
   const pendingOrder = usePendingThreadOrder(nowMinute, snoozeWakeTick);
   // Up/down menu availability for every card, computed once per section per
   // rebuild (see computeThreadMoveAvailability): per-thread planner calls made
@@ -309,15 +309,15 @@ function ThreadNavigationSidebarPane(
         allThreads: threads,
         section,
         pendingOrder,
-        reorderableEnvironmentIds:
-          section === "pinned" ? pinReorderEnvironmentIds : activeReorderEnvironmentIds,
+        reorderableMachineIds:
+          section === "pinned" ? pinReorderMachineIds : activeReorderMachineIds,
         ordered: getThreadListV2OrderedSection({
           threads,
           section,
           pendingOrder,
           now,
-          settlementEnvironmentIds,
-          snoozeEnvironmentIds,
+          settlementMachineIds,
+          snoozeMachineIds,
           queuedThreadKeys,
         }),
       });
@@ -331,12 +331,12 @@ function ThreadNavigationSidebarPane(
     return buildThreadListV2Items({
       pendingOrder,
       threads: threads.filter((thread) => thread.archivedAt === null),
-      environmentId: options.selectedEnvironmentId,
+      machineId: options.selectedMachineId,
       projectRefs: selectedProjectScope === null ? null : selectedProjectScope.projectRefs,
       searchQuery: props.searchQuery,
       matchedThreadKeys,
-      settlementEnvironmentIds,
-      snoozeEnvironmentIds,
+      settlementMachineIds,
+      snoozeMachineIds,
       queuedThreadKeys,
       settledLimit: settledVisibleCount,
       now,
@@ -367,11 +367,11 @@ function ThreadNavigationSidebarPane(
     const v2SearchQuery = props.searchQuery.trim().toLocaleLowerCase();
     const v2PendingTasks = pendingTasks.filter(
       (pendingTask) =>
-        (options.selectedEnvironmentId === null ||
-          pendingTask.environmentId === options.selectedEnvironmentId) &&
+        (options.selectedMachineId === null ||
+          pendingTask.machineId === options.selectedMachineId) &&
         (selectedProjectRefs === null ||
           selectedProjectRefs.has(
-            scopedProjectKey(pendingTask.environmentId, pendingTask.projectId),
+            scopedProjectKey(pendingTask.machineId, pendingTask.projectId),
           )) &&
         (v2SearchQuery.length === 0 ||
           pendingTask.title.toLocaleLowerCase().includes(v2SearchQuery)),
@@ -389,7 +389,7 @@ function ThreadNavigationSidebarPane(
       settledShelfExpanded,
       settledShelfHeaderIndex: threadListV2Layout.settledShelfHeaderIndex,
       snoozeLabelNow: `${nowMinute}:00.000Z`,
-      snoozeEnvironmentIds,
+      snoozeMachineIds,
       queuedThreadKeys,
       moveAvailability: threadMoveAvailability,
       shelfPreferencesLoading: !shelfPreferencesLoaded,
@@ -405,20 +405,20 @@ function ThreadNavigationSidebarPane(
   })();
   const listMenuActions = [
     {
-      id: "environment",
-      title: "Environment",
+      id: "machine",
+      title: "Machine",
       subactions: [
         {
-          id: "environment:all",
-          title: "All environments",
-          subtitle: "Show threads from every environment",
-          state: options.selectedEnvironmentId === null ? "on" : "off",
+          id: "machine:all",
+          title: "All machines",
+          subtitle: "Show threads from every machine",
+          state: options.selectedMachineId === null ? "on" : "off",
         },
-        ...environments.map((environment) => ({
-          id: `environment:${environment.environmentId}`,
-          title: environment.label,
+        ...machines.map((machine) => ({
+          id: `machine:${machine.machineId}`,
+          title: machine.label,
           state:
-            options.selectedEnvironmentId === environment.environmentId
+            options.selectedMachineId === machine.machineId
               ? ("on" as const)
               : ("off" as const),
         })),
@@ -452,15 +452,15 @@ function ThreadNavigationSidebarPane(
     readonly nativeEvent: { readonly event: string };
   }) => {
     const event = nativeEvent.event;
-    if (event === "environment:all") {
-      setSelectedEnvironmentId(null);
+    if (event === "machine:all") {
+      setSelectedMachineId(null);
       return;
     }
-    if (event.startsWith("environment:")) {
-      const environment = environments.find(
-        (candidate) => String(candidate.environmentId) === event.slice("environment:".length),
+    if (event.startsWith("machine:")) {
+      const machine = machines.find(
+        (candidate) => String(candidate.machineId) === event.slice("machine:".length),
       );
-      if (environment) setSelectedEnvironmentId(environment.environmentId);
+      if (machine) setSelectedMachineId(machine.machineId);
       return;
     }
     if (event === "project:all") {
@@ -505,12 +505,12 @@ function ThreadNavigationSidebarPane(
   // These close the open row too, so they cannot be pass-throughs. The compiler would
   // recache a closure over `props` whenever any prop changed.
   const { onSelectThread, onOpenThreadPullRequests } = props;
-  const handleSelectThread = (thread: EnvironmentThreadShell) => {
+  const handleSelectThread = (thread: MachineThreadShell) => {
     onSelectThread(thread);
     openSwipeableRef.current?.close();
   };
   const handleOpenThreadPullRequests = (
-    thread: EnvironmentThreadShell,
+    thread: MachineThreadShell,
     pr: ThreadPrPresentation,
   ) => {
     onOpenThreadPullRequests(thread, pr);
@@ -535,7 +535,7 @@ function ThreadNavigationSidebarPane(
     projectByKey,
     projectTitleByProjectKey,
     savedConnectionsById,
-    listEnvironments,
+    listMachines,
     threadSearchMatchByKey,
     workingShelfEnabled,
   };
@@ -571,7 +571,7 @@ function ThreadNavigationSidebarPane(
     switch (item.type) {
       case "v2-pending": {
         const pendingScopeKey = scopedProjectKey(
-          item.pendingTask.environmentId,
+          item.pendingTask.machineId,
           item.pendingTask.projectId,
         );
         return (
@@ -581,18 +581,18 @@ function ThreadNavigationSidebarPane(
               activeNewTask?.pendingKey === item.pendingTask.key ||
               (item.pendingTask.kind === "pending" &&
                 scopedThreadKey(
-                  item.pendingTask.environmentId,
+                  item.pendingTask.machineId,
                   item.pendingTask.message.threadId,
                 ) === props.selectedThreadKey)
             }
             project={projectByKey.get(pendingScopeKey) ?? null}
             projectTitle={projectTitleByProjectKey.get(pendingScopeKey)}
-            environmentLabel={
+            machineLabel={
               Object.keys(savedConnectionsById).length > 1
-                ? (savedConnectionsById[item.pendingTask.environmentId]?.environmentLabel ?? null)
+                ? (savedConnectionsById[item.pendingTask.machineId]?.machineLabel ?? null)
                 : null
             }
-            environmentMachine={machineByEnvironmentId.get(item.pendingTask.environmentId)}
+            machine={machineByMachineId.get(item.pendingTask.machineId)}
             pane="sidebar"
             showPendingDivider={item.showPendingDivider}
             onSelectPendingTask={props.onOpenPendingTask}
@@ -606,7 +606,7 @@ function ThreadNavigationSidebarPane(
       }
       case "v2-thread": {
         const thread = item.item.thread;
-        const scopeKey = scopedProjectKey(thread.environmentId, thread.projectId);
+        const scopeKey = scopedProjectKey(thread.machineId, thread.projectId);
         return (
           <ThreadListV2Row
             onNewThreadOnBranch={props.onNewThreadOnBranch}
@@ -622,16 +622,16 @@ function ThreadNavigationSidebarPane(
             project={projectByKey.get(scopeKey) ?? null}
             projectTitle={projectTitleByProjectKey.get(scopeKey)}
             providerInstance={resolveProviderInstance(thread)}
-            providers={providersByEnvironmentId.get(thread.environmentId)}
-            environmentLabel={
+            providers={providersByMachineId.get(thread.machineId)}
+            machineLabel={
               Object.keys(savedConnectionsById).length > 1
-                ? (savedConnectionsById[thread.environmentId]?.environmentLabel ?? null)
+                ? (savedConnectionsById[thread.machineId]?.machineLabel ?? null)
                 : null
             }
-            environmentMachine={machineByEnvironmentId.get(thread.environmentId)}
+            machine={machineByMachineId.get(thread.machineId)}
             searchMatch={threadSearchMatchByKey.get(
               threadSearchMatchKey({
-                environmentId: thread.environmentId,
+                machineId: thread.machineId,
                 threadId: thread.id,
               }),
             )}
@@ -639,7 +639,7 @@ function ThreadNavigationSidebarPane(
             pane="sidebar"
             selected={
               !activeNewTask &&
-              scopedThreadKey(thread.environmentId, thread.id) === props.selectedThreadKey
+              scopedThreadKey(thread.machineId, thread.id) === props.selectedThreadKey
             }
             fullSwipeWidth={props.width - 20}
             onSelectThread={handleSelectThread}
@@ -648,16 +648,16 @@ function ThreadNavigationSidebarPane(
             onArchiveThread={archiveThread}
             onRenameThread={renameThread}
             onRegenerateThreadTitle={regenerateThreadTitle}
-            titleRegenerationSupported={titleRegenerationEnvironmentIds.has(thread.environmentId)}
-            settlementSupported={settlementEnvironmentIds.has(thread.environmentId)}
+            titleRegenerationSupported={titleRegenerationMachineIds.has(thread.machineId)}
+            settlementSupported={settlementMachineIds.has(thread.machineId)}
             onSettleThread={settleThread}
-            snoozeSupported={snoozeEnvironmentIds.has(thread.environmentId)}
-            pinningSupported={pinningEnvironmentIds.has(thread.environmentId)}
-            autoSettleOptOutSupported={autoSettleOptOutEnvironmentIds.has(thread.environmentId)}
+            snoozeSupported={snoozeMachineIds.has(thread.machineId)}
+            pinningSupported={pinningMachineIds.has(thread.machineId)}
+            autoSettleOptOutSupported={autoSettleOptOutMachineIds.has(thread.machineId)}
             reorderSupported={
               item.item.pinned
-                ? pinReorderEnvironmentIds.has(thread.environmentId)
-                : !workingShelfEnabled && activeReorderEnvironmentIds.has(thread.environmentId)
+                ? pinReorderMachineIds.has(thread.machineId)
+                : !workingShelfEnabled && activeReorderMachineIds.has(thread.machineId)
             }
             canMoveUp={item.canMoveUp}
             canMoveDown={item.canMoveDown}
@@ -714,16 +714,16 @@ function ThreadNavigationSidebarPane(
         );
     }
   };
-  const filterCustomized = options.selectedEnvironmentId !== null || selectedProjectKey !== null;
+  const filterCustomized = options.selectedMachineId !== null || selectedProjectKey !== null;
   const filterIcon = filterCustomized
     ? "line.3.horizontal.decrease.circle.fill"
     : "line.3.horizontal.decrease.circle";
   const filterMenu = buildHomeListFilterMenu({
-    environments,
+    machines,
     projects: projectFilterOptions,
-    selectedEnvironmentId: options.selectedEnvironmentId,
+    selectedMachineId: options.selectedMachineId,
     selectedProjectKey,
-    onEnvironmentChange: setSelectedEnvironmentId,
+    onMachineChange: setSelectedMachineId,
     onProjectChange: setSelectedProjectKey,
   });
   const nativeHeaderItems = createSidebarHeaderItems({
@@ -742,7 +742,7 @@ function ThreadNavigationSidebarPane(
       {catalogState.isLoadingConnections
         ? "Loading threads…"
         : Platform.OS === "android" && !catalogState.hasConnections
-          ? "No environments connected"
+          ? "No machines connected"
           : props.searchQuery.trim().length > 0
             ? threadSearch.isPending
               ? "Searching thread messages…"
@@ -762,7 +762,7 @@ function ThreadNavigationSidebarPane(
             ...getConnectionAwareBrandHeaderOptions({
               headerWidth: props.width,
               trailingItemCount: nativeHeaderItems.length,
-              onOpenEnvironments: props.onOpenEnvironmentSettings,
+              onOpenMachines: props.onOpenMachineSettings,
               fallbackTitleStyle: { fontSize: 18, fontWeight: "800" },
             }),
             headerSearchBarOptions: {
@@ -899,7 +899,7 @@ function ThreadNavigationSidebarPane(
           filterActions={listMenuActions}
           filterCustomized={filterCustomized}
           onFilterAction={handleListMenuAction}
-          onOpenEnvironments={props.onOpenEnvironmentSettings}
+          onOpenMachines={props.onOpenMachineSettings}
           onRequestVisibility={props.onRequestVisibility}
         />
       ) : (
@@ -913,7 +913,7 @@ function ThreadNavigationSidebarPane(
           <View className="h-[50px] flex-row items-end gap-0.5 pr-2 pl-5">
             <WorkspaceConnectionTitle
               grow
-              onPress={props.onOpenEnvironmentSettings}
+              onPress={props.onOpenMachineSettings}
               size="pageTitle"
               brand={
                 <View className="h-11 flex-1 justify-center">

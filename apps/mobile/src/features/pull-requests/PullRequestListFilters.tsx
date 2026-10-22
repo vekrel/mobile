@@ -40,7 +40,7 @@ function choices(field: string, options: Readonly<Record<string, string>>, selec
   }));
 }
 
-function useProjectsInSidebarOrder<Project extends { id: string; environmentId: string }>(
+function useProjectsInSidebarOrder<Project extends { id: string; machineId: string }>(
   projects: readonly Project[],
 ) {
   const allProjects = useProjects();
@@ -51,7 +51,7 @@ function useProjectsInSidebarOrder<Project extends { id: string; environmentId: 
       sortHomeProjectScopes({
         scopes: buildHomeProjectScopes({
           projects: allProjects,
-          environmentId: null,
+          machineId: null,
           projectGroupingMode: sidebarProjectGroupingMode,
         }),
         threads,
@@ -66,14 +66,14 @@ function useProjectsInSidebarOrder<Project extends { id: string; environmentId: 
 export function PullRequestListFilters(props: {
   /** Android sidebar rows sit further in than full-width rows; the pills follow them. */
   readonly sidebar?: boolean;
-  readonly environments: readonly { id: string; label: string }[];
-  readonly environmentId: string | null;
-  readonly onEnvironmentChange: (id: string | null) => void;
+  readonly machines: readonly { id: string; label: string }[];
+  readonly machineId: string | null;
+  readonly onMachineChange: (id: string | null) => void;
   readonly value: PullRequestListControls;
   readonly onChange: (value: PullRequestListControls) => void;
   readonly authors: readonly string[];
   readonly labels: readonly string[];
-  readonly projects: readonly { id: string; title: string; environmentId: string }[];
+  readonly projects: readonly { id: string; title: string; machineId: string }[];
 }) {
   const { value } = props;
   const projects = useProjectsInSidebarOrder(props.projects);
@@ -96,15 +96,15 @@ export function PullRequestListFilters(props: {
       return;
     const [field, next] = selection;
     switch (field) {
-      case "environment":
-        if (next === "") props.onEnvironmentChange(null);
-        else if (props.environments.some((environment) => environment.id === next))
-          props.onEnvironmentChange(next);
+      case "machine":
+        if (next === "") props.onMachineChange(null);
+        else if (props.machines.some((machine) => machine.id === next))
+          props.onMachineChange(next);
         break;
       case "reset":
         props.onChange(DEFAULT_PR_LIST_CONTROLS);
-        // The Android header menu also holds the environment, so its reset clears that too.
-        if (next === "environment") props.onEnvironmentChange(null);
+        // The Android header menu also holds the machine, so its reset clears that too.
+        if (next === "machine") props.onMachineChange(null);
         break;
       case "state":
         props.onChange({ ...value, state: next as PullRequestListControls["state"] });
@@ -117,12 +117,12 @@ export function PullRequestListFilters(props: {
         break;
       case "project": {
         const project = projects.find(
-          (project) => JSON.stringify([project.environmentId, project.id]) === next,
+          (project) => JSON.stringify([project.machineId, project.id]) === next,
         );
         props.onChange({
           ...value,
           projectId: project?.id,
-          projectEnvironmentId: project?.environmentId,
+          projectMachineId: project?.machineId,
         });
         break;
       }
@@ -207,43 +207,43 @@ export function PullRequestListFilters(props: {
       title:
         projects.find(
           (project) =>
-            project.id === value.projectId && project.environmentId === value.projectEnvironmentId,
+            project.id === value.projectId && project.machineId === value.projectMachineId,
         )?.title ?? "Project",
       subactions: choices(
         "project",
         Object.fromEntries([
           ["", "All projects"],
           ...projects.map((project) => [
-            JSON.stringify([project.environmentId, project.id]),
+            JSON.stringify([project.machineId, project.id]),
             project.title,
           ]),
         ]),
-        value.projectId ? JSON.stringify([value.projectEnvironmentId, value.projectId]) : "",
+        value.projectId ? JSON.stringify([value.projectMachineId, value.projectId]) : "",
       ),
     },
     { id: "sort", title: SORTS[value.sort], subactions: choices("sort", SORTS, value.sort) },
   ];
-  const reset = (withEnvironment: boolean): MenuProps["actions"][number] => ({
-    id: id("reset", withEnvironment ? "environment" : ""),
+  const reset = (withMachine: boolean): MenuProps["actions"][number] => ({
+    id: id("reset", withMachine ? "machine" : ""),
     title: "Reset filters",
     attributes: {
       disabled:
         count === 0 &&
         value.sort === "updated" &&
-        (!withEnvironment || props.environmentId === null),
+        (!withMachine || props.machineId === null),
     },
   });
   const labels = [...new Set([...selectedLabels, ...props.labels])].slice(0, 60);
   const authors = [
     ...new Set([...(author && author !== "me" ? [author] : []), ...props.authors]),
   ].slice(0, 60);
-  const environmentActions = choices(
-    "environment",
+  const machineActions = choices(
+    "machine",
     Object.fromEntries([
-      ["", "All environments"],
-      ...props.environments.map((environment) => [environment.id, environment.label]),
+      ["", "All machines"],
+      ...props.machines.map((machine) => [machine.id, machine.label]),
     ]),
-    props.environmentId ?? "",
+    props.machineId ?? "",
   );
   const stateActions = choices("state", STATES, value.state);
   const involvementActions = choices("involvement", INVOLVEMENT, value.involvement);
@@ -264,13 +264,13 @@ export function PullRequestListFilters(props: {
     ]),
     author ?? "",
   );
-  const customized = count > 0 || value.sort !== "updated" || props.environmentId !== null;
+  const customized = count > 0 || value.sort !== "updated" || props.machineId !== null;
   // The Android header's filter button opens every filter.
   const headerMenu =
     Platform.OS === "android"
       ? {
           actions: [
-            { id: "environment", title: "Environment", subactions: environmentActions },
+            { id: "machine", title: "Machine", subactions: machineActions },
             { id: "state", title: "State", subactions: stateActions },
             { id: "involvement", title: "Involvement", subactions: involvementActions },
             { id: "labels", title: "Labels", subactions: labelActions },
@@ -305,14 +305,14 @@ export function PullRequestListFilters(props: {
           onSelect={select}
         />
       )}
-      {props.environments.length > 1 ? (
+      {props.machines.length > 1 ? (
         <ListFilterMenu
           label={
-            props.environments.find((environment) => environment.id === props.environmentId)
-              ?.label ?? "All environments"
+            props.machines.find((machine) => machine.id === props.machineId)
+              ?.label ?? "All machines"
           }
-          accessibilityLabel="Choose pull request environment"
-          actions={environmentActions}
+          accessibilityLabel="Choose pull request machine"
+          actions={machineActions}
           onSelect={select}
         />
       ) : null}

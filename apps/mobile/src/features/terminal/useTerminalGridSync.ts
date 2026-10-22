@@ -1,17 +1,17 @@
 import type { TerminalSessionState } from "@vekrel/client-runtime/state/terminal";
 import {
   AuthTerminalOperateScope,
-  type EnvironmentId,
+  type MachineId,
   type TerminalResizeInput,
   type ThreadId,
 } from "@vekrel/contracts";
 import { useEffect } from "react";
 
 import type { TerminalGridSize } from "./terminalUiState";
-import { readEnvironmentScope } from "../../state/session";
+import { readMachineScope } from "../../state/session";
 
 export function useTerminalGridSync({
-  environmentId,
+  machineId,
   threadId,
   terminalId,
   canOperate,
@@ -19,14 +19,14 @@ export function useTerminalGridSync({
   size,
   resize,
 }: {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly threadId: ThreadId | null;
   readonly terminalId: string;
   readonly canOperate: boolean;
   readonly terminal: Pick<TerminalSessionState, "output" | "status" | "version">;
   readonly size: TerminalGridSize;
   readonly resize: (target: {
-    readonly environmentId: EnvironmentId;
+    readonly machineId: MachineId;
     readonly input: TerminalResizeInput;
   }) => void;
 }): void {
@@ -38,14 +38,14 @@ export function useTerminalGridSync({
   useEffect(() => {
     if (
       generation === null ||
-      environmentId === null ||
+      machineId === null ||
       threadId === null ||
-      !readEnvironmentScope(environmentId, AuthTerminalOperateScope)
+      !readMachineScope(machineId, AuthTerminalOperateScope)
     )
       return;
     resize({
-      environmentId,
+      machineId,
       input: { threadId, terminalId, cols: size.cols, rows: size.rows },
     });
-  }, [environmentId, generation, resize, size.cols, size.rows, terminalId, threadId]);
+  }, [machineId, generation, resize, size.cols, size.rows, terminalId, threadId]);
 }

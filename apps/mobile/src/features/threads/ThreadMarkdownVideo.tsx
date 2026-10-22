@@ -18,11 +18,11 @@ export function ThreadMarkdownVideo(props: {
   const visible = props.thumbnailVisible ?? feedVisible;
   const thumbnailKey = mediaVideoThumbnailKey(source);
   const asset = useAssetUrlState(
-    "environmentId" in source ? source.environmentId : null,
+    "machineId" in source ? source.machineId : null,
     "resource" in source ? source.resource : null,
   );
   const refreshAssetUrl = useRefreshAssetUrl(
-    "environmentId" in source ? source.environmentId : null,
+    "machineId" in source ? source.machineId : null,
     "resource" in source ? source.resource : null,
   );
   const uri = mediaVideoPreviewUri(source, asset._tag === "Success" ? asset.url : null);

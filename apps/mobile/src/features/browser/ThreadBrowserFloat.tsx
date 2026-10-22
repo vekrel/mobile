@@ -1,5 +1,5 @@
 import { useIsFocused } from "@react-navigation/native";
-import type { EnvironmentId, PreviewSessionSnapshot, ThreadId } from "@vekrel/contracts";
+import type { MachineId, PreviewSessionSnapshot, ThreadId } from "@vekrel/contracts";
 import { previewPdfAssetUrl } from "@vekrel/shared/preview";
 import * as Option from "effect/Option";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -17,7 +17,7 @@ const PLAYER_ENTERING = FadeIn.duration(180).reduceMotion(ReduceMotion.System);
 const PLAYER_EXITING = FadeOut.duration(120).reduceMotion(ReduceMotion.System);
 
 export function ThreadBrowserFloat(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly tabs: ReadonlyArray<PreviewSessionSnapshot>;
   readonly loaded: boolean;
@@ -59,7 +59,7 @@ export function ThreadBrowserFloat(props: {
   if (!tab || !focused) return null;
   return (
     <FloatingBrowserPlayer
-      environmentId={props.environmentId}
+      machineId={props.machineId}
       threadId={props.threadId}
       tab={tab}
       live={foreground}
@@ -71,7 +71,7 @@ export function ThreadBrowserFloat(props: {
 }
 
 function FloatingBrowserPlayer(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly tab: PreviewSessionSnapshot;
   readonly live: boolean;
@@ -80,7 +80,7 @@ function FloatingBrowserPlayer(props: {
   readonly onClose: () => void;
 }) {
   const { themeVariables } = useAppearancePreferences();
-  const prepared = usePreparedConnection(props.environmentId);
+  const prepared = usePreparedConnection(props.machineId);
   const httpBaseUrl = Option.isSome(prepared) ? prepared.value.httpBaseUrl : null;
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null);
   const aspect = Math.min(Math.max(viewport ? viewport.width / viewport.height : 16 / 10, 0.5), 2);
@@ -103,7 +103,7 @@ function FloatingBrowserPlayer(props: {
       >
         <View pointerEvents="none" className="flex-1">
           <PreviewStreamWebView
-            environmentId={props.environmentId}
+            machineId={props.machineId}
             threadId={props.threadId}
             tabId={props.tab.tabId}
             pdfUri={

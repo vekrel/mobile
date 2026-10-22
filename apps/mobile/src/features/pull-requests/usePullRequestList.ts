@@ -1,6 +1,6 @@
 import { RegistryContext, useAtomValue } from "@effect/atom-react";
 import { executeAtomQuery, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentId, PullRequestDiffStat, PullRequestListInput } from "@vekrel/contracts";
+import type { MachineId, PullRequestDiffStat, PullRequestListInput } from "@vekrel/contracts";
 import * as Cause from "effect/Cause";
 import * as Option from "effect/Option";
 import { AsyncResult, Atom } from "effect/reactivity";
@@ -8,25 +8,25 @@ import { use, useCallback, useEffect, useMemo, useRef, useState, useLayoutEffect
 import { composerPullRequests } from "../../state/pull-requests";
 import {
   appendPullRequestListPage,
-  mergeEnvironmentPullRequestPages,
+  mergeMachinePullRequestPages,
   nextPullRequestListInput,
   pullRequestListHead,
   pullRequestListKey,
   scopedPullRequestListKey,
-  type EnvironmentPullRequestListEntry,
+  type MachinePullRequestListEntry,
   type PullRequestListPages,
 } from "./pullRequestList";
 
 const pagesFamily = Atom.family((_key: string) =>
   Atom.make<PullRequestListPages | null>(null).pipe(Atom.setIdleTTL(5 * 60_000)),
 );
-const statsFamily = Atom.family((_environmentId: string) =>
+const statsFamily = Atom.family((_machineId: string) =>
   Atom.make<ReadonlyMap<string, PullRequestDiffStat>>(new Map()).pipe(Atom.setIdleTTL(5 * 60_000)),
 );
 const statKey = (row: Pick<PullRequestDiffStat, "projectId" | "repository" | "number">) =>
   `${row.projectId}:${row.repository}:${row.number}`;
 
-type ListTarget = { readonly environmentId: EnvironmentId; readonly input: PullRequestListInput };
+type ListTarget = { readonly machineId: MachineId; readonly input: PullRequestListInput };
 const sourcesFamily = Atom.family((key: string) => {
   const targets: readonly ListTarget[] = JSON.parse(key);
   return Atom.make((get) =>
@@ -38,7 +38,7 @@ const sourcesFamily = Atom.family((key: string) => {
         target,
         result,
         pages: head ? pullRequestListHead(cached, head) : cached,
-        stats: get(statsFamily(target.environmentId)),
+        stats: get(statsFamily(target.machineId)),
       };
     }),
   );
@@ -130,7 +130,7 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
     const responses = await Promise.allSettled(
       targets.map(async (target) => {
         await composerPullRequests.invalidate.run(registry, {
-          environmentId: target.environmentId,
+          machineId: target.machineId,
           input: {},
         });
         if (controller.signal.aborted) return;
@@ -154,12 +154,12 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
 
   const data = useMemo(
     () =>
-      mergeEnvironmentPullRequestPages(
+      mergeMachinePullRequestPages(
         sources.flatMap(({ target, pages, stats }) =>
           pages
             ? [
                 {
-                  environmentId: target.environmentId,
+                  machineId: target.machineId,
                   pages: {
                     ...pages,
                     entries: pages.entries.map((entry) => {
@@ -178,13 +178,13 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
   );
   const [visible, setVisible] = useState<{
     key: string;
-    rows: readonly EnvironmentPullRequestListEntry[];
+    rows: readonly MachinePullRequestListEntry[];
   }>({ key: scopeKey, rows: [] });
   const onViewableItemsChanged = useCallback(
     ({
       viewableItems,
     }: {
-      viewableItems: readonly { item: EnvironmentPullRequestListEntry; isViewable: boolean }[];
+      viewableItems: readonly { item: MachinePullRequestListEntry; isViewable: boolean }[];
     }) => {
       const rows = viewableItems.filter((token) => token.isViewable).map((token) => token.item);
       setVisible((previous) =>
@@ -200,11 +200,11 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
   const visibleRows =
     visible.key === scopeKey && visible.rows.length ? visible.rows : data.entries.slice(0, 8);
   const statsKey = JSON.stringify(
-    targets.flatMap(({ environmentId }) => {
+    targets.flatMap(({ machineId }) => {
       const refs = visibleRows
         .filter(
           (row) =>
-            row.environmentId === environmentId &&
+            row.machineId === machineId &&
             row.provider === "github" &&
             row.additions + row.deletions === 0,
         )
@@ -214,7 +214,7 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
           repository,
           number,
         }));
-      return refs.length ? [{ environmentId, input: { refs } }] : [];
+      return refs.length ? [{ machineId, input: { refs } }] : [];
     }),
   );
   const statsAtom = useMemo(() => {
@@ -222,16 +222,16 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
       JSON.parse(statsKey);
     return Atom.make((get) =>
       queries.map((target) => ({
-        environmentId: target.environmentId,
+        machineId: target.machineId,
         result: get(composerPullRequests.listStats(target)),
       })),
     );
   }, [statsKey]);
   const counts = useAtomValue(statsAtom);
   useEffect(() => {
-    for (const { environmentId, result } of counts) {
+    for (const { machineId, result } of counts) {
       if (result._tag !== "Success" || result.waiting) continue;
-      registry.update(statsFamily(environmentId), (previous) => {
+      registry.update(statsFamily(machineId), (previous) => {
         const next = new Map(previous);
         for (const row of result.value.stats) next.set(statKey(row), row);
         return next;
@@ -240,8 +240,8 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
   }, [registry, counts]);
 
   const updateEntry = useCallback(
-    (entry: EnvironmentPullRequestListEntry, patch: Partial<EnvironmentPullRequestListEntry>) => {
-      const target = targets.find((target) => target.environmentId === entry.environmentId);
+    (entry: MachinePullRequestListEntry, patch: Partial<MachinePullRequestListEntry>) => {
+      const target = targets.find((target) => target.machineId === entry.machineId);
       if (!target) return;
       registry.update(pagesFamily(JSON.stringify(target)), (previous) =>
         previous
@@ -266,7 +266,7 @@ export function usePullRequestList(targets: readonly ListTarget[]) {
         const cause = Cause.squash(result.cause);
         return [
           {
-            environmentId: target.environmentId,
+            machineId: target.machineId,
             projectTitle: "",
             message: cause instanceof Error ? cause.message : "Couldn't load pull requests.",
           },

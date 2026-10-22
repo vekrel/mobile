@@ -21,8 +21,8 @@ import {
 import { RootStack } from "./Stack";
 import { appAtomRegistry } from "./state/atom-registry";
 import { subscribeComposerDraftModelReconciliation } from "./state/use-composer-drafts";
-import { environmentThreadShells } from "./state/threads";
-import { environmentShell } from "./state/shell";
+import { machineThreadShells } from "./state/threads";
+import { machineShell } from "./state/shell";
 import { OverlayPortalHost } from "./components/ui/OverlayPortal";
 import { shouldHandleAppLink, restoreDraftLinkState } from "./lib/appLinking";
 import { useMobileNavigationTheme } from "./lib/useMobileNavigationTheme";
@@ -66,9 +66,9 @@ export default function App() {
     () =>
       subscribeComposerDraftModelReconciliation({
         registry: appAtomRegistry,
-        threadShellAtom: environmentThreadShells.threadShellAtom,
-        threadRefsAtom: environmentThreadShells.threadRefsAtom,
-        shellStateAtom: environmentShell.stateAtom,
+        threadShellAtom: machineThreadShells.threadShellAtom,
+        threadRefsAtom: machineThreadShells.threadRefsAtom,
+        shellStateAtom: machineShell.stateAtom,
       }),
     [],
   );

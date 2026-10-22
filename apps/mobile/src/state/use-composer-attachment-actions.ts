@@ -33,7 +33,7 @@ export function useComposerAttachmentActions(props: {
       currentKey.current = null;
     };
   }, [props.draftKey]);
-  const capabilities = props.serverConfig?.environment.capabilities;
+  const capabilities = props.serverConfig?.machine.capabilities;
   const append = async (
     key: string,
     attachments: ReadonlyArray<DraftComposerAttachment>,

@@ -1,6 +1,6 @@
 /**
  * That key still ends in the thread id segment, so everything keyed off the
- * draft key (attachment uploads resolving an environment, per-draft
+ * draft key (attachment uploads resolving a machine, per-draft
  * persistence) keeps working, while the user's draft is never touched and is
  * waiting unchanged when the edit is cancelled.
  */

@@ -6,20 +6,20 @@ import {
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   PROVIDER_SEND_TURN_MAX_IMAGE_BYTES,
   COMPOSER_CONTEXT_MAX_RECORDS,
-  type EnvironmentId,
+  type MachineId,
 } from "@vekrel/contracts";
 import {
   decodeComposerContextClipboardHtml,
   decodeComposerContextFragment,
   encodeComposerContextFragment,
 } from "@vekrel/shared/composerContextClipboard";
-import { threadContextsOutsideEnvironment } from "@vekrel/shared/composerContextReferences";
+import { threadContextsOutsideMachine } from "@vekrel/shared/composerContextReferences";
 import { executeAtomQuery, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import { resolveAssetUrl } from "@vekrel/client-runtime/state/assets";
 import * as Option from "effect/Option";
 import { appAtomRegistry } from "../state/atom-registry";
-import { assetEnvironment } from "../state/assets";
-import { environmentSession } from "../state/session";
+import { assetMachine } from "../state/assets";
+import { machineSession } from "../state/session";
 import { downloadAttachmentForPreview } from "./attachmentDownload";
 import {
   persistComposerAttachmentFile,
@@ -66,7 +66,7 @@ export async function importComposerContextClipboard(
   existingCount: number,
   signal: AbortSignal,
   existingContextCount = 0,
-  destinationEnvironmentId?: EnvironmentId,
+  destinationMachineId?: MachineId,
 ) {
   const fragment =
     decodeComposerContextFragment(input.fragment) ?? decodeComposerContextClipboardHtml(input.html);
@@ -74,12 +74,12 @@ export async function importComposerContextClipboard(
   const selected = referencedComposerContext(input.text, { version: 1, records: fragment.records });
   const imported = reidentifyComposerContext(input.text, selected?.records ?? [], uuidv4);
   const skippedThreads =
-    destinationEnvironmentId === undefined
+    destinationMachineId === undefined
       ? []
-      : threadContextsOutsideEnvironment({
+      : threadContextsOutsideMachine({
           text: imported.text,
           records: imported.context.records,
-          environmentId: destinationEnvironmentId,
+          machineId: destinationMachineId,
         });
   const skippedIds = new Set(skippedThreads.map((record) => record.contextId));
   const retained = imported.context.records.filter((record) => !skippedIds.has(record.contextId));
@@ -98,7 +98,7 @@ export async function importComposerContextClipboard(
       try {
         if (existingCount + attachments.length >= PROVIDER_SEND_TURN_MAX_ATTACHMENTS)
           throw new Error("Attachment limit reached");
-        const file = await importAttachment(record, fragment.source.environmentId, signal);
+        const file = await importAttachment(record, fragment.source.machineId, signal);
         attachments.push(file);
         records.push({ ...record, attachmentId: file.id });
       } catch (error) {
@@ -127,19 +127,19 @@ export async function importComposerContextClipboard(
 
 async function importAttachment(
   record: Extract<ComposerContextRecord, { attachmentId: string }>,
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   signal: AbortSignal,
 ): Promise<DraftComposerAttachment> {
   await waitForComposerDraftsLoaded();
   checkAborted(signal);
-  const local = findLocalComposerClipboardAttachment(environmentId, record.attachmentId);
+  const local = findLocalComposerClipboardAttachment(machineId, record.attachmentId);
   if (local) {
     if (!local.fileUri && local.type === "image" && local.dataUrl)
       return {
         ...local,
         id: uuidv4(),
         uploadedAttachmentId: undefined,
-        uploadEnvironmentId: undefined,
+        uploadMachineId: undefined,
       };
     if (local.fileUri) {
       const preview = await loadLocalAttachmentPreview(
@@ -155,13 +155,13 @@ async function importAttachment(
     }
   }
   const connection = appAtomRegistry.get(
-    environmentSession.preparedConnectionValueAtom(environmentId),
+    machineSession.preparedConnectionValueAtom(machineId),
   );
-  if (Option.isNone(connection)) throw new Error("Reconnect to the source environment");
+  if (Option.isNone(connection)) throw new Error("Reconnect to the source machine");
   const result = await executeAtomQuery(
     appAtomRegistry,
-    assetEnvironment.createUrl({
-      environmentId,
+    assetMachine.createUrl({
+      machineId,
       input: {
         resource: { _tag: "attachment", attachmentId: record.attachmentId, fileName: record.name },
       },

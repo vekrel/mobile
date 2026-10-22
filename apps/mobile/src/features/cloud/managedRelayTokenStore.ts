@@ -12,7 +12,7 @@ const ManagedRelayAccessTokenCacheEntrySchema = Schema.Struct({
   relayUrl: Schema.String,
   thumbprint: Schema.String,
   scopes: Schema.Array(
-    Schema.Literals(["environment:connect", "environment:status", "mobile:registration"]),
+    Schema.Literals(["machine:connect", "machine:status", "mobile:registration"]),
   ),
   accessToken: Schema.String,
   expiresAtMillis: Schema.Number,

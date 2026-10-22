@@ -1,4 +1,4 @@
-import type { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
+import type { MachineProject } from "@vekrel/client-runtime/state/shell";
 import {
   CommandId,
   DEFAULT_PROVIDER_INTERACTION_MODE,
@@ -33,7 +33,7 @@ const FALLBACK_MODEL_SELECTION = {
 } as const;
 
 export function buildShowcasePendingTasks(
-  projects: ReadonlyArray<EnvironmentProject>,
+  projects: ReadonlyArray<MachineProject>,
   now: number,
 ): ReadonlyArray<QueuedThreadMessage> {
   return SHOWCASE_PENDING_TASK_DEFINITIONS.flatMap((definition) => {
@@ -42,7 +42,7 @@ export function buildShowcasePendingTasks(
 
     return [
       {
-        environmentId: project.environmentId,
+        machineId: project.machineId,
         threadId: ThreadId.make(`showcase-pending-${definition.id}`),
         messageId: MessageId.make(`showcase-pending-message-${definition.id}`),
         commandId: CommandId.make(`showcase-pending-command-${definition.id}`),

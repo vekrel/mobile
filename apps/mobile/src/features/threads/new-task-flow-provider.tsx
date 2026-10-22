@@ -1,12 +1,12 @@
 import { ActiveNewTaskContext } from "../../state/active-new-task";
 import * as Dialog from "../../components/ui/Dialog";
 import { resolveFilesystemReadAccess } from "@vekrel/client-runtime/state/filesystem";
-import { useEnvironmentPresentation } from "../../state/presentation";
-import { environmentSession } from "../../state/session";
+import { useMachinePresentation } from "../../state/presentation";
+import { machineSession } from "../../state/session";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
-  EnvironmentId,
+  MachineId,
   ModelSelection,
   ProjectReadFileResult,
   ProviderInteractionMode,
@@ -25,14 +25,14 @@ import {
   ThreadId,
 } from "@vekrel/contracts";
 import { sanitizeNewRefName } from "@vekrel/shared/git";
-import { threadContextsOutsideEnvironment } from "@vekrel/shared/composerContextReferences";
+import { threadContextsOutsideMachine } from "@vekrel/shared/composerContextReferences";
 import { resolveNewThreadEnvMode, resolveProjectSettings } from "@vekrel/shared/projectSettings";
 import { parseT3ProjectFile } from "@vekrel/shared/t3ProjectFile";
 import * as Arr from "effect/Array";
 import { pipe } from "effect/Function";
 
 import {
-  useEnvironmentServerConfig,
+  useMachineServerConfig,
   useProjects,
   useServerConfigs,
   useThreadShells,
@@ -49,8 +49,8 @@ import {
 } from "../../lib/modelOptions";
 import { scopedProjectKey } from "../../lib/scopedEntities";
 import { appAtomRegistry } from "../../state/atom-registry";
-import { projectEnvironment } from "../../state/projects";
-import { useEnvironmentQuery } from "../../state/query";
+import { projectMachine } from "../../state/projects";
+import { useMachineQuery } from "../../state/query";
 import { useAtomCommand } from "../../state/use-atom-command";
 import {
   appendComposerDraftAttachments,
@@ -81,7 +81,7 @@ import {
   withRememberedModelOptions,
 } from "../../state/use-model-option-memory";
 import { useBranches, useDebouncedValue, usePaginatedBranches } from "../../state/queries";
-import { vcsEnvironment } from "../../state/vcs";
+import { vcsMachine } from "../../state/vcs";
 import {
   flattenQueuedThreadMessages,
   threadOutboxManager,
@@ -96,14 +96,14 @@ import {
   setPendingConnectionError,
   useRemoteConnectionStatus,
   useSavedRemoteConnections,
-} from "../../state/use-remote-environment-registry";
+} from "../../state/use-remote-machine-registry";
 import { availableScratchWorkspaceRoot } from "@vekrel/client-runtime/operations/projects";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@vekrel/client-runtime/state/runtime";
 import { isScratchProject } from "@vekrel/client-runtime/state/projects";
-import { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
+import { MachineProject } from "@vekrel/client-runtime/state/shell";
 import { type VcsRef } from "@vekrel/client-runtime/state/vcs";
 import {
   buildHomeProjectScopes,
@@ -122,7 +122,7 @@ import {
   resolveNewTaskLocalWorkspaceSelection,
   resolveNewTaskWorkspaceSelection,
 } from "./new-task-context-presentation";
-import { resolveEnvironmentProjectMatch } from "./new-task-project-selection";
+import { resolveMachineProjectMatch } from "./new-task-project-selection";
 import { resolveProjectThreadCreationBranch } from "./projectThreadCreationValidation";
 
 type WorkspaceMode = "local" | "worktree";
@@ -148,7 +148,7 @@ function findQueuedPendingTask(messageId: string): QueuedThreadMessage | null {
 
 export function branchBadgeLabel(input: {
   readonly branch: VcsRef;
-  readonly project: EnvironmentProject | null;
+  readonly project: MachineProject | null;
 }): string | null {
   if (input.branch.current) {
     return "current";
@@ -168,7 +168,7 @@ export function branchBadgeLabel(input: {
 type NewTaskFlowContextValue = {
   readonly activeNewTask: { readonly pendingKey: string | null } | null;
   readonly projectScopes: ReadonlyArray<HomeProjectScope>;
-  readonly selectedEnvironmentId: EnvironmentId | null;
+  readonly selectedMachineId: MachineId | null;
   readonly selectedProjectKey: string | null;
   readonly selectedModelKey: string | null;
   readonly workspaceMode: WorkspaceMode;
@@ -195,11 +195,11 @@ type NewTaskFlowContextValue = {
   readonly interactionMode: ProviderInteractionMode;
   readonly planModeEnabled: boolean;
   readonly expandedProvider: string | null;
-  readonly environments: ReadonlyArray<{
-    readonly environmentId: EnvironmentId;
-    readonly environmentLabel: string;
+  readonly machines: ReadonlyArray<{
+    readonly machineId: MachineId;
+    readonly machineLabel: string;
   }>;
-  readonly selectedProject: EnvironmentProject | null;
+  readonly selectedProject: MachineProject | null;
   readonly isScratchDraft: boolean;
   readonly modelOptions: ReadonlyArray<ModelOption>;
   readonly selectedModel: ModelSelection | null;
@@ -208,16 +208,16 @@ type NewTaskFlowContextValue = {
   readonly providerGroups: ReadonlyArray<ProviderGroup>;
   readonly filteredBranches: ReadonlyArray<VcsRef>;
   readonly reset: () => void;
-  readonly setProject: (project: EnvironmentProject) => void;
+  readonly setProject: (project: MachineProject) => void;
   /**
    * Binds the composer to an existing new-task draft (a row in the thread
    * list). Returns false when the draft is gone, so the caller can fall back
    * to a fresh one.
    */
   readonly openDraft: (draftKey: string) => boolean;
-  readonly selectEnvironment: (environmentId: EnvironmentId) => void;
-  readonly switchEnvironment: (environmentId: EnvironmentId) => Promise<boolean>;
-  readonly switchingToEnvironmentId: EnvironmentId | null;
+  readonly selectMachine: (machineId: MachineId) => void;
+  readonly switchMachine: (machineId: MachineId) => Promise<boolean>;
+  readonly switchingToMachineId: MachineId | null;
   readonly setSelectedModelKey: (
     key: string | null,
     options?: ReadonlyArray<ProviderOptionSelection>,
@@ -274,7 +274,7 @@ export function NewTaskFlowProvider(
   const projectScopes = sortHomeProjectScopes({
     scopes: buildHomeProjectScopes({
       projects,
-      environmentId: null,
+      machineId: null,
       projectGroupingMode: groupingSettings.sidebarProjectGroupingMode,
     }),
     threads,
@@ -282,14 +282,14 @@ export function NewTaskFlowProvider(
     projectSortOrder: "updated_at",
   });
 
-  const [selectedEnvironmentIdOverride, setSelectedEnvironmentId] = useState<EnvironmentId | null>(
+  const [selectedMachineIdOverride, setSelectedMachineId] = useState<MachineId | null>(
     null,
   );
-  const selectedEnvironmentId =
-    selectedEnvironmentIdOverride !== null &&
-    projects.some((project) => project.environmentId === selectedEnvironmentIdOverride)
-      ? selectedEnvironmentIdOverride
-      : (projects[0]?.environmentId ?? null);
+  const selectedMachineId =
+    selectedMachineIdOverride !== null &&
+    projects.some((project) => project.machineId === selectedMachineIdOverride)
+      ? selectedMachineIdOverride
+      : (projects[0]?.machineId ?? null);
   const [selectedProjectKey, setSelectedProjectKey] = useState<string | null>(null);
   const [activeDraftKey, setActiveDraftKey] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -303,7 +303,7 @@ export function NewTaskFlowProvider(
   const editingRevisionRef = useRef(Promise.resolve(0));
 
   const reset = useCallback(() => {
-    setSelectedEnvironmentId(null);
+    setSelectedMachineId(null);
     setSelectedProjectKey(null);
     setActiveDraftKey(null);
     setSubmitting(false);
@@ -321,18 +321,18 @@ export function NewTaskFlowProvider(
     }
   }, []);
 
-  const projectsForEnvironment = pipe(
+  const projectsForMachine = pipe(
     projects,
-    Arr.filter((project) => project.environmentId === selectedEnvironmentId),
+    Arr.filter((project) => project.machineId === selectedMachineId),
   );
 
-  const editingPendingProject = ((): EnvironmentProject | null => {
+  const editingPendingProject = ((): MachineProject | null => {
     const creation = editingPendingTask?.creation;
     if (!editingPendingTask || !creation) {
       return null;
     }
     return {
-      environmentId: editingPendingTask.environmentId,
+      machineId: editingPendingTask.machineId,
       id: creation.projectId,
       title: creation.projectTitle ?? "Unknown project",
       workspaceRoot: creation.projectCwd ?? "",
@@ -345,31 +345,31 @@ export function NewTaskFlowProvider(
   })();
 
   const selectedProject =
-    projectsForEnvironment.find(
-      (project) => scopedProjectKey(project.environmentId, project.id) === selectedProjectKey,
+    projectsForMachine.find(
+      (project) => scopedProjectKey(project.machineId, project.id) === selectedProjectKey,
     ) ??
     // While editing a queued task whose project shell is absent, keep the task
     // pinned to its own project — falling through to an arbitrary first
     // project would silently retarget it (and its reused turn identifiers).
     (editingPendingProject !== null &&
     selectedProjectKey ===
-      scopedProjectKey(editingPendingProject.environmentId, editingPendingProject.id)
+      scopedProjectKey(editingPendingProject.machineId, editingPendingProject.id)
       ? editingPendingProject
-      : (projectsForEnvironment[0] ?? null));
+      : (projectsForMachine[0] ?? null));
 
-  const selectedEnvironmentServerConfig = useEnvironmentServerConfig(
-    selectedProject?.environmentId ?? null,
+  const selectedMachineServerConfig = useMachineServerConfig(
+    selectedProject?.machineId ?? null,
   );
   const isScratchDraft =
     selectedProject !== null &&
-    isScratchProject(selectedProject, selectedEnvironmentServerConfig?.scratchWorkspaceRoot);
+    isScratchProject(selectedProject, selectedMachineServerConfig?.scratchWorkspaceRoot);
   const serverConfigs = useServerConfigs();
-  const { connectedEnvironments } = useRemoteConnectionStatus();
-  const scratchEnvironments = connectedEnvironments.filter(
-    (environment) =>
+  const { connectedMachines } = useRemoteConnectionStatus();
+  const scratchMachines = connectedMachines.filter(
+    (machine) =>
       availableScratchWorkspaceRoot(
-        environment.connectionState,
-        serverConfigs.get(environment.environmentId),
+        machine.connectionState,
+        serverConfigs.get(machine.machineId),
       ) !== null,
   );
 
@@ -380,19 +380,19 @@ export function NewTaskFlowProvider(
   // workspaceRoot, and an "" basename would reject every real host below.
   const selectedWorkspaceBasename = selectedProject?.workspaceRoot.split("/").at(-1) || null;
   const selectedProjectTitle = selectedProject?.title ?? null;
-  const environments = (() => {
+  const machines = (() => {
     if (isScratchDraft) {
-      return scratchEnvironments.map((environment) => ({
-        environmentId: environment.environmentId,
-        environmentLabel: environment.environmentLabel,
+      return scratchMachines.map((machine) => ({
+        machineId: machine.machineId,
+        machineLabel: machine.machineLabel,
       }));
     }
-    const seen = new Set<EnvironmentId>();
+    const seen = new Set<MachineId>();
     const result: Array<{
-      readonly environmentId: EnvironmentId;
-      readonly environmentLabel: string;
+      readonly machineId: MachineId;
+      readonly machineLabel: string;
     }> = [];
-    const hostsSelectedRepository = (project: EnvironmentProject) => {
+    const hostsSelectedRepository = (project: MachineProject) => {
       if (selectedRepositoryKey === null && selectedWorkspaceBasename === null) {
         return true;
       }
@@ -411,17 +411,17 @@ export function NewTaskFlowProvider(
       if (!hostsSelectedRepository(project)) {
         continue;
       }
-      if (seen.has(project.environmentId)) {
+      if (seen.has(project.machineId)) {
         continue;
       }
-      const environment = savedConnectionsById[project.environmentId];
-      if (!environment) {
+      const machine = savedConnectionsById[project.machineId];
+      if (!machine) {
         continue;
       }
-      seen.add(project.environmentId);
+      seen.add(project.machineId);
       result.push({
-        environmentId: project.environmentId,
-        environmentLabel: environment.environmentLabel,
+        machineId: project.machineId,
+        machineLabel: machine.machineLabel,
       });
     }
     return result;
@@ -443,7 +443,7 @@ export function NewTaskFlowProvider(
     }
     setActiveDraftKey(
       createNewTaskDraft({
-        environmentId: selectedProject.environmentId,
+        machineId: selectedProject.machineId,
         projectId: selectedProject.id,
       }),
     );
@@ -467,10 +467,10 @@ export function NewTaskFlowProvider(
   const selectedProjectDraft = useComposerDraft(selectedProjectDraftKey);
   const prompt = selectedProjectDraft.text;
   const attachments = selectedProjectDraft.attachments;
-  const projectGitStatus = useEnvironmentQuery(
+  const projectGitStatus = useMachineQuery(
     selectedProject !== null && selectedProject.workspaceRoot !== ""
-      ? vcsEnvironment.status({
-          environmentId: selectedProject.environmentId,
+      ? vcsMachine.status({
+          machineId: selectedProject.machineId,
           input: { cwd: selectedProject.workspaceRoot },
         })
       : null,
@@ -478,30 +478,30 @@ export function NewTaskFlowProvider(
   const currentCheckoutBranchName = projectGitStatus.data?.refName ?? null;
   // The unfiltered ref list also provides repository capability while offline.
   const projectBranches = useBranches({
-    environmentId: selectedProject?.environmentId ?? null,
+    machineId: selectedProject?.machineId ?? null,
     cwd: selectedProject?.workspaceRoot || null,
   });
   const knownIsGitRepo = projectGitStatus.data?.isRepo ?? projectBranches.data?.isRepo ?? null;
   const isGitRepo = knownIsGitRepo ?? true;
-  const fileAccessSession = useEnvironmentQuery(
+  const fileAccessSession = useMachineQuery(
     selectedProject !== null && selectedProject.workspaceRoot !== ""
-      ? environmentSession.sessionStateAtom(selectedProject.environmentId)
+      ? machineSession.sessionStateAtom(selectedProject.machineId)
       : null,
   );
-  const fileEnvironment = useEnvironmentPresentation(selectedProject?.environmentId ?? null);
+  const fileMachine = useMachinePresentation(selectedProject?.machineId ?? null);
   const fileAccess = resolveFilesystemReadAccess({
-    isCatalogReady: fileEnvironment.isReady,
-    connection: fileEnvironment.presentation?.connection ?? null,
+    isCatalogReady: fileMachine.isReady,
+    connection: fileMachine.presentation?.connection ?? null,
     session: fileAccessSession.data,
     sessionError: fileAccessSession.error,
   });
   const { canReadFiles } = fileAccess;
   const fileAccessPending =
     selectedProject !== null && selectedProject.workspaceRoot !== "" && fileAccess.isPending;
-  const t3ProjectFileQuery = useEnvironmentQuery(
+  const t3ProjectFileQuery = useMachineQuery(
     canReadFiles && selectedProject !== null && selectedProject.workspaceRoot !== ""
-      ? projectEnvironment.readFile({
-          environmentId: selectedProject.environmentId,
+      ? projectMachine.readFile({
+          machineId: selectedProject.machineId,
           input: {
             cwd: selectedProject.workspaceRoot,
             relativePath: T3_PROJECT_FILE_NAME,
@@ -516,7 +516,7 @@ export function NewTaskFlowProvider(
       ? null
       : parseT3ProjectFile(t3ProjectFileData.contents);
   const projectSettings = resolveProjectSettings(
-    selectedEnvironmentServerConfig?.settings ?? DEFAULT_SERVER_SETTINGS,
+    selectedMachineServerConfig?.settings ?? DEFAULT_SERVER_SETTINGS,
     selectedProject?.id ?? null,
     selectedProject,
     t3ProjectFile,
@@ -526,14 +526,14 @@ export function NewTaskFlowProvider(
     selectedProject !== null &&
     threads.some(
       (thread) =>
-        thread.environmentId === selectedProject.environmentId &&
+        thread.machineId === selectedProject.machineId &&
         thread.projectId === selectedProject.id,
     );
   const defaultWorkspaceMode: WorkspaceMode = canChooseWorkspace
     ? resolveNewThreadEnvMode({
         projectSettings,
         workspaceRoot: selectedProject?.workspaceRoot ?? null,
-        newProjectsRoot: selectedEnvironmentServerConfig?.newProjectsRoot,
+        newProjectsRoot: selectedMachineServerConfig?.newProjectsRoot,
         projectHasThreads: selectedProjectHasThreads,
       })
     : "local";
@@ -567,23 +567,23 @@ export function NewTaskFlowProvider(
   // Antigravity keeps unavailable selections so sign-out or a catalog change
   // cannot switch the user's model.
   const draftModelSelection = resolveSelectableModelSelection(
-    selectedEnvironmentServerConfig,
+    selectedMachineServerConfig,
     selectedProjectDraft.modelSelection ?? null,
     selectedProject?.id ?? null,
   );
   const projectDefaultModelSelection = resolveDefaultableModelSelection(
-    selectedEnvironmentServerConfig,
+    selectedMachineServerConfig,
     projectSettings.settings.defaultModelSelection,
     selectedProject?.id ?? null,
   );
   const storedStickyModelSelection = useStickyComposerModelSelection();
   const stickyModelSelection = resolveDefaultableModelSelection(
-    selectedEnvironmentServerConfig,
+    selectedMachineServerConfig,
     storedStickyModelSelection,
     selectedProject?.id ?? null,
   );
   const modelOptions = buildModelOptions(
-    selectedEnvironmentServerConfig,
+    selectedMachineServerConfig,
     draftModelSelection ?? projectDefaultModelSelection ?? stickyModelSelection,
     undefined,
     selectedProject?.id ?? null,
@@ -607,7 +607,7 @@ export function NewTaskFlowProvider(
         option.selection.model === selectedModel.model,
     ) ?? null;
   const selectedProviderStatus =
-    selectedEnvironmentServerConfig?.providers.find(
+    selectedMachineServerConfig?.providers.find(
       (provider) => provider.instanceId === selectedModel?.instanceId,
     ) ?? null;
   const planModeEnabled =
@@ -629,7 +629,7 @@ export function NewTaskFlowProvider(
     const selection = withRememberedModelOptions(
       options ? { ...option.selection, options } : option.selection,
     );
-    const provider = selectedEnvironmentServerConfig?.providers.find(
+    const provider = selectedMachineServerConfig?.providers.find(
       (candidate) => candidate.instanceId === selection.instanceId,
     );
     updateComposerDraftSettings(selectedProjectDraftKey, {
@@ -697,7 +697,7 @@ export function NewTaskFlowProvider(
   const branchSearchQuery = sanitizeNewRefName(branchQuery);
   const debouncedBranchQuery = useDebouncedValue(branchSearchQuery, BRANCH_SEARCH_DEBOUNCE_MS);
   const branchTarget = {
-    environmentId: selectedProject?.environmentId ?? null,
+    machineId: selectedProject?.machineId ?? null,
     cwd: selectedProject?.workspaceRoot || null,
     query: debouncedBranchQuery,
   };
@@ -716,8 +716,8 @@ export function NewTaskFlowProvider(
 
   const filteredBranches = filterNewTaskBranches(allBranchRefs, branchQuery);
 
-  const carryDraftContentTo = (project: EnvironmentProject) => {
-    const target = { environmentId: project.environmentId, projectId: project.id };
+  const carryDraftContentTo = (project: MachineProject) => {
+    const target = { machineId: project.machineId, projectId: project.id };
     if (activeDraftKey !== null && isNewTaskDraftKey(activeDraftKey)) {
       retargetNewTaskDraft(activeDraftKey, target);
     } else if (!editingPendingTaskRef.current) {
@@ -725,10 +725,10 @@ export function NewTaskFlowProvider(
     }
   };
 
-  const setProject = (project: EnvironmentProject) => {
+  const setProject = (project: MachineProject) => {
     carryDraftContentTo(project);
-    setSelectedEnvironmentId(project.environmentId);
-    setSelectedProjectKey(scopedProjectKey(project.environmentId, project.id));
+    setSelectedMachineId(project.machineId);
+    setSelectedProjectKey(scopedProjectKey(project.machineId, project.id));
   };
 
   const openDraft = (draftKey: string): boolean => {
@@ -738,54 +738,54 @@ export function NewTaskFlowProvider(
       return false;
     }
     // The stamped project must be loaded: selectedProject falls back to
-    // the environment's first project otherwise, and the draft would be
+    // the machine's first project otherwise, and the draft would be
     // sent somewhere the user never chose.
     const projectLoaded = projects.some(
-      (project) => project.environmentId === stamp.environmentId && project.id === stamp.projectId,
+      (project) => project.machineId === stamp.machineId && project.id === stamp.projectId,
     );
     if (!projectLoaded) {
       return false;
     }
     setActiveDraftKey(draftKey);
-    setSelectedEnvironmentId(stamp.environmentId);
-    setSelectedProjectKey(scopedProjectKey(stamp.environmentId, stamp.projectId));
+    setSelectedMachineId(stamp.machineId);
+    setSelectedProjectKey(scopedProjectKey(stamp.machineId, stamp.projectId));
     return true;
   };
 
-  const selectEnvironment = (environmentId: EnvironmentId) => {
-    const match = resolveEnvironmentProjectMatch(
-      projects.filter((project) => project.environmentId === environmentId),
+  const selectMachine = (machineId: MachineId) => {
+    const match = resolveMachineProjectMatch(
+      projects.filter((project) => project.machineId === machineId),
       selectedProject,
     );
     if (match) {
       carryDraftContentTo(match);
     }
-    setSelectedEnvironmentId(environmentId);
-    setSelectedProjectKey(match ? scopedProjectKey(match.environmentId, match.id) : null);
+    setSelectedMachineId(machineId);
+    setSelectedProjectKey(match ? scopedProjectKey(match.machineId, match.id) : null);
   };
 
-  const openScratch = useAtomCommand(projectEnvironment.openScratch, { reportFailure: false });
-  const [switchingToEnvironmentId, setSwitchingToEnvironmentId] = useState<EnvironmentId | null>(
+  const openScratch = useAtomCommand(projectMachine.openScratch, { reportFailure: false });
+  const [switchingToMachineId, setSwitchingToMachineId] = useState<MachineId | null>(
     null,
   );
   const latestSwitchRef = useRef<object | null>(null);
-  const switchEnvironment = async (environmentId: EnvironmentId): Promise<boolean> => {
-    if (environmentId === selectedEnvironmentId) {
+  const switchMachine = async (machineId: MachineId): Promise<boolean> => {
+    if (machineId === selectedMachineId) {
       latestSwitchRef.current = null;
-      setSwitchingToEnvironmentId(null);
+      setSwitchingToMachineId(null);
       return true;
     }
     if (!isScratchDraft) {
-      selectEnvironment(environmentId);
+      selectMachine(machineId);
       return true;
     }
     const request = {};
     latestSwitchRef.current = request;
-    setSwitchingToEnvironmentId(environmentId);
-    const result = await openScratch({ environmentId, input: {} });
+    setSwitchingToMachineId(machineId);
+    const result = await openScratch({ machineId, input: {} });
     if (latestSwitchRef.current !== request) return false;
     latestSwitchRef.current = null;
-    setSwitchingToEnvironmentId(null);
+    setSwitchingToMachineId(null);
     if (result._tag === "Success") {
       setProject(result.value);
       return true;
@@ -976,8 +976,8 @@ export function NewTaskFlowProvider(
         },
       });
     }
-    setSelectedEnvironmentId(message.environmentId);
-    setSelectedProjectKey(scopedProjectKey(message.environmentId, message.creation.projectId));
+    setSelectedMachineId(message.machineId);
+    setSelectedProjectKey(scopedProjectKey(message.machineId, message.creation.projectId));
     activeEditingMessageId = message.messageId;
     editingPendingTaskRef.current = message;
     editingRevisionRef.current = capturePendingTaskEditorWriteBaseline(message.messageId);
@@ -997,7 +997,7 @@ export function NewTaskFlowProvider(
     const text = draft.text.trim();
     const draftModelSelection =
       resolveSelectableModelSelection(
-        selectedEnvironmentServerConfig,
+        selectedMachineServerConfig,
         draft.modelSelection ?? null,
         selectedProject.id,
       ) ?? selectedModel;
@@ -1005,10 +1005,10 @@ export function NewTaskFlowProvider(
       return null;
     }
     if (
-      threadContextsOutsideEnvironment({
+      threadContextsOutsideMachine({
         text: draft.text,
         records: draft.context?.records ?? [],
-        environmentId: selectedProject.environmentId,
+        machineId: selectedProject.machineId,
       }).length > 0
     ) {
       return null;
@@ -1031,7 +1031,7 @@ export function NewTaskFlowProvider(
       ? editingPendingTask?.creation?.projectCwd
       : selectedProject.workspaceRoot;
     return {
-      environmentId: selectedProject.environmentId,
+      machineId: selectedProject.machineId,
       threadId: ThreadId.make(metadata.threadId),
       messageId: MessageId.make(metadata.messageId),
       commandId: CommandId.make(metadata.commandId),
@@ -1045,7 +1045,7 @@ export function NewTaskFlowProvider(
         planModeEnabled: legacyPlanModeEnabled,
         draftInteractionMode: draft.interactionMode,
         queuedInteractionMode: editingPendingTask?.interactionMode,
-        provider: selectedEnvironmentServerConfig?.providers.find(
+        provider: selectedMachineServerConfig?.providers.find(
           (candidate) => candidate.instanceId === draftModelSelection.instanceId,
         ),
       }),
@@ -1174,7 +1174,7 @@ export function NewTaskFlowProvider(
   const value = {
     activeNewTask,
     projectScopes,
-    selectedEnvironmentId,
+    selectedMachineId,
     selectedProjectKey,
     selectedModelKey,
     workspaceMode,
@@ -1201,7 +1201,7 @@ export function NewTaskFlowProvider(
     interactionMode,
     planModeEnabled,
     expandedProvider,
-    environments,
+    machines,
     selectedProject,
     isScratchDraft,
     modelOptions,
@@ -1213,9 +1213,9 @@ export function NewTaskFlowProvider(
     reset,
     setProject,
     openDraft,
-    selectEnvironment,
-    switchEnvironment,
-    switchingToEnvironmentId,
+    selectMachine,
+    switchMachine,
+    switchingToMachineId,
     setSelectedModelKey,
     setWorkspaceMode,
     selectBranch,

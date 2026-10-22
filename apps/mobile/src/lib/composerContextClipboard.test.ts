@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
   COMPOSER_CONTEXT_MAX_RECORDS,
   ComposerContextId,
-  EnvironmentId,
+  MachineId,
   ThreadId,
 } from "@vekrel/contracts";
 import { encodeComposerContextFragment } from "@vekrel/shared/composerContextClipboard";
@@ -33,9 +33,9 @@ vi.mock("../state/atom-registry", () => ({
   },
 }));
 vi.mock("../state/session", () => ({
-  environmentSession: { preparedConnectionValueAtom: vi.fn() },
+  machineSession: { preparedConnectionValueAtom: vi.fn() },
 }));
-vi.mock("../state/assets", () => ({ assetEnvironment: { createUrl: (value: unknown) => value } }));
+vi.mock("../state/assets", () => ({ assetMachine: { createUrl: (value: unknown) => value } }));
 vi.mock("../state/use-composer-drafts", () => ({
   waitForComposerDraftsLoaded: async () => {},
   findLocalComposerClipboardAttachment: mocks.local,
@@ -80,7 +80,7 @@ const clipboard = {
   text: "![Checkout](t3-context://v1/image/image-source) [Build](t3-context://v1/terminal/terminal-source)",
   fragment: encodeComposerContextFragment({
     version: 1,
-    source: { environmentId: EnvironmentId.make("source") },
+    source: { machineId: MachineId.make("source") },
     records: [image, terminal],
   })!,
   html: "",
@@ -91,7 +91,7 @@ const localThread = {
   kind: "thread" as const,
   contextId: ComposerContextId.make("thread_local-thread"),
   label: "Local discussion",
-  environmentId: EnvironmentId.make("destination"),
+  machineId: MachineId.make("destination"),
   threadId: ThreadId.make("local-thread"),
   title: "Local discussion",
 };
@@ -99,7 +99,7 @@ const foreignThread = {
   ...localThread,
   contextId: ComposerContextId.make("thread_foreign-thread"),
   label: "Remote discussion",
-  environmentId: EnvironmentId.make("source"),
+  machineId: MachineId.make("source"),
   threadId: ThreadId.make("foreign-thread"),
   title: "Remote discussion",
 };
@@ -108,7 +108,7 @@ const mixedClipboard = {
   text: `Compare these findings: ${mixedRecords.map(formatComposerContextReference).join(" ")} before changing anything.`,
   fragment: encodeComposerContextFragment({
     version: 1,
-    source: { environmentId: EnvironmentId.make("source") },
+    source: { machineId: MachineId.make("source") },
     records: [
       ...mixedRecords,
       {
@@ -194,7 +194,7 @@ describe("mobile context clipboard imports", () => {
       0,
       new AbortController().signal,
       COMPOSER_CONTEXT_MAX_RECORDS - 3,
-      EnvironmentId.make("destination"),
+      MachineId.make("destination"),
     );
     expect(result).not.toBeNull();
     expect(result!.context.records).toEqual([
@@ -238,7 +238,7 @@ describe("mobile context clipboard imports", () => {
         0,
         new AbortController().signal,
         COMPOSER_CONTEXT_MAX_RECORDS - 2,
-        EnvironmentId.make("destination"),
+        MachineId.make("destination"),
       ),
     ).rejects.toThrow("Remove some context");
     expect(mocks.download).not.toHaveBeenCalled();
@@ -252,7 +252,7 @@ describe("mobile context clipboard imports", () => {
       0,
       new AbortController().signal,
       0,
-      EnvironmentId.make("destination"),
+      MachineId.make("destination"),
     );
     expect(result).not.toBeNull();
     expect(result!.context.records).toEqual([

@@ -2,7 +2,7 @@ import { parsePullRequestQuery } from "@vekrel/client-runtime/pull-request-query
 import {
   ProjectId,
   resolvePullRequestAuthorFilter,
-  type EnvironmentId,
+  type MachineId,
   type PullRequestListEntry,
   type PullRequestListInput,
   type PullRequestListResult,
@@ -20,15 +20,15 @@ export const DEFAULT_PR_LIST_CONTROLS: PullRequestListControls = {
 
 export function withoutScratchProjectScope(
   controls: PullRequestListControls,
-  projects: readonly { id: string; environmentId: string; isScratch?: true }[],
+  projects: readonly { id: string; machineId: string; isScratch?: true }[],
 ): PullRequestListControls {
   return projects.some(
     (project) =>
       project.isScratch &&
       project.id === controls.projectId &&
-      project.environmentId === controls.projectEnvironmentId,
+      project.machineId === controls.projectMachineId,
   )
-    ? { ...controls, projectId: undefined, projectEnvironmentId: undefined }
+    ? { ...controls, projectId: undefined, projectMachineId: undefined }
     : controls;
 }
 
@@ -38,20 +38,20 @@ export function pullRequestListKey(
   return `${item.host.toLowerCase()}:${item.repository.toLowerCase()}:${item.number}`;
 }
 
-export type EnvironmentPullRequestListEntry = PullRequestListEntry & {
-  readonly environmentId: EnvironmentId;
+export type MachinePullRequestListEntry = PullRequestListEntry & {
+  readonly machineId: MachineId;
 };
 
-export const scopedPullRequestListKey = (entry: EnvironmentPullRequestListEntry) =>
-  `${entry.environmentId}:${pullRequestListKey(entry)}`;
+export const scopedPullRequestListKey = (entry: MachinePullRequestListEntry) =>
+  `${entry.machineId}:${pullRequestListKey(entry)}`;
 
 export function pullRequestListRowsAreEqual(
-  previous: EnvironmentPullRequestListEntry,
-  next: EnvironmentPullRequestListEntry,
+  previous: MachinePullRequestListEntry,
+  next: MachinePullRequestListEntry,
 ) {
   return (
     previous === next ||
-    (previous.environmentId === next.environmentId &&
+    (previous.machineId === next.machineId &&
       previous.projectId === next.projectId &&
       previous.host === next.host &&
       previous.repository === next.repository &&
@@ -80,20 +80,20 @@ export function pullRequestListRowsAreEqual(
   );
 }
 
-export function mergeEnvironmentPullRequestPages(
-  sources: readonly { environmentId: EnvironmentId; pages: PullRequestListPages }[],
+export function mergeMachinePullRequestPages(
+  sources: readonly { machineId: MachineId; pages: PullRequestListPages }[],
 ) {
   const viewers: Record<string, string> = {};
   const localSearchHosts = new Set<string>();
-  const entries: EnvironmentPullRequestListEntry[] = [];
+  const entries: MachinePullRequestListEntry[] = [];
   const errors = [];
-  for (const { environmentId, pages } of sources) {
-    entries.push(...pages.entries.map((entry) => ({ ...entry, environmentId })));
+  for (const { machineId, pages } of sources) {
+    entries.push(...pages.entries.map((entry) => ({ ...entry, machineId })));
     for (const [host, viewer] of Object.entries(pages.head.viewers))
-      viewers[`${environmentId} ${host}`] = viewer;
+      viewers[`${machineId} ${host}`] = viewer;
     for (const provider of pages.head.providers)
-      if (!provider.searchesOnHost) localSearchHosts.add(`${environmentId} ${provider.host}`);
-    errors.push(...pages.head.errors.map((error) => ({ ...error, environmentId })));
+      if (!provider.searchesOnHost) localSearchHosts.add(`${machineId} ${provider.host}`);
+    errors.push(...pages.head.errors.map((error) => ({ ...error, machineId })));
   }
   return {
     entries,
@@ -196,14 +196,14 @@ export function pullRequestListFacets(entries: readonly PullRequestListEntry[]) 
 }
 
 export function filterPullRequestList<
-  Entry extends PullRequestListEntry & { environmentId?: string },
+  Entry extends PullRequestListEntry & { machineId?: string },
 >(
   entries: readonly Entry[],
   controls: PullRequestListControls,
   viewers: PullRequestListResult["viewers"],
   query: string,
   localSearchHosts: ReadonlySet<string>,
-  connectedEnvironmentIds?: ReadonlySet<string>,
+  connectedMachineIds?: ReadonlySet<string>,
 ) {
   const normalize = (value: string) => value.toLowerCase();
   const parsed = parsePullRequestQuery(query);
@@ -212,9 +212,9 @@ export function filterPullRequestList<
   const filtered = entries.filter((entry) => {
     if (controls.state !== "all" && entry.state !== controls.state) return false;
     if (controls.projectId && entry.projectId !== controls.projectId) return false;
-    if (controls.projectEnvironmentId && entry.environmentId !== controls.projectEnvironmentId)
+    if (controls.projectMachineId && entry.machineId !== controls.projectMachineId)
       return false;
-    const viewerKey = entry.environmentId ? `${entry.environmentId} ${entry.host}` : entry.host;
+    const viewerKey = entry.machineId ? `${entry.machineId} ${entry.host}` : entry.host;
     const viewer = viewers[viewerKey];
     if (controls.involvement === "reviewing" && !entry.viewerReviewRequested) return false;
     if (
@@ -244,8 +244,8 @@ export function filterPullRequestList<
     return true;
   });
   const reachable = (entry: Entry) =>
-    !connectedEnvironmentIds ||
-    (entry.environmentId !== undefined && connectedEnvironmentIds.has(entry.environmentId));
+    !connectedMachineIds ||
+    (entry.machineId !== undefined && connectedMachineIds.has(entry.machineId));
   const unique = new Map<string, Entry>();
   for (const entry of filtered) {
     const key = pullRequestListKey(entry);

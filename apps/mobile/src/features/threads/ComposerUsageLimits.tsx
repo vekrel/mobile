@@ -1,4 +1,4 @@
-import type { EnvironmentId, UsageLimitsReport } from "@vekrel/contracts";
+import type { MachineId, UsageLimitsReport } from "@vekrel/contracts";
 import { Pressable, ScrollView, View } from "react-native";
 
 import { SymbolView } from "../../components/ui/AppSymbol";
@@ -9,12 +9,12 @@ const DRIVER_LABEL: Partial<Record<string, string>> = { codex: "Codex", claudeAg
 
 export function ComposerUsageLimits({
   report,
-  environmentId,
+  machineId,
   maxHeight,
   onClose,
 }: {
   readonly report: UsageLimitsReport;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly maxHeight: number;
   readonly onClose: () => void;
 }) {
@@ -61,7 +61,7 @@ export function ComposerUsageLimits({
                 resetCreditInput && account.limits.resetCredits ? (
                   <ResetCredits
                     dense
-                    environmentId={environmentId}
+                    machineId={machineId}
                     input={resetCreditInput}
                     credits={account.limits.resetCredits}
                     now={now}

@@ -2,7 +2,7 @@ import { useAtomValue } from "@effect/atom-react";
 import { useRoute, type RouteProp } from "@react-navigation/native";
 import { useState } from "react";
 import {
-  EnvironmentId,
+  MachineId,
   ThreadId,
   type OrchestrationV2ThreadProjection,
   type OrchestrationV2ThreadShell,
@@ -11,7 +11,7 @@ import {
 } from "@vekrel/contracts";
 import {
   presentThreadShell,
-  type EnvironmentThreadShell,
+  type MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import {
   deriveLatestThreadRun,
@@ -21,7 +21,7 @@ import * as Option from "effect/Option";
 
 import { scopedThreadKey } from "../lib/scopedEntities";
 import { useProject, useQuietThreadShell } from "../state/entities";
-import { useEnvironmentThread } from "../state/threads";
+import { useMachineThread } from "../state/threads";
 import {
   resolvePendingThreadCreation,
   pendingThreadCreationOutcomesAtom,
@@ -29,12 +29,12 @@ import {
   type PendingThreadCreation,
 } from "./pending-thread-creation";
 import {
-  useRemoteEnvironmentRuntime,
+  useRemoteMachineRuntime,
   useSavedRemoteConnection,
-} from "./use-remote-environment-registry";
+} from "./use-remote-machine-registry";
 import { useThreadOutboxMessages } from "./use-thread-outbox";
 type ThreadSelectionRouteParams = {
-  readonly environmentId?: string | string[];
+  readonly machineId?: string | string[];
   readonly threadId?: string | string[];
 };
 
@@ -57,15 +57,15 @@ function latestUserMessageAt(
 }
 
 function threadDetailToShell(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   projection: OrchestrationV2ThreadProjection,
-): EnvironmentThreadShell {
+): MachineThreadShell {
   const thread = projection.thread;
   const latestRun = deriveLatestThreadRun(projection);
   const runtime = deriveThreadRuntime(projection);
   const pendingRequest =
     projection.runtimeRequests.find((request) => request.status === "pending") ?? null;
-  return presentThreadShell(environmentId, {
+  return presentThreadShell(machineId, {
     id: thread.id,
     projectId: thread.projectId,
     title: thread.title,
@@ -113,29 +113,29 @@ function threadDetailToShell(
 
 function useResolvedThreadSelection(params: ThreadSelectionRouteParams | undefined) {
   const routeParams = params ?? {};
-  const routeEnvironmentId = firstRouteParam(routeParams.environmentId);
+  const routeMachineId = firstRouteParam(routeParams.machineId);
   const routeThreadId = firstRouteParam(routeParams.threadId);
   // A route that drops its params (a closing sheet, for example) keeps showing
   // the last thread, so the last complete pair is kept as state.
   const [lastRouteThreadRef, setLastRouteThreadRef] = useState<ScopedThreadRef | null>(null);
   if (
-    routeEnvironmentId !== null &&
+    routeMachineId !== null &&
     routeThreadId !== null &&
-    (lastRouteThreadRef?.environmentId !== routeEnvironmentId ||
+    (lastRouteThreadRef?.machineId !== routeMachineId ||
       lastRouteThreadRef.threadId !== routeThreadId)
   ) {
     setLastRouteThreadRef({
-      environmentId: EnvironmentId.make(routeEnvironmentId),
+      machineId: MachineId.make(routeMachineId),
       threadId: ThreadId.make(routeThreadId),
     });
   }
   const selectedThreadRef =
-    routeEnvironmentId !== null && routeThreadId !== null
-      ? lastRouteThreadRef?.environmentId === routeEnvironmentId &&
+    routeMachineId !== null && routeThreadId !== null
+      ? lastRouteThreadRef?.machineId === routeMachineId &&
         lastRouteThreadRef.threadId === routeThreadId
         ? lastRouteThreadRef
         : {
-            environmentId: EnvironmentId.make(routeEnvironmentId),
+            machineId: MachineId.make(routeMachineId),
             threadId: ThreadId.make(routeThreadId),
           }
       : lastRouteThreadRef;
@@ -143,7 +143,7 @@ function useResolvedThreadSelection(params: ThreadSelectionRouteParams | undefin
   const selectedThreadKey =
     selectedThreadRef === null
       ? null
-      : scopedThreadKey(selectedThreadRef.environmentId, selectedThreadRef.threadId);
+      : scopedThreadKey(selectedThreadRef.machineId, selectedThreadRef.threadId);
   const queuedMessagesByThreadKey = useThreadOutboxMessages();
   const creationOutcome = useAtomValue(pendingThreadCreationOutcomesAtom);
   const pendingCreation = ((): PendingThreadCreation | null => {
@@ -167,15 +167,15 @@ function useResolvedThreadSelection(params: ThreadSelectionRouteParams | undefin
   const [previousCreation, setPreviousCreation] = useState<PendingThreadCreation | null>(null);
   const needsDetail =
     selectedThreadShell === null || pendingCreation !== null || previousCreation !== null;
-  const selectedThreadDetailState = useEnvironmentThread(
-    needsDetail ? (selectedThreadDetailRef?.environmentId ?? null) : null,
+  const selectedThreadDetailState = useMachineThread(
+    needsDetail ? (selectedThreadDetailRef?.machineId ?? null) : null,
     needsDetail ? (selectedThreadDetailRef?.threadId ?? null) : null,
   );
   const selectedThreadDetail = Option.getOrNull(selectedThreadDetailState.data);
   const selectedThread =
     selectedThreadShell ??
     (selectedThreadRef !== null && selectedThreadDetail !== null
-      ? threadDetailToShell(selectedThreadRef.environmentId, selectedThreadDetail)
+      ? threadDetailToShell(selectedThreadRef.machineId, selectedThreadDetail)
       : pendingCreation !== null
         ? pendingThreadCreationShell(pendingCreation.message)
         : null);
@@ -201,13 +201,13 @@ function useResolvedThreadSelection(params: ThreadSelectionRouteParams | undefin
     selectedThread === null
       ? null
       : {
-          environmentId: selectedThread.environmentId,
+          machineId: selectedThread.machineId,
           projectId: selectedThread.projectId,
         };
   const selectedThreadProject = useProject(selectedProjectRef);
-  const selectedEnvironmentId = selectedThread?.environmentId ?? null;
-  const selectedEnvironmentConnection = useSavedRemoteConnection(selectedEnvironmentId);
-  const selectedEnvironmentRuntime = useRemoteEnvironmentRuntime(selectedEnvironmentId);
+  const selectedMachineId = selectedThread?.machineId ?? null;
+  const selectedMachineConnection = useSavedRemoteConnection(selectedMachineId);
+  const selectedMachineRuntime = useRemoteMachineRuntime(selectedMachineId);
 
   return {
     selectedThreadRef,
@@ -215,8 +215,8 @@ function useResolvedThreadSelection(params: ThreadSelectionRouteParams | undefin
     selectedThreadCreation,
     selectedThreadDetailRef,
     selectedThreadProject,
-    selectedEnvironmentConnection,
-    selectedEnvironmentRuntime,
+    selectedMachineConnection,
+    selectedMachineRuntime,
   };
 }
 

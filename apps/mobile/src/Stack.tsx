@@ -75,7 +75,7 @@ import { AddProjectRepositoryRoute } from "./features/projects/AddProjectReposit
 import { AddProjectSourceRoute } from "./features/projects/AddProjectSourceRoute";
 import {
   NewTaskBranchPickerRouteScreen,
-  NewTaskEnvironmentPickerRouteScreen,
+  NewTaskMachinePickerRouteScreen,
 } from "./features/threads/NewTaskContextPickerScreens";
 import {
   ExistingThreadSettingsRouteProvider,
@@ -89,14 +89,14 @@ import { SettingsClientStorageRouteScreen } from "./features/settings/SettingsCl
 import { SettingsDiagnosticsRouteScreen } from "./features/diagnostics/SettingsDiagnosticsRouteScreen";
 import { SettingsProviderAccountsRouteScreen } from "./features/settings/SettingsProviderAccountsRouteScreen";
 import { SettingsAuthRouteScreen } from "./features/settings/SettingsAuthRouteScreen";
-import { SettingsEnvironmentDetailRouteScreen } from "./features/settings/SettingsEnvironmentDetailRouteScreen";
-import { SettingsEnvironmentsRouteScreen } from "./features/settings/SettingsEnvironmentsRouteScreen";
+import { SettingsMachineDetailRouteScreen } from "./features/settings/SettingsMachineDetailRouteScreen";
+import { SettingsMachinesRouteScreen } from "./features/settings/SettingsMachinesRouteScreen";
 import { SettingsFollowUpRouteScreen } from "./features/settings/SettingsFollowUpRouteScreen";
 import {
-  SettingsEnvironmentAgentBehaviorRouteScreen,
-  SettingsEnvironmentMaintenanceRouteScreen,
-  SettingsEnvironmentNewThreadsRouteScreen,
-  SettingsEnvironmentSourceControlRouteScreen,
+  SettingsMachineAgentBehaviorRouteScreen,
+  SettingsMachineMaintenanceRouteScreen,
+  SettingsMachineNewThreadsRouteScreen,
+  SettingsMachineSourceControlRouteScreen,
 } from "./features/settings/SettingsServerControlsRouteScreen";
 import {
   SettingsScheduledTasksRouteScreen,
@@ -123,7 +123,7 @@ import { SettingsAboutRouteScreen } from "./features/settings/SettingsAboutRoute
 import { SettingsNotificationsRouteScreen } from "./features/settings/SettingsNotificationsRouteScreen";
 import { SettingsRouteScreen } from "./features/settings/SettingsRouteScreen";
 import { SettingsThreadsRouteScreen } from "./features/settings/SettingsThreadsRouteScreen";
-import { SettingsEnvironmentFilterProvider } from "./features/settings/settings-environment-filter";
+import { SettingsMachineFilterProvider } from "./features/settings/settings-machine-filter";
 import { ShowcaseCaptureCoordinator } from "./features/showcase/ShowcaseCaptureCoordinator";
 import {
   SettingsLegalDocumentCloseHeaderButton,
@@ -226,30 +226,30 @@ const SettingsContentStack = createV5SheetStackNavigator({
         headerShown: Platform.OS !== "android",
       },
     }),
-    SettingsEnvironments: createNativeStackScreen({
-      screen: SettingsEnvironmentsRouteScreen,
-      linking: "environments",
+    SettingsMachines: createNativeStackScreen({
+      screen: SettingsMachinesRouteScreen,
+      linking: "machines",
       options: {
-        title: "Environments",
+        title: "Machines",
       },
     }),
-    SettingsEnvironmentDetail: createNativeStackScreen({
-      screen: SettingsEnvironmentDetailRouteScreen,
-      linking: "environments/:environmentId",
-      options: { title: "Environment" },
+    SettingsMachineDetail: createNativeStackScreen({
+      screen: SettingsMachineDetailRouteScreen,
+      linking: "machines/:machineId",
+      options: { title: "Machine" },
     }),
-    SettingsEnvironmentNewThreads: createNativeStackScreen({
-      screen: SettingsEnvironmentNewThreadsRouteScreen,
+    SettingsMachineNewThreads: createNativeStackScreen({
+      screen: SettingsMachineNewThreadsRouteScreen,
       linking: "new-threads",
       options: { title: "New threads" },
     }),
-    SettingsEnvironmentSourceControl: createNativeStackScreen({
-      screen: SettingsEnvironmentSourceControlRouteScreen,
+    SettingsMachineSourceControl: createNativeStackScreen({
+      screen: SettingsMachineSourceControlRouteScreen,
       linking: "source-control",
       options: { title: "Source control" },
     }),
-    SettingsEnvironmentAgentBehavior: createNativeStackScreen({
-      screen: SettingsEnvironmentAgentBehaviorRouteScreen,
+    SettingsMachineAgentBehavior: createNativeStackScreen({
+      screen: SettingsMachineAgentBehaviorRouteScreen,
       linking: "agent-behavior",
       options: { title: "Agent behavior" },
     }),
@@ -258,8 +258,8 @@ const SettingsContentStack = createV5SheetStackNavigator({
       linking: "provider-accounts",
       options: { title: "Provider accounts" },
     }),
-    SettingsEnvironmentMaintenance: createNativeStackScreen({
-      screen: SettingsEnvironmentMaintenanceRouteScreen,
+    SettingsMachineMaintenance: createNativeStackScreen({
+      screen: SettingsMachineMaintenanceRouteScreen,
       linking: "maintenance",
       options: { title: "Maintenance" },
     }),
@@ -278,11 +278,11 @@ const SettingsContentStack = createV5SheetStackNavigator({
       linking: "about",
       options: { title: "About Vekrel" },
     }),
-    SettingsEnvironmentNew: createNativeStackScreen({
+    SettingsMachineNew: createNativeStackScreen({
       screen: ConnectionsNewRouteScreen,
-      linking: "environment-new",
+      linking: "machine-new",
       options: {
-        title: "Add Environment",
+        title: "Add Machine",
       },
     }),
     SettingsArchive: createNativeStackScreen({
@@ -386,7 +386,7 @@ const SettingsContentStack = createV5SheetStackNavigator({
       },
     }),
     // Its params are a tap-time snapshot, not a stable resource address: `now` is the wall-clock
-    // of the tap, `environmentIds` is the usage screen's local filter selection, and the window
+    // of the tap, `machineIds` is the usage screen's local filter selection, and the window
     // id/kind identify freshly aggregated pools. React Navigation round-trips non-path params
     // through the URL as query strings, so a path here would bake in a permanently stale
     // timestamp and filter.
@@ -430,9 +430,9 @@ const SettingsSheetStack = createV5SheetStackNavigator({
       options: NESTED_NAVIGATOR_OPTIONS,
       linking: "",
       layout: ({ children }) => (
-        <SettingsEnvironmentFilterProvider>
+        <SettingsMachineFilterProvider>
           <ScheduledTaskEditorProvider>{children}</ScheduledTaskEditorProvider>
-        </SettingsEnvironmentFilterProvider>
+        </SettingsMachineFilterProvider>
       ),
     }),
     SettingsAuth: createNativeStackScreen({
@@ -449,7 +449,7 @@ const SettingsSheetStack = createV5SheetStackNavigator({
 // A nested stack means a second UINavigationController with its own UINavigationBar, which breaks
 // iOS 26's shared-header morphing between Home and Thread (each pair inside one bar morphs;
 // across two bars the whole screen slides).
-const THREAD_LINKING_PREFIX = "threads/:environmentId/:threadId";
+const THREAD_LINKING_PREFIX = "threads/:machineId/:threadId";
 
 const WORKSPACE_OVERLAY_ROUTES = new Set([
   "PullRequestReview",
@@ -471,7 +471,7 @@ const WORKSPACE_OVERLAY_ROUTES = new Set([
   "AddProjectDestination",
   "AddProjectLocal",
   "AddProjectNew",
-  "NewTaskEnvironment",
+  "NewTaskMachine",
   "NewTaskBranch",
   "SettingsLegal",
   "SettingsSheet",
@@ -648,7 +648,7 @@ const RootStackConfig = createWorkspaceStackNavigator({
     PullRequest: createNativeStackScreen({
       screen: PullRequestRouteScreen,
       linking: {
-        path: "pull-requests/:environmentId/:projectId/:repository/:number",
+        path: "pull-requests/:machineId/:projectId/:repository/:number",
         parse: { number: Number },
       },
       options: DETAIL_HEADER_OPTIONS,
@@ -706,7 +706,7 @@ const RootStackConfig = createWorkspaceStackNavigator({
     }),
     Thread: createNativeStackScreen({
       screen: ThreadRouteScreen,
-      linking: { path: "threads/:environmentId?/:threadId?", alias: ["new/draft"] },
+      linking: { path: "threads/:machineId?/:threadId?", alias: ["new/draft"] },
       options: DETAIL_HEADER_OPTIONS,
     }),
     NewTaskProject: createNativeStackScreen({
@@ -714,10 +714,10 @@ const RootStackConfig = createWorkspaceStackNavigator({
       linking: { path: "new", alias: ["new/project"] },
       options: { ...GLASS_HEADER_OPTIONS, title: "Choose project" },
     }),
-    NewTaskEnvironment: createNativeStackScreen({
-      linking: "new/draft/environment",
-      screen: NewTaskEnvironmentPickerRouteScreen,
-      options: { ...GLASS_HEADER_OPTIONS, title: "Environment" },
+    NewTaskMachine: createNativeStackScreen({
+      linking: "new/draft/machine",
+      screen: NewTaskMachinePickerRouteScreen,
+      options: { ...GLASS_HEADER_OPTIONS, title: "Machine" },
     }),
     NewTaskBranch: createNativeStackScreen({
       linking: "new/draft/branch",
@@ -975,7 +975,7 @@ const RootStackConfig = createWorkspaceStackNavigator({
       screen: ConnectionsRouteScreen,
       linking: "connections",
       options: {
-        title: "Environments",
+        title: "Machines",
         ...(Platform.OS === "android"
           ? { presentation: "card" as const, headerShown: false }
           : {
@@ -992,7 +992,7 @@ const RootStackConfig = createWorkspaceStackNavigator({
         // Keep the iOS header visible from the first render so the sheet's
         // native header stack mounts without remounting the pairing form.
         ...(Platform.OS === "ios" ? SHEET_GLASS_HEADER_OPTIONS : undefined),
-        title: "Add Environment",
+        title: "Add Machine",
         ...HORIZONTAL_FORM_SHEET_OPTIONS,
         sheetAllowedDetents: [0.55, 0.7],
         sheetGrabberVisible: true,

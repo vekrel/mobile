@@ -1,4 +1,4 @@
-import { CommandId, EnvironmentId, MessageId, ThreadId } from "@vekrel/contracts";
+import { CommandId, MachineId, MessageId, ThreadId } from "@vekrel/contracts";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 
 type UploadOptions = {
@@ -108,38 +108,38 @@ vi.mock("../features/sharing/incoming-share-storage", () => ({
 }));
 vi.mock("./entities", () => ({
   useProjects: () => [],
-  useServerConfigs: () => new Map([["environment-1", config]]),
+  useServerConfigs: () => new Map([["machine-1", config]]),
   useThreadShells: () => [],
 }));
 vi.mock("./server", async () => {
   const { Atom } = await import("effect/reactivity");
-  return { serverEnvironment: { configValueAtom: Atom.family(() => Atom.make(null)) } };
+  return { serverMachine: { configValueAtom: Atom.family(() => Atom.make(null)) } };
 });
-vi.mock("./git", () => ({ gitEnvironment: {} }));
-vi.mock("./threads", () => ({ threadEnvironment: {} }));
+vi.mock("./git", () => ({ gitMachine: {} }));
+vi.mock("./threads", () => ({ threadMachine: {} }));
 vi.mock("./use-atom-command", () => ({ useAtomCommand: () => async () => undefined }));
 vi.mock("./session", async () => {
   const { Atom } = await import("effect/reactivity");
   const Option = await import("effect/Option");
   return {
-    readEnvironmentScope: () => native.canOperate,
-    useEnvironmentsWithScope: () => new Set(["environment-1"]),
-    environmentSession: {
+    readMachineScope: () => native.canOperate,
+    useMachinesWithScope: () => new Set(["machine-1"]),
+    machineSession: {
       preparedConnectionValueAtom: Atom.family(() =>
-        Atom.make(Option.some({ httpBaseUrl: "https://environment.example/" })),
+        Atom.make(Option.some({ httpBaseUrl: "https://machine.example/" })),
       ),
     },
   };
 });
 vi.mock("./attachments", () => ({
-  attachmentEnvironment: { createUploadUrl: native.mint, remove: native.remove },
+  attachmentMachine: { createUploadUrl: native.mint, remove: native.remove },
 }));
-vi.mock("./assets", () => ({ assetEnvironment: { createUrl: (input: unknown) => input } }));
+vi.mock("./assets", () => ({ assetMachine: { createUrl: (input: unknown) => input } }));
 vi.mock("@vekrel/client-runtime/state/runtime", async (importOriginal) => ({
   // The worker settles uploads with the real settlePromise and squashAtomCommandFailure;
   // only the RPC transport is substituted.
   ...(await importOriginal<typeof import("@vekrel/client-runtime/state/runtime")>()),
-  createEnvironmentRpcCommand: () => Symbol("rpc-command"),
+  createMachineRpcCommand: () => Symbol("rpc-command"),
   executeAtomQuery: async (
     _registry: unknown,
     query: { input: { resource: { attachmentId: string } } },
@@ -178,9 +178,9 @@ vi.mock("./use-thread-outbox", async () => {
     useThreadOutboxShellStatuses: () => new Map(),
   };
 });
-vi.mock("./use-remote-environment-registry", () => ({
+vi.mock("./use-remote-machine-registry", () => ({
   useRemoteConnectionStatus: () => ({
-    connectedEnvironments: [{ environmentId: "environment-1", connectionState: "connected" }],
+    connectedMachines: [{ machineId: "machine-1", connectionState: "connected" }],
   }),
 }));
 
@@ -204,10 +204,10 @@ import type { QueuedThreadMessage } from "./thread-outbox-model";
 import * as drafts from "./use-composer-drafts";
 import { prepareQueuedMessageAttachments } from "./use-thread-outbox-drain";
 
-const environmentId = EnvironmentId.make("environment-1");
-const draftKey = "environment-1:thread-1";
+const machineId = MachineId.make("machine-1");
+const draftKey = "machine-1:thread-1";
 const draftsUri = "file:///documents/composer-drafts/drafts.json";
-const config = { environment: { capabilities: { attachmentUploads: true } } };
+const config = { machine: { capabilities: { attachmentUploads: true } } };
 const image: DraftComposerAttachment = {
   id: "image-1",
   type: "image",
@@ -230,7 +230,7 @@ function worker() {
 
 function sendInput() {
   return {
-    environmentId,
+    machineId,
     attachments: drafts.getComposerDraftSnapshot(draftKey).attachments,
     connected: true,
     serverConfig: config,
@@ -240,7 +240,7 @@ function sendInput() {
 
 function queuedMessage(): QueuedThreadMessage {
   return {
-    environmentId,
+    machineId,
     threadId: ThreadId.make("thread-1"),
     messageId: MessageId.make("message-1"),
     commandId: CommandId.make("command-1"),
@@ -289,7 +289,7 @@ afterEach(async () => {
 
 function uploadState() {
   return appAtomRegistry.get(composerAttachmentUploadsAtom)[
-    composerAttachmentUploadKey(environmentId, image.id)
+    composerAttachmentUploadKey(machineId, image.id)
   ];
 }
 

@@ -21,7 +21,7 @@ import { ScreenContent } from "../../components/ui/ScreenContent";
 import { SheetHeader } from "../../components/ui/SheetHeader";
 import { Toolbar } from "../../components/ui/Toolbar";
 import { composerPullRequests } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import type { ReviewParsedDiff, ReviewRenderableFile } from "../review/reviewModel";
 import { PR_ROW_ENTER, PR_ROW_EXIT, PR_ROW_LAYOUT } from "./pullRequestAnimations";
 import { PullRequestDiffStats, PullRequestReadStatus } from "./PullRequestPresentation";
@@ -50,7 +50,7 @@ function fileDirectory(path: string) {
 
 function useChangedFiles(params: PullRequestDiffParams) {
   const diff = usePullRequestDiff(params);
-  const detail = useEnvironmentQuery(composerPullRequests.detail(pullRequestTarget(params)));
+  const detail = useMachineQuery(composerPullRequests.detail(pullRequestTarget(params)));
   // A commit's diff is part of the pull request, so the PR's file counts and viewed state don't apply.
   const pr = params.commit ? null : detail.data;
   const viewed = usePullRequestFilesViewed(params, pr);
@@ -253,7 +253,7 @@ export function usePullRequestFilesSection(params: PullRequestParams) {
   const navigation = useNavigation();
   const files = useChangedFiles(params);
   const { diff, filter, viewed, pr, parsed, loading } = files;
-  const breakdown = useEnvironmentQuery(
+  const breakdown = useMachineQuery(
     composerPullRequests.changeBreakdown(pullRequestTarget(params)),
   ).data;
   const expected = pr ?? params.initialSummary;

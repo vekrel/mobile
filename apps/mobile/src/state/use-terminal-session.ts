@@ -10,14 +10,14 @@ import {
   AuthTerminalReadScope,
   AuthTerminalOperateScope,
   ThreadId,
-  type EnvironmentId,
+  type MachineId,
   type TerminalAttachInput,
 } from "@vekrel/contracts";
 import { useMemo } from "react";
 
-import { useEnvironmentQuery } from "./query";
-import { terminalEnvironment } from "./terminal";
-import { useEnvironmentScope } from "./session";
+import { useMachineQuery } from "./query";
+import { terminalMachine } from "./terminal";
+import { useMachineScope } from "./session";
 
 type LegacyTerminalSessionState = TerminalSessionState & { readonly buffer: string };
 const EMPTY_LEGACY_TERMINAL_SESSION_STATE: LegacyTerminalSessionState = {
@@ -26,31 +26,31 @@ const EMPTY_LEGACY_TERMINAL_SESSION_STATE: LegacyTerminalSessionState = {
 };
 
 export function useAttachedTerminalSession(input: {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly terminal: TerminalAttachInput | null;
 }): LegacyTerminalSessionState {
-  const canRead = useEnvironmentScope(input.environmentId, AuthTerminalReadScope);
-  const canOperate = useEnvironmentScope(input.environmentId, AuthTerminalOperateScope);
-  const attach = useEnvironmentQuery(
-    input.environmentId !== null && input.terminal !== null
+  const canRead = useMachineScope(input.machineId, AuthTerminalReadScope);
+  const canOperate = useMachineScope(input.machineId, AuthTerminalOperateScope);
+  const attach = useMachineQuery(
+    input.machineId !== null && input.terminal !== null
       ? canOperate
-        ? terminalEnvironment.attach({
-            environmentId: input.environmentId,
+        ? terminalMachine.attach({
+            machineId: input.machineId,
             input: input.terminal,
           })
         : canRead
-          ? terminalEnvironment.observe({
-              environmentId: input.environmentId,
+          ? terminalMachine.observe({
+              machineId: input.machineId,
               input: { threadId: input.terminal.threadId, terminalId: input.terminal.terminalId },
             })
           : null
       : null,
   );
-  const metadata = useEnvironmentQuery(
-    input.environmentId === null || !canRead
+  const metadata = useMachineQuery(
+    input.machineId === null || !canRead
       ? null
-      : terminalEnvironment.metadata({
-          environmentId: input.environmentId,
+      : terminalMachine.metadata({
+          machineId: input.machineId,
           input: null,
         }),
   );
@@ -60,7 +60,7 @@ export function useAttachedTerminalSession(input: {
   const buffer = useMemo(() => terminalOutputText(output), [output]);
 
   return useMemo(() => {
-    if (input.environmentId === null || input.terminal === null) {
+    if (input.machineId === null || input.terminal === null) {
       return EMPTY_LEGACY_TERMINAL_SESSION_STATE;
     }
     const summary =
@@ -74,31 +74,31 @@ export function useAttachedTerminalSession(input: {
       buffer,
     };
     return attach.error === null ? state : { ...state, error: attach.error, status: "error" };
-  }, [attach.data, attach.error, buffer, input.environmentId, input.terminal, metadata.data]);
+  }, [attach.data, attach.error, buffer, input.machineId, input.terminal, metadata.data]);
 }
 
 export function useKnownTerminalSessions(input: {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly threadId: ThreadId | null;
 }) {
-  const canRead = useEnvironmentScope(input.environmentId, AuthTerminalReadScope);
-  const metadata = useEnvironmentQuery(
-    input.environmentId === null || !canRead
+  const canRead = useMachineScope(input.machineId, AuthTerminalReadScope);
+  const metadata = useMachineQuery(
+    input.machineId === null || !canRead
       ? null
-      : terminalEnvironment.metadata({
-          environmentId: input.environmentId,
+      : terminalMachine.metadata({
+          machineId: input.machineId,
           input: null,
         }),
   );
   const sessions = useMemo((): ReadonlyArray<KnownTerminalSession> | null => {
-    if (input.environmentId === null || metadata.data === null || metadata.error !== null) {
+    if (input.machineId === null || metadata.data === null || metadata.error !== null) {
       return null;
     }
     return metadata.data
       .filter((summary) => input.threadId === null || summary.threadId === input.threadId)
       .map((summary) => ({
         target: {
-          environmentId: input.environmentId!,
+          machineId: input.machineId!,
           threadId: ThreadId.make(summary.threadId),
           terminalId: summary.terminalId,
         },
@@ -109,6 +109,6 @@ export function useKnownTerminalSessions(input: {
           numeric: true,
         }),
       );
-  }, [input.environmentId, input.threadId, metadata.data, metadata.error]);
+  }, [input.machineId, input.threadId, metadata.data, metadata.error]);
   return { sessions, isPending: metadata.isPending, error: metadata.error };
 }

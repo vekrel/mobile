@@ -48,7 +48,7 @@ type ThreadSelection = Parameters<typeof createHomeThreadNavigationAction>[0]["t
 
 function thread(id: string): ThreadSelection {
   return {
-    environmentId: "environment-1",
+    machineId: "machine-1",
     id,
   } as ThreadSelection;
 }
@@ -104,7 +104,7 @@ describe("createHomeThreadNavigationAction", () => {
     expect(secondState.routes[secondState.index]).toMatchObject({
       key: threadRouteKey,
       name: "Thread",
-      params: { environmentId: "environment-1", threadId: "thread-b" },
+      params: { machineId: "machine-1", threadId: "thread-b" },
     });
   });
 
@@ -127,7 +127,7 @@ describe("createHomeThreadNavigationAction", () => {
     expect(dismissedState.routes[dismissedState.index]).toMatchObject({
       key: incomingRoute?.key,
       name: "Thread",
-      params: { environmentId: "environment-1", threadId: "thread-b" },
+      params: { machineId: "machine-1", threadId: "thread-b" },
     });
   });
 
@@ -143,7 +143,7 @@ describe("createHomeThreadNavigationAction", () => {
     const dismissedState = dismissRoute(overlapState, outgoingRouteKey!);
     expect(dismissedState.routes[dismissedState.index]).toMatchObject({
       key: incomingRouteKey,
-      params: { environmentId: "environment-1", threadId: "thread-a" },
+      params: { machineId: "machine-1", threadId: "thread-a" },
     });
   });
 
@@ -168,14 +168,14 @@ describe("createHomeThreadNavigationAction", () => {
     expect(secondOverlapState.routes).toHaveLength(3);
     expect(secondOverlapState.routes[secondOverlapState.index]).toMatchObject({
       key: incomingRouteKey,
-      params: { environmentId: "environment-1", threadId: "thread-c" },
+      params: { machineId: "machine-1", threadId: "thread-c" },
     });
 
     const dismissedState = dismissRoute(secondOverlapState, outgoingRouteKey!);
     expect(dismissedState.routes).toHaveLength(2);
     expect(dismissedState.routes[dismissedState.index]).toMatchObject({
       key: incomingRouteKey,
-      params: { environmentId: "environment-1", threadId: "thread-c" },
+      params: { machineId: "machine-1", threadId: "thread-c" },
     });
   });
 
@@ -195,7 +195,7 @@ describe("createHomeThreadNavigationAction", () => {
     expect(selectedState.routes).toHaveLength(2);
     expect(selectedState.routes[selectedState.index]).toMatchObject({
       name: "Thread",
-      params: { environmentId: "environment-1", threadId: "thread-b" },
+      params: { machineId: "machine-1", threadId: "thread-b" },
     });
   });
 });
@@ -215,7 +215,7 @@ describe("draft and live thread selection", () => {
     expect(draft.routes[draft.index]).toMatchObject({
       key,
       params: {
-        environmentId: undefined,
+        machineId: undefined,
         threadId: undefined,
         draft: { draftId: "new-task:draft-a" },
       },
@@ -224,7 +224,7 @@ describe("draft and live thread selection", () => {
     expect(restored.routes[restored.index]).toMatchObject({
       key,
       params: {
-        environmentId: "environment-1",
+        machineId: "machine-1",
         threadId: "thread-b",
         draft: undefined,
       },

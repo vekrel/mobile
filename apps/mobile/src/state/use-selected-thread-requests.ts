@@ -27,7 +27,7 @@ import {
 import { AuthOrchestrationOperateScope } from "@vekrel/contracts";
 import { Atom } from "effect/reactivity";
 
-import { threadEnvironment } from "../state/threads";
+import { threadMachine } from "../state/threads";
 import { scopedRequestKey } from "../lib/scopedEntities";
 import {
   buildPendingUserInputAnswers,
@@ -39,7 +39,7 @@ import { appAtomRegistry } from "./atom-registry";
 import { useSelectedThreadPendingRequests } from "./use-thread-detail";
 import { useThreadSelection } from "./use-thread-selection";
 import { useAtomCommand } from "./use-atom-command";
-import { readEnvironmentScope } from "./session";
+import { readMachineScope } from "./session";
 
 const EMPTY_PENDING_REQUESTS: PendingThreadRequests = { approvals: [], userInputs: [] };
 
@@ -87,15 +87,15 @@ function setUserInputDraftCustomAnswer(
 
 export function useSelectedThreadRequests() {
   const respondToApproval = useAtomCommand(
-    threadEnvironment.respondToApproval,
+    threadMachine.respondToApproval,
     "thread approval response",
   );
   const respondToUserInput = useAtomCommand(
-    threadEnvironment.respondToUserInput,
+    threadMachine.respondToUserInput,
     "thread user input response",
   );
   const dismissUserInput = useAtomCommand(
-    threadEnvironment.dismissUserInput,
+    threadMachine.dismissUserInput,
     "thread user input dismissal",
   );
   const { selectedThread: selectedThreadShell } = useThreadSelection();
@@ -112,7 +112,7 @@ export function useSelectedThreadRequests() {
   useEffect(() => {
     if (!activePendingUserInput || !selectedThreadShell) return;
     const requestKey = scopedRequestKey(
-      selectedThreadShell.environmentId,
+      selectedThreadShell.machineId,
       activePendingUserInput.requestId,
     );
     const existing = appAtomRegistry.get(userInputDraftsByRequestKeyAtom);
@@ -126,7 +126,7 @@ export function useSelectedThreadRequests() {
   const attachmentDrafts = useAtomValue(
     questionAttachmentDraftsAtom(
       selectedThreadShell
-        ? questionAttachmentDraftPrefix(selectedThreadShell.environmentId, selectedThreadShell.id)
+        ? questionAttachmentDraftPrefix(selectedThreadShell.machineId, selectedThreadShell.id)
         : "",
     ),
   );
@@ -135,14 +135,14 @@ export function useSelectedThreadRequests() {
   useEffect(() => {
     if (!selectedThreadShell || !pendingRequests) return;
     const prefix = questionAttachmentDraftPrefix(
-      selectedThreadShell.environmentId,
+      selectedThreadShell.machineId,
       selectedThreadShell.id,
     );
     const retained = new Set(
       activePendingUserInputs.flatMap((request) =>
         request.questions.map((question) =>
           questionAttachmentDraftKey(
-            selectedThreadShell.environmentId,
+            selectedThreadShell.machineId,
             selectedThreadShell.id,
             request.requestId,
             question.id,
@@ -167,16 +167,16 @@ export function useSelectedThreadRequests() {
       ? Object.fromEntries(
           activePendingUserInput.questions.map((question) => {
             const key = questionAttachmentDraftKey(
-              selectedThreadShell.environmentId,
+              selectedThreadShell.machineId,
               selectedThreadShell.id,
               activePendingUserInput.requestId,
               question.id,
             );
             const attachments = attachmentDrafts[key]?.attachments ?? [];
             const uploadInput = {
-              environmentId: selectedThreadShell.environmentId,
+              machineId: selectedThreadShell.machineId,
               attachments,
-              serverConfig: questionServerConfigs.get(selectedThreadShell.environmentId) ?? null,
+              serverConfig: questionServerConfigs.get(selectedThreadShell.machineId) ?? null,
               states: uploadStates,
             };
             return [
@@ -184,14 +184,14 @@ export function useSelectedThreadRequests() {
               {
                 ...userInputDraftsByRequestKey[
                   scopedRequestKey(
-                    selectedThreadShell.environmentId,
+                    selectedThreadShell.machineId,
                     activePendingUserInput.requestId,
                   )
                 ]?.[question.id],
                 attachmentCount: attachments.length,
                 attachmentsBlocked:
                   (attachments.length > 0 &&
-                    questionServerConfigs.get(selectedThreadShell.environmentId)?.environment
+                    questionServerConfigs.get(selectedThreadShell.machineId)?.machine
                       .capabilities.questionAttachments !== true) ||
                   (preparationCounts[key] ?? 0) > 0 ||
                   composerAttachmentsStillUploading(uploadInput) ||
@@ -214,7 +214,7 @@ export function useSelectedThreadRequests() {
         return;
       }
 
-      const requestKey = scopedRequestKey(selectedThreadShell.environmentId, requestId);
+      const requestKey = scopedRequestKey(selectedThreadShell.machineId, requestId);
       setUserInputDraftOption(requestKey, question, value);
     },
     [selectedThreadShell],
@@ -229,7 +229,7 @@ export function useSelectedThreadRequests() {
         return;
       }
 
-      const requestKey = scopedRequestKey(selectedThreadShell.environmentId, requestId);
+      const requestKey = scopedRequestKey(selectedThreadShell.machineId, requestId);
       setUserInputDraftCustomAnswer(requestKey, question, customAnswer);
     },
     [activePendingUserInputs, selectedThreadShell],
@@ -239,7 +239,7 @@ export function useSelectedThreadRequests() {
     async (requestId: RuntimeRequestId, decision: ProviderApprovalDecision) => {
       if (
         !selectedThreadShell ||
-        !readEnvironmentScope(selectedThreadShell.environmentId, AuthOrchestrationOperateScope)
+        !readMachineScope(selectedThreadShell.machineId, AuthOrchestrationOperateScope)
       ) {
         return;
       }
@@ -252,7 +252,7 @@ export function useSelectedThreadRequests() {
 
       setRespondingApprovalId(requestId);
       const result = await respondToApproval({
-        environmentId: selectedThreadShell.environmentId,
+        machineId: selectedThreadShell.machineId,
         input: {
           threadId: selectedThreadShell.id,
           requestId,
@@ -271,13 +271,13 @@ export function useSelectedThreadRequests() {
       !activePendingUserInput ||
       activePendingUserInput.responseCapability === "not_resumable" ||
       !activePendingUserInputAnswers ||
-      !readEnvironmentScope(selectedThreadShell.environmentId, AuthOrchestrationOperateScope)
+      !readMachineScope(selectedThreadShell.machineId, AuthOrchestrationOperateScope)
     ) {
       return;
     }
 
     const responseKey = questionAttachmentDraftKey(
-      selectedThreadShell.environmentId,
+      selectedThreadShell.machineId,
       selectedThreadShell.id,
       activePendingUserInput.requestId,
       "",
@@ -289,7 +289,7 @@ export function useSelectedThreadRequests() {
     >();
     for (const question of activePendingUserInput.questions) {
       const key = questionAttachmentDraftKey(
-        selectedThreadShell.environmentId,
+        selectedThreadShell.machineId,
         selectedThreadShell.id,
         activePendingUserInput.requestId,
         question.id,
@@ -301,7 +301,7 @@ export function useSelectedThreadRequests() {
         attachments.some(
           (attachment) =>
             !attachment.uploadedAttachmentId ||
-            attachment.uploadEnvironmentId !== selectedThreadShell.environmentId,
+            attachment.uploadMachineId !== selectedThreadShell.machineId,
         )
       ) {
         Dialog.alert(
@@ -324,7 +324,7 @@ export function useSelectedThreadRequests() {
     userInputResponsesInFlight.current.add(responseKey);
     setRespondingUserInputId(activePendingUserInput.requestId);
     const result = await respondToUserInput({
-      environmentId: selectedThreadShell.environmentId,
+      machineId: selectedThreadShell.machineId,
       input: {
         threadId: selectedThreadShell.id,
         requestId: activePendingUserInput.requestId,
@@ -350,14 +350,14 @@ export function useSelectedThreadRequests() {
     if (
       !selectedThreadShell ||
       !activePendingUserInput ||
-      !readEnvironmentScope(selectedThreadShell.environmentId, AuthOrchestrationOperateScope)
+      !readMachineScope(selectedThreadShell.machineId, AuthOrchestrationOperateScope)
     ) {
       return;
     }
 
     setRespondingUserInputId(activePendingUserInput.requestId);
     const result = await dismissUserInput({
-      environmentId: selectedThreadShell.environmentId,
+      machineId: selectedThreadShell.machineId,
       input: {
         threadId: selectedThreadShell.id,
         requestId: activePendingUserInput.requestId,

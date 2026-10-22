@@ -1,25 +1,25 @@
-import { EnvironmentId, ProjectId } from "@vekrel/contracts";
+import { MachineId, ProjectId } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import type { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
+import type { MachineProject } from "@vekrel/client-runtime/state/shell";
 import type { HomeProjectScope } from "../home/homeThreadList";
 import {
   newTaskDestination,
   resolveDraftProjectSelection,
-  resolveEnvironmentProjectMatch,
+  resolveMachineProjectMatch,
 } from "./new-task-project-selection";
 
 function makeProject(
   id: string,
-  environmentId = "environment",
+  machineId = "machine",
   options: {
     readonly title?: string;
     readonly workspaceRoot?: string;
     readonly repositoryKey?: string;
   } = {},
-): EnvironmentProject {
+): MachineProject {
   return {
-    environmentId: EnvironmentId.make(environmentId),
+    machineId: MachineId.make(machineId),
     id: ProjectId.make(id),
     title: options.title ?? id,
     workspaceRoot: options.workspaceRoot ?? `/work/${id}`,
@@ -40,27 +40,27 @@ function makeProject(
   };
 }
 
-function makeScope(projects: ReadonlyArray<EnvironmentProject>): HomeProjectScope {
+function makeScope(projects: ReadonlyArray<MachineProject>): HomeProjectScope {
   return {
     key: "github.com/t3tools/t3code",
     title: "Vekrel",
     representative: projects[0]!,
     projects,
     projectRefs: projects.map((project) => ({
-      environmentId: project.environmentId,
+      machineId: project.machineId,
       projectId: project.id,
     })),
   };
 }
 
-describe("resolveEnvironmentProjectMatch", () => {
+describe("resolveMachineProjectMatch", () => {
   it("follows the same repository onto the target machine", () => {
     const selected = makeProject("vekrel", "mac", { repositoryKey: "github.com/t3tools/t3code" });
     const target = [
       makeProject("other", "server", { repositoryKey: "github.com/t3tools/other" }),
       makeProject("vekrel-clone", "server", { repositoryKey: "github.com/t3tools/t3code" }),
     ];
-    expect(resolveEnvironmentProjectMatch(target, selected)).toBe(target[1]);
+    expect(resolveMachineProjectMatch(target, selected)).toBe(target[1]);
   });
 
   it("falls back to workspace basename, then title, for unindexed projects", () => {
@@ -69,13 +69,13 @@ describe("resolveEnvironmentProjectMatch", () => {
       makeProject("other", "server"),
       makeProject("srv", "server", { workspaceRoot: "/home/me/t3code" }),
     ];
-    expect(resolveEnvironmentProjectMatch(byBasename, selected)).toBe(byBasename[1]);
+    expect(resolveMachineProjectMatch(byBasename, selected)).toBe(byBasename[1]);
 
     const byTitle = [
       makeProject("other", "server"),
       makeProject("srv", "server", { title: "vekrel" }),
     ];
-    expect(resolveEnvironmentProjectMatch(byTitle, selected)).toBe(byTitle[1]);
+    expect(resolveMachineProjectMatch(byTitle, selected)).toBe(byTitle[1]);
   });
 
   it("does not treat a known different repository as a basename or title match", () => {
@@ -89,8 +89,8 @@ describe("resolveEnvironmentProjectMatch", () => {
       workspaceRoot: "/home/me/t3code",
     });
     const unindexed = makeProject("unindexed", "server", { workspaceRoot: "/srv/t3code" });
-    expect(resolveEnvironmentProjectMatch([fork, unindexed], selected)).toBe(unindexed);
-    expect(resolveEnvironmentProjectMatch([fork], selected)).toBe(fork);
+    expect(resolveMachineProjectMatch([fork, unindexed], selected)).toBe(unindexed);
+    expect(resolveMachineProjectMatch([fork], selected)).toBe(fork);
   });
 });
 
@@ -106,7 +106,7 @@ describe("resolveDraftProjectSelection", () => {
   it("does not preserve a project key that is missing from the catalog", () => {
     const project = makeProject("vekrel");
     expect(
-      resolveDraftProjectSelection("environment:removed", [project], [makeScope([project])]),
+      resolveDraftProjectSelection("machine:removed", [project], [makeScope([project])]),
     ).toEqual({
       kind: "select",
       project,
@@ -116,14 +116,14 @@ describe("resolveDraftProjectSelection", () => {
 
 describe("newTaskDestination", () => {
   it("opens the current thread's project directly in split view", () => {
-    const projects = [makeProject("first"), makeProject("current", "other-environment")];
+    const projects = [makeProject("first"), makeProject("current", "other-machine")];
     expect(newTaskDestination(true, projects, projects[1], "request")).toEqual({
-      draft: { requestId: "request", environmentId: "other-environment", projectId: "current" },
+      draft: { requestId: "request", machineId: "other-machine", projectId: "current" },
     });
   });
   it("uses an available project when split view has no current project", () => {
     expect(newTaskDestination(true, [makeProject("first")], undefined, "request")).toEqual({
-      draft: { requestId: "request", environmentId: "environment", projectId: "first" },
+      draft: { requestId: "request", machineId: "machine", projectId: "first" },
     });
   });
   it("keeps the picker when there are no projects", () => {
@@ -134,7 +134,7 @@ describe("newTaskDestination", () => {
   it("opens the same draft route in compact view", () => {
     const project = makeProject("current");
     expect(newTaskDestination(false, [project], project, "request")).toEqual({
-      draft: { requestId: "request", environmentId: "environment", projectId: "current" },
+      draft: { requestId: "request", machineId: "machine", projectId: "current" },
     });
   });
 });

@@ -71,10 +71,10 @@ export function PullRequestToolbar(props: { readonly onRequestVisibility?: () =>
         onOpenSearch={openSearch}
         searchAccessibilityLabel="Search pull requests"
         titleAccessibilityLabel="Vekrel, Pull requests"
-        onOpenEnvironments={() =>
+        onOpenMachines={() =>
           navigation.navigate("SettingsSheet", {
             screen: "SettingsContent",
-            params: { screen: "SettingsEnvironments" },
+            params: { screen: "SettingsMachines" },
           })
         }
         filter={

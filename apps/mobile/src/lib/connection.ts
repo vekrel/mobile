@@ -1,9 +1,9 @@
-import { EnvironmentId } from "@vekrel/contracts";
-import { type EnvironmentConnectionPhase } from "@vekrel/client-runtime/connection";
+import { MachineId } from "@vekrel/contracts";
+import { type MachineConnectionPhase } from "@vekrel/client-runtime/connection";
 
 export interface SavedRemoteConnection {
-  readonly environmentId: EnvironmentId;
-  readonly environmentLabel: string;
+  readonly machineId: MachineId;
+  readonly machineLabel: string;
   readonly pairingUrl: string;
   readonly displayUrl: string;
   readonly httpBaseUrl: string;
@@ -14,7 +14,7 @@ export interface SavedRemoteConnection {
   readonly relayManaged?: true;
 }
 
-export type RemoteClientConnectionState = EnvironmentConnectionPhase;
+export type RemoteClientConnectionState = MachineConnectionPhase;
 
 export function isRelayManagedConnection(
   connection: Pick<SavedRemoteConnection, "authenticationMethod" | "relayManaged">,

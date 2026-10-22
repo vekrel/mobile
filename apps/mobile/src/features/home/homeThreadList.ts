@@ -1,14 +1,14 @@
 import { buildProjectGroups } from "@vekrel/client-runtime/state/project-grouping";
 import type {
-  EnvironmentProject,
-  EnvironmentThreadShell,
+  MachineProject,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import {
   getThreadSortTimestamp,
   toSortableTimestamp,
 } from "@vekrel/client-runtime/state/thread-sort";
 import type {
-  EnvironmentId,
+  MachineId,
   ScopedProjectRef,
   SidebarProjectGroupingMode,
   SidebarProjectSortOrder,
@@ -24,13 +24,13 @@ export type HomeProjectSortOrder = Exclude<SidebarProjectSortOrder, "manual">;
 export interface HomeProjectScope {
   readonly key: string;
   readonly title: string;
-  readonly representative: EnvironmentProject;
-  readonly projects: ReadonlyArray<EnvironmentProject>;
+  readonly representative: MachineProject;
+  readonly projects: ReadonlyArray<MachineProject>;
   readonly projectRefs: ReadonlyArray<ScopedProjectRef>;
 }
 
 function getProjectSortTimestamp(
-  project: EnvironmentProject,
+  project: MachineProject,
   sortOrder: HomeProjectSortOrder,
 ): number {
   return sortOrder === "created_at"
@@ -41,12 +41,12 @@ function getProjectSortTimestamp(
 }
 
 export function buildHomeProjectScopes(input: {
-  readonly projects: ReadonlyArray<EnvironmentProject>;
-  readonly environmentId: EnvironmentId | null;
+  readonly projects: ReadonlyArray<MachineProject>;
+  readonly machineId: MachineId | null;
   readonly projectGroupingMode: SidebarProjectGroupingMode;
 }): ReadonlyArray<HomeProjectScope> {
   const projects = input.projects.filter(
-    (project) => input.environmentId === null || project.environmentId === input.environmentId,
+    (project) => input.machineId === null || project.machineId === input.machineId,
   );
   return buildProjectGroups({
     projects,
@@ -77,7 +77,7 @@ export function findHomeProjectScope(
     scopes.find((scope) => scope.key === key) ??
     scopes.find((scope) =>
       scope.projectRefs.some(
-        (projectRef) => scopedProjectKey(projectRef.environmentId, projectRef.projectId) === key,
+        (projectRef) => scopedProjectKey(projectRef.machineId, projectRef.projectId) === key,
       ),
     ) ??
     null
@@ -86,7 +86,7 @@ export function findHomeProjectScope(
 
 export function sortHomeProjectScopes(input: {
   readonly scopes: ReadonlyArray<HomeProjectScope>;
-  readonly threads: ReadonlyArray<EnvironmentThreadShell>;
+  readonly threads: ReadonlyArray<MachineThreadShell>;
   readonly pendingTasks: ReadonlyArray<PendingNewTask>;
   readonly projectSortOrder: HomeProjectSortOrder;
 }): ReadonlyArray<HomeProjectScope> {
@@ -94,7 +94,7 @@ export function sortHomeProjectScopes(input: {
     input.scopes.flatMap((scope) =>
       scope.projectRefs.map(
         (projectRef) =>
-          [scopedProjectKey(projectRef.environmentId, projectRef.projectId), scope.key] as const,
+          [scopedProjectKey(projectRef.machineId, projectRef.projectId), scope.key] as const,
       ),
     ),
   );
@@ -110,13 +110,13 @@ export function sortHomeProjectScopes(input: {
   for (const thread of input.threads) {
     if (thread.archivedAt !== null) continue;
     recordActivity(
-      scopeKeyByProjectRef.get(scopedProjectKey(thread.environmentId, thread.projectId)),
+      scopeKeyByProjectRef.get(scopedProjectKey(thread.machineId, thread.projectId)),
       getThreadSortTimestamp(thread, input.projectSortOrder),
     );
   }
   for (const pendingTask of input.pendingTasks) {
     recordActivity(
-      scopeKeyByProjectRef.get(scopedProjectKey(pendingTask.environmentId, pendingTask.projectId)),
+      scopeKeyByProjectRef.get(scopedProjectKey(pendingTask.machineId, pendingTask.projectId)),
       Date.parse(pendingTask.createdAt),
     );
   }

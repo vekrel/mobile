@@ -1,4 +1,4 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import { useNavigation } from "@react-navigation/native";
 import { useCallback } from "react";
 
@@ -14,16 +14,16 @@ export function useOpenThreadPullRequests() {
   const navigation = useNavigation();
   const navigateToPullRequest = useNavigateToPullRequest();
   return useCallback(
-    (thread: EnvironmentThreadShell, pr: ThreadPrPresentation) => {
+    (thread: MachineThreadShell, pr: ThreadPrPresentation) => {
       if (resolveThreadPrBadgeAction(pr).kind === "list") {
         navigation.navigate("ThreadPullRequests", {
-          environmentId: String(thread.environmentId),
+          machineId: String(thread.machineId),
           threadId: String(thread.id),
         });
         return;
       }
       void navigateToPullRequest(pr.url, {
-        environmentId: String(thread.environmentId),
+        machineId: String(thread.machineId),
         projectId: String(thread.projectId),
       }).then((opened) => {
         if (!opened) Dialog.alert("Unable to open PR", "The pull request could not be opened.");

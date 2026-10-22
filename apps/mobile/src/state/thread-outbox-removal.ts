@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 
 import { appAtomRegistry } from "./atom-registry";
 import { threadOutboxManager } from "./thread-outbox";
@@ -76,10 +76,10 @@ export async function removeThreadOutboxMessage(
   return true;
 }
 
-export async function clearThreadOutboxEnvironment(environmentId: EnvironmentId): Promise<void> {
-  // clearEnvironment loads and merges persisted messages itself and reports
+export async function clearThreadOutboxMachine(machineId: MachineId): Promise<void> {
+  // clearMachine loads and merges persisted messages itself and reports
   // what it actually removed, so the release set cannot miss messages a
   // failed earlier hydration would have hidden.
-  const removed = await threadOutboxManager.clearEnvironment(environmentId);
+  const removed = await threadOutboxManager.clearMachine(machineId);
   await cleanUpRemovedMessages(removed);
 }

@@ -1,34 +1,34 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { useCallback } from "react";
 import { View } from "react-native";
 
 import { EmptyState } from "../../components/ui/EmptyState";
-import { environmentCatalog } from "../../connection/catalog";
+import { machineCatalog } from "../../connection/catalog";
 import type { AssetUrlFailureReason } from "../../state/asset-url-state";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { useEnvironmentPresentation } from "../../state/presentation";
-import { EnvironmentConnectionNotice } from "../connection/EnvironmentConnectionNotice";
+import { useMachinePresentation } from "../../state/presentation";
+import { MachineConnectionNotice } from "../connection/MachineConnectionNotice";
 
 export function WorkspaceFilePreviewError(props: {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly reason: AssetUrlFailureReason;
   readonly onRetry: () => void;
 }) {
-  const { environmentId, onRetry } = props;
-  const environment = useEnvironmentPresentation(environmentId);
-  const retryEnvironment = useAtomCommand(environmentCatalog.retryNow, "environment retry");
+  const { machineId, onRetry } = props;
+  const machine = useMachinePresentation(machineId);
+  const retryMachine = useAtomCommand(machineCatalog.retryNow, "machine retry");
   const retryConnection = useCallback(() => {
-    if (environmentId !== null) void retryEnvironment(environmentId);
+    if (machineId !== null) void retryMachine(machineId);
     onRetry();
-  }, [environmentId, onRetry, retryEnvironment]);
+  }, [machineId, onRetry, retryMachine]);
 
   if (props.reason === "disconnected") {
     return (
       <View className="flex-1 bg-sheet">
-        <EnvironmentConnectionNotice
-          environmentLabel={environment.presentation?.entry.target.label ?? "Environment"}
+        <MachineConnectionNotice
+          machineLabel={machine.presentation?.entry.target.label ?? "Machine"}
           connection={
-            environment.presentation?.connection ?? {
+            machine.presentation?.connection ?? {
               phase: "available",
               error: null,
               traceId: null,
@@ -45,7 +45,7 @@ export function WorkspaceFilePreviewError(props: {
     <View className="flex-1 items-center justify-center bg-sheet px-6">
       <EmptyState
         title="Preview unavailable"
-        detail="This file may be missing, unsupported, or unavailable on this environment."
+        detail="This file may be missing, unsupported, or unavailable on this machine."
         actionLabel="Try again"
         onAction={props.onRetry}
       />

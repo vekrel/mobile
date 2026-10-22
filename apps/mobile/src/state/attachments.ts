@@ -1,26 +1,26 @@
-import { createAttachmentEnvironmentAtoms } from "@vekrel/client-runtime/state/attachments";
+import { createAttachmentMachineAtoms } from "@vekrel/client-runtime/state/attachments";
 import type { AtomCommand } from "@vekrel/client-runtime/state/runtime";
 import {
   AuthOrchestrationOperateScope,
-  EnvironmentAuthorizationError,
-  type EnvironmentId,
+  MachineAuthorizationError,
+  type MachineId,
 } from "@vekrel/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 
 import { connectionAtomRuntime } from "../connection/runtime";
-import { readEnvironmentScope } from "./session";
+import { readMachineScope } from "./session";
 
-function requireAttachmentWriteAccess<W extends { readonly environmentId: EnvironmentId }, A, E>(
+function requireAttachmentWriteAccess<W extends { readonly machineId: MachineId }, A, E>(
   command: AtomCommand<W, A, E>,
-): AtomCommand<W, A, E | EnvironmentAuthorizationError> {
+): AtomCommand<W, A, E | MachineAuthorizationError> {
   return {
     ...command,
     run: async (registry, input) => {
-      if (!readEnvironmentScope(input.environmentId, AuthOrchestrationOperateScope)) {
+      if (!readMachineScope(input.machineId, AuthOrchestrationOperateScope)) {
         return AsyncResult.failure(
           Cause.fail(
-            new EnvironmentAuthorizationError({
+            new MachineAuthorizationError({
               message: "This connection cannot change attachments.",
               requiredScope: AuthOrchestrationOperateScope,
             }),
@@ -32,8 +32,8 @@ function requireAttachmentWriteAccess<W extends { readonly environmentId: Enviro
   };
 }
 
-const commands = createAttachmentEnvironmentAtoms(connectionAtomRuntime);
-export const attachmentEnvironment = {
+const commands = createAttachmentMachineAtoms(connectionAtomRuntime);
+export const attachmentMachine = {
   createUploadUrl: requireAttachmentWriteAccess(commands.createUploadUrl),
   remove: requireAttachmentWriteAccess(commands.remove),
 };

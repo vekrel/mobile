@@ -1,12 +1,12 @@
 import {
   DEFAULT_SERVER_SETTINGS,
-  type EnvironmentId,
+  type MachineId,
   type ProjectId,
   type ServerSettings,
 } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import type { SettingsTarget } from "./settings-environment-filter";
+import type { SettingsTarget } from "./settings-machine-filter";
 import {
   planMobileScopedSettingsClear,
   planMobileScopedSettingsPatch,
@@ -14,19 +14,19 @@ import {
   uniformMobileSetting,
 } from "./settings-scoped-server";
 
-const firstId = "first" as EnvironmentId;
-const secondId = "second" as EnvironmentId;
+const firstId = "first" as MachineId;
+const secondId = "second" as MachineId;
 const firstProject = "first-project" as ProjectId;
 const secondProject = "second-project" as ProjectId;
 
-describe("mobile usage-limit settings across environments", () => {
+describe("mobile usage-limit settings across machines", () => {
   it.each(["autoResumeLimitedThreads", "snoozeLimitedThreads"] as const)(
     "shows %s as mixed and can enable it everywhere without changing other settings",
     (key) => {
       const targets = resolveMobileSettingsTargets(
         [
-          environment(firstId, { ...DEFAULT_SERVER_SETTINGS, [key]: true }),
-          environment(secondId, { ...DEFAULT_SERVER_SETTINGS, [key]: false }),
+          machine(firstId, { ...DEFAULT_SERVER_SETTINGS, [key]: true }),
+          machine(secondId, { ...DEFAULT_SERVER_SETTINGS, [key]: false }),
         ],
         null,
       );
@@ -34,15 +34,15 @@ describe("mobile usage-limit settings across environments", () => {
       expect(uniformMobileSetting(targets, key)).toBeNull();
       const writes = planMobileScopedSettingsPatch(targets, false, { [key]: true });
       expect(writes).toEqual([
-        { environmentId: firstId, patch: { [key]: true } },
-        { environmentId: secondId, patch: { [key]: true } },
+        { machineId: firstId, patch: { [key]: true } },
+        { machineId: secondId, patch: { [key]: true } },
       ]);
       const updatedTargets = targets.map((target) => ({
         ...target,
         settings: {
           ...target.settings,
           [key]:
-            writes.find((write) => write.environmentId === target.environment.environmentId)?.patch[
+            writes.find((write) => write.machineId === target.machine.machineId)?.patch[
               key
             ] ?? target.settings[key],
         },
@@ -55,18 +55,18 @@ describe("mobile usage-limit settings across environments", () => {
   );
 });
 
-function environment(environmentId: EnvironmentId, settings: ServerSettings): SettingsTarget {
+function machine(machineId: MachineId, settings: ServerSettings): SettingsTarget {
   return {
-    environmentId,
+    machineId,
     serverConfig: {
       settings,
-      environment: { capabilities: { projectSettingsOverrides: true } },
+      machine: { capabilities: { projectSettingsOverrides: true } },
     },
   } as SettingsTarget;
 }
 
 describe("mobile project settings scope", () => {
-  it("edits each checkout's own override without changing either environment default", () => {
+  it("edits each checkout's own override without changing either machine default", () => {
     const firstSettings: ServerSettings = {
       ...DEFAULT_SERVER_SETTINGS,
       responseStreamingMode: "paragraph",
@@ -78,10 +78,10 @@ describe("mobile project settings scope", () => {
       projectSettingsOverrides: {},
     };
     const targets = resolveMobileSettingsTargets(
-      [environment(firstId, firstSettings), environment(secondId, secondSettings)],
+      [machine(firstId, firstSettings), machine(secondId, secondSettings)],
       [
-        { environmentId: firstId, id: firstProject },
-        { environmentId: secondId, id: secondProject },
+        { machineId: firstId, id: firstProject },
+        { machineId: secondId, id: secondProject },
       ],
     );
 
@@ -90,7 +90,7 @@ describe("mobile project settings scope", () => {
     });
     expect(writes).toEqual([
       {
-        environmentId: firstId,
+        machineId: firstId,
         patch: {
           projectSettingsOverrides: {
             [firstProject]: { defaultAutoPull: true, responseStreamingMode: "turn" },
@@ -98,7 +98,7 @@ describe("mobile project settings scope", () => {
         },
       },
       {
-        environmentId: secondId,
+        machineId: secondId,
         patch: { projectSettingsOverrides: { [secondProject]: { responseStreamingMode: "turn" } } },
       },
     ]);
@@ -114,18 +114,18 @@ describe("mobile project settings scope", () => {
       },
     };
     const targets = resolveMobileSettingsTargets(
-      [environment(firstId, settings)],
-      [{ environmentId: firstId, id: firstProject }],
+      [machine(firstId, settings)],
+      [{ machineId: firstId, id: firstProject }],
     );
     expect(planMobileScopedSettingsPatch(targets, true, { defaultThreadEnvMode: null })).toEqual([
       {
-        environmentId: firstId,
+        machineId: firstId,
         patch: { projectSettingsOverrides: { [firstProject]: { defaultAutoPull: true } } },
       },
     ]);
     expect(planMobileScopedSettingsPatch(targets, true, { defaultModelSelection: null })).toEqual([
       {
-        environmentId: firstId,
+        machineId: firstId,
         patch: {
           projectSettingsOverrides: {
             [firstProject]: {
@@ -139,7 +139,7 @@ describe("mobile project settings scope", () => {
     ]);
   });
 
-  it("resets only the selected page's override and rejects environment-wide writes", () => {
+  it("resets only the selected page's override and rejects machine-wide writes", () => {
     const settings: ServerSettings = {
       ...DEFAULT_SERVER_SETTINGS,
       projectSettingsOverrides: {
@@ -147,13 +147,13 @@ describe("mobile project settings scope", () => {
       },
     };
     const targets = resolveMobileSettingsTargets(
-      [environment(firstId, settings)],
-      [{ environmentId: firstId, id: firstProject }],
+      [machine(firstId, settings)],
+      [{ machineId: firstId, id: firstProject }],
     );
 
     expect(planMobileScopedSettingsClear(targets, ["responseStreamingMode"])).toEqual([
       {
-        environmentId: firstId,
+        machineId: firstId,
         patch: { projectSettingsOverrides: { [firstProject]: { defaultAutoPull: true } } },
       },
     ]);

@@ -12,7 +12,7 @@ import {
 export interface PullRequestFilterMenu {
   readonly actions: readonly MenuAction[];
   readonly onSelect: (id: string) => void;
-  /** Whether any filter, the environment, or a non-default sort is active. */
+  /** Whether any filter, the machine, or a non-default sort is active. */
   readonly customized: boolean;
 }
 

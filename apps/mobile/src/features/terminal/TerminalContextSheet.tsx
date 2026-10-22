@@ -2,7 +2,7 @@ import * as Dialog from "../../components/ui/Dialog";
 import {
   ComposerContextId,
   COMPOSER_CONTEXT_TERMINAL_TEXT_MAX_CHARS,
-  type EnvironmentId,
+  type MachineId,
   type ThreadId,
 } from "@vekrel/contracts";
 import { formatComposerContextReference } from "@vekrel/shared/composerContextReferences";
@@ -18,7 +18,7 @@ import { insertComposerDraftContext } from "../../state/use-composer-drafts";
 
 export function TerminalContextSheet(props: {
   text: string;
-  environmentId: EnvironmentId;
+  machineId: MachineId;
   threadId: ThreadId;
   terminalId: string;
   terminalLabel: string;
@@ -45,7 +45,7 @@ export function TerminalContextSheet(props: {
       text: selectedText,
     };
     if (
-      !insertComposerDraftContext(`${props.environmentId}:${props.threadId}`, {
+      !insertComposerDraftContext(`${props.machineId}:${props.threadId}`, {
         text: formatComposerContextReference(record),
         context: { version: 1, records: [record] },
       })

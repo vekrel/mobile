@@ -1,22 +1,22 @@
-import { EnvironmentQueryStore } from "@vekrel/client-runtime/state/query-persistence";
+import { MachineQueryStore } from "@vekrel/client-runtime/state/query-persistence";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 
 import { MobileDatabase } from "../persistence/mobile-database";
 
 export const layer = Layer.effect(
-  EnvironmentQueryStore,
+  MachineQueryStore,
   Effect.gen(function* () {
     const database = yield* MobileDatabase;
     return {
-      load: (environmentId, key) =>
+      load: (machineId, key) =>
         database
-          .loadCache(environmentId, "pull-request", `v1:${key}`)
+          .loadCache(machineId, "pull-request", `v1:${key}`)
           .pipe(Effect.catch(() => Effect.succeedNone)),
-      save: (environmentId, key, payload) =>
+      save: (machineId, key, payload) =>
         database
-          .saveCache(environmentId, "pull-request", `v1:${key}`, 1, payload)
+          .saveCache(machineId, "pull-request", `v1:${key}`, 1, payload)
           .pipe(Effect.catch(() => Effect.logWarning("Offline query database save failed"))),
-    } satisfies NonNullable<typeof EnvironmentQueryStore.Service>;
+    } satisfies NonNullable<typeof MachineQueryStore.Service>;
   }),
 );

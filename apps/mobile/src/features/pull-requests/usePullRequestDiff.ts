@@ -1,5 +1,5 @@
 import {
-  EnvironmentId,
+  MachineId,
   ProjectId,
   type PullRequestDiffResult,
   type PullRequestListEntry,
@@ -8,7 +8,7 @@ import { useAtomRefresh } from "@effect/atom-react";
 import { useCallback, useMemo, useState } from "react";
 
 import { composerPullRequests } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { usePullToRefresh } from "../../state/use-pull-to-refresh";
 import type { ReviewParsedDiff } from "../review/reviewModel";
 import {
@@ -18,7 +18,7 @@ import {
 } from "./pullRequestDiffPages";
 
 export type PullRequestParams = {
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly projectId: string;
   readonly repository: string;
   readonly number: number;
@@ -30,7 +30,7 @@ export type PullRequestDiffParams = PullRequestParams & { readonly commit?: stri
 
 export function pullRequestTarget(params: PullRequestParams) {
   return {
-    environmentId: EnvironmentId.make(params.environmentId),
+    machineId: MachineId.make(params.machineId),
     input: {
       projectId: ProjectId.make(params.projectId),
       repository: params.repository,
@@ -58,7 +58,7 @@ export function usePullRequestDiff(params: PullRequestDiffParams) {
     pages: readonly PullRequestDiffPage[];
   }>({ key, cursor: null, pages: NO_PAGES });
   const cursor = state.key === key ? state.cursor : null;
-  const query = useEnvironmentQuery(
+  const query = useMachineQuery(
     composerPullRequests.diff({
       ...target,
       input: { ...target.input, ...(cursor ? { cursor } : {}) },

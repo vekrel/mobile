@@ -19,7 +19,7 @@ describe("resolveThreadSelectionNavigationAction", () => {
     expect(
       resolveThreadSelectionNavigationAction({
         usesSplitView: true,
-        pathname: "/threads/environment/thread/files/path",
+        pathname: "/threads/machine/thread/files/path",
       }),
     ).toBe("replace");
   });
@@ -45,11 +45,11 @@ describe("resolveThreadSelectionOverlayState", () => {
   const thread = {
     key: "thread",
     name: "Thread",
-    params: { environmentId: "environment", threadId: "old-thread" },
+    params: { machineId: "machine", threadId: "old-thread" },
   };
   const files = { key: "files", name: "ThreadFiles", params: thread.params };
   const settings = { key: "settings", name: "SettingsSheet" };
-  const params = { environmentId: "environment", threadId: "new-thread" };
+  const params = { machineId: "machine", threadId: "new-thread" };
 
   it("replaces the underlying file route and dismisses every overlay above it", () => {
     expect(
@@ -107,7 +107,7 @@ it("replacing a draft underneath an overlay removes its draft identity", () => {
     },
     workspaceRouteKey: "draft",
     action: "set-params",
-    params: { environmentId: "env", threadId: "live" },
+    params: { machineId: "env", threadId: "live" },
   });
-  expect(result?.routes[0]?.params).toEqual({ environmentId: "env", threadId: "live" });
+  expect(result?.routes[0]?.params).toEqual({ machineId: "env", threadId: "live" });
 });

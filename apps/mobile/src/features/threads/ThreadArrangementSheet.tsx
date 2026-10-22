@@ -1,7 +1,7 @@
 import { SheetHeader } from "../../components/ui/SheetHeader";
 import { appAtomRegistry } from "../../state/atom-registry";
 import { useAtomValue } from "@effect/atom-react";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import { effectiveSnoozed } from "@vekrel/client-runtime/state/thread-settled";
 import { sortInboxThreadsByReturn } from "@vekrel/client-runtime/state/thread-inbox";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -14,8 +14,8 @@ import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { scopedThreadKey } from "../../lib/scopedEntities";
-import { environmentServerConfigsAtom } from "../../state/server";
-import { environmentThreadShells } from "../../state/threads";
+import { machineServerConfigsAtom } from "../../state/server";
+import { machineThreadShells } from "../../state/threads";
 import {
   pendingThreadOrderAtom,
   threadDropBusyAtom,
@@ -33,20 +33,20 @@ import { useThreadListV2ShelfPreferences } from "./use-thread-list-v2-shelf-pref
 
 const ROW_HEIGHT = 56;
 const HEADER_HEIGHT = 48;
-const keyOf = (thread: EnvironmentThreadShell) => scopedThreadKey(thread.environmentId, thread.id);
+const keyOf = (thread: MachineThreadShell) => scopedThreadKey(thread.machineId, thread.id);
 type Section = "pinned" | "active" | "snoozed" | "settled";
 type Destination = Exclude<ThreadMoveDestination, string>;
 type Row = {
   key: string;
   section: Section;
-  thread?: EnvironmentThreadShell;
+  thread?: MachineThreadShell;
   offset: number;
   height: number;
 };
 type Drag = {
   orderVersion: string;
   sourceSection: Section;
-  thread: EnvironmentThreadShell;
+  thread: MachineThreadShell;
   startY: number;
   translation: number;
   destination: Destination | null;
@@ -149,8 +149,8 @@ function DragHandle(props: {
 }
 
 export function ThreadArrangementSheet(props: { onClose: () => void }) {
-  const threads = useAtomValue(environmentThreadShells.navigationThreadShellsAtom);
-  const configs = useAtomValue(environmentServerConfigsAtom);
+  const threads = useAtomValue(machineThreadShells.navigationThreadShellsAtom);
+  const configs = useAtomValue(machineServerConfigsAtom);
   const queuedThreadKeys = useAtomValue(queuedThreadKeysAtom);
   const pendingOrder = useAtomValue(pendingThreadOrderAtom);
   const dropBusy = useAtomValue(threadDropBusyAtom);
@@ -178,14 +178,14 @@ export function ThreadArrangementSheet(props: { onClose: () => void }) {
       now,
       queuedThreadKeys,
       pendingOrder,
-      settlementEnvironmentIds: new Set(
+      settlementMachineIds: new Set(
         [...configs].flatMap(([id, config]) =>
-          config.environment.capabilities.threadSettlement ? [id] : [],
+          config.machine.capabilities.threadSettlement ? [id] : [],
         ),
       ),
-      snoozeEnvironmentIds: new Set(
+      snoozeMachineIds: new Set(
         [...configs].flatMap(([id, config]) =>
-          config.environment.capabilities.threadSnooze ? [id] : [],
+          config.machine.capabilities.threadSnooze ? [id] : [],
         ),
       ),
     };
@@ -210,12 +210,12 @@ export function ThreadArrangementSheet(props: { onClose: () => void }) {
         ordered: sections[section],
         allThreads: threads,
         section,
-        reorderableEnvironmentIds: new Set(
+        reorderableMachineIds: new Set(
           [...configs].flatMap(([id, config]) =>
             (
               section === "pinned"
-                ? config.environment.capabilities.threadPinReorder
-                : !workingShelfEnabled && config.environment.capabilities.threadActiveReorder
+                ? config.machine.capabilities.threadPinReorder
+                : !workingShelfEnabled && config.machine.capabilities.threadActiveReorder
             )
               ? [id]
               : [],
@@ -294,7 +294,7 @@ export function ThreadArrangementSheet(props: { onClose: () => void }) {
       if (target.section === "settled") {
         if (
           current.sourceSection !== "settled" &&
-          configs.get(current.thread.environmentId)?.environment.capabilities.threadSettlement
+          configs.get(current.thread.machineId)?.machine.capabilities.threadSettlement
         )
           destination = { section: "settled", targetId: null, placement: "before" };
       } else if (latest.current.planners[target.section](keyOf(current.thread), candidate) !== null)
@@ -415,7 +415,7 @@ export function ThreadArrangementSheet(props: { onClose: () => void }) {
                         ? planners[item.section]
                         : null;
                     const capabilities =
-                      thread && configs.get(thread.environmentId)?.environment.capabilities;
+                      thread && configs.get(thread.machineId)?.machine.capabilities;
                     const sectionActions = thread
                       ? (["pinned", "active", "settled"] as const).flatMap<{
                           name: "pinned" | "active" | "settled";
@@ -473,9 +473,9 @@ export function ThreadArrangementSheet(props: { onClose: () => void }) {
                                 dropBusy ||
                                 pendingOrder !== null ||
                                 !(
-                                  configs.get(thread.environmentId)?.environment.capabilities
+                                  configs.get(thread.machineId)?.machine.capabilities
                                     .threadPinReorder ||
-                                  configs.get(thread.environmentId)?.environment.capabilities
+                                  configs.get(thread.machineId)?.machine.capabilities
                                     .threadActiveReorder
                                 )
                               }

@@ -3,7 +3,7 @@ import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { proposedPlanTitle, stripDisplayedPlanMarkdown } from "@vekrel/shared/proposedPlanText";
 import { useRef, useState, type ReactNode } from "react";
 import { View } from "react-native";
@@ -11,18 +11,18 @@ import { View } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
 import { Button } from "../../components/ui/Button";
 import * as Dialog from "../../components/ui/Dialog";
-import { projectEnvironment } from "../../state/projects";
+import { projectMachine } from "../../state/projects";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { CopyTextButton } from "./CopyTextButton";
 
 export function ProposedPlanCard(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly workspaceRoot: string | null | undefined;
   readonly markdown: string;
   readonly renderMarkdown: (text: string) => ReactNode;
 }) {
-  const canWrite = useAtomValue(projectEnvironment.writeFile.permissionAtom(props.environmentId));
-  const writeFile = useAtomCommand(projectEnvironment.writeFile, { reportFailure: false });
+  const canWrite = useAtomValue(projectMachine.writeFile.permissionAtom(props.machineId));
+  const writeFile = useAtomCommand(projectMachine.writeFile, { reportFailure: false });
   const inFlight = useRef(false);
   const [saving, setSaving] = useState(false);
   const [lastPath, setLastPath] = useState("plan.md");
@@ -39,7 +39,7 @@ export function ProposedPlanCard(props: {
     setSaving(true);
     setLastPath(relativePath);
     const result = await writeFile({
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       input: { cwd: props.workspaceRoot, relativePath, contents },
     }).finally(() => {
       inFlight.current = false;

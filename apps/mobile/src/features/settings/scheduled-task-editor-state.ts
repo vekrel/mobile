@@ -1,12 +1,12 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { Atom } from "effect/reactivity";
 
 import { appAtomRegistry } from "../../state/atom-registry";
 import type { ScheduledTaskDraft } from "./scheduledTaskDraft";
 
 export type ScheduledTaskEditor = {
-  readonly environmentId: EnvironmentId;
-  readonly environmentLabel: string;
+  readonly machineId: MachineId;
+  readonly machineLabel: string;
   readonly draft: ScheduledTaskDraft;
 };
 

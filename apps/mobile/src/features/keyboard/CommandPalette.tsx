@@ -1,6 +1,6 @@
 import { uuidv4 } from "../../lib/uuid";
 import { useNavigation } from "@react-navigation/native";
-import type { EnvironmentThreadSearchMatch } from "@vekrel/client-runtime/state/thread-search";
+import type { MachineThreadSearchMatch } from "@vekrel/client-runtime/state/thread-search";
 import { THREAD_JUMP_KEYBINDING_COMMANDS } from "@vekrel/contracts";
 import { threadPullRequestSearchTerms } from "@vekrel/shared/threadPullRequests";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -29,8 +29,8 @@ import { useNativeLayoutMetrics } from "../../native/native-layout-metrics";
 import { T3KeyboardCommands } from "../../native/T3KeyboardCommands";
 import { useProjects, useThreadShell, useThreadShells } from "../../state/entities";
 import { useThreadSearch } from "../../state/queries";
-import { useWorkspaceEnvironments } from "../../state/workspace";
-import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
+import { useWorkspaceMachines } from "../../state/workspace";
+import { useSavedRemoteConnections } from "../../state/use-remote-machine-registry";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { ThreadSearchMatchExcerpt } from "../threads/thread-search-match";
@@ -58,7 +58,7 @@ const ACTION_ICONS: Record<string, AppSymbolName> = {
   addProject: "folder.badge.plus",
   settings: "gearshape",
   appearance: "paintbrush",
-  environments: "desktopcomputer",
+  machines: "desktopcomputer",
   usage: "chart.bar.xaxis",
   archive: "archivebox",
   files: "doc.text",
@@ -77,7 +77,7 @@ function PaletteRow(props: {
   readonly item: CommandPaletteItem;
   readonly index: number;
   readonly selected: boolean;
-  readonly searchMatch?: EnvironmentThreadSearchMatch;
+  readonly searchMatch?: MachineThreadSearchMatch;
   readonly searchQuery: string;
   readonly onSelect: () => void;
 }) {
@@ -149,7 +149,7 @@ export function CommandPalette(props: {
   const threads = useThreadShells();
   const activeThreadRef = useMemo(() => parseActiveThreadPath(props.pathname), [props.pathname]);
   const activeThread = useThreadShell(activeThreadRef);
-  const environments = useWorkspaceEnvironments();
+  const machines = useWorkspaceMachines();
   const { savedConnectionsById } = useSavedRemoteConnections();
   const [query, setQuery] = useState("");
   const [selection, setSelection] = useState<string | null>(null);
@@ -162,17 +162,17 @@ export function CommandPalette(props: {
   // The palette floats above every column, so it keeps itself inside the window's side insets
   // and to one side of a book fold.
   const bounds = deriveBottomControlInsets(useNativeLayoutMetrics());
-  const searchEnvironmentIds = useMemo(
+  const searchMachineIds = useMemo(
     () =>
-      environments
-        .filter((environment) => environment.connectionState === "connected")
-        .map((environment) => environment.environmentId),
-    [environments],
+      machines
+        .filter((machine) => machine.connectionState === "connected")
+        .map((machine) => machine.machineId),
+    [machines],
   );
-  const search = useThreadSearch(searchEnvironmentIds, query.startsWith(">") ? "" : query);
+  const search = useThreadSearch(searchMachineIds, query.startsWith(">") ? "" : query);
   const matchedThreadKeys = useMemo(
     () =>
-      new Set(search.matches.map((match) => scopedThreadKey(match.environmentId, match.threadId))),
+      new Set(search.matches.map((match) => scopedThreadKey(match.machineId, match.threadId))),
     [search.matches],
   );
   const contentMatchByKey = useMemo(
@@ -180,7 +180,7 @@ export function CommandPalette(props: {
       new Map(
         search.matches
           .filter((match) => match.source === "user" || match.source === "assistant")
-          .map((match) => [scopedThreadKey(match.environmentId, match.threadId), match]),
+          .map((match) => [scopedThreadKey(match.machineId, match.threadId), match]),
       ),
     [search.matches],
   );
@@ -223,14 +223,14 @@ export function CommandPalette(props: {
           }),
       },
       {
-        key: "environments",
+        key: "machines",
         kind: "action",
-        title: "Manage environments",
+        title: "Manage machines",
         searchTerms: ["connections", "server", "remote"],
         run: () =>
           navigation.navigate("SettingsSheet", {
             screen: "SettingsContent",
-            params: { screen: "SettingsEnvironments" },
+            params: { screen: "SettingsMachines" },
           }),
       },
       {
@@ -268,10 +268,10 @@ export function CommandPalette(props: {
       },
     ];
     const projectByKey = new Map(
-      projects.map((project) => [scopedProjectKey(project.environmentId, project.id), project]),
+      projects.map((project) => [scopedProjectKey(project.machineId, project.id), project]),
     );
     const activeProject = activeThread
-      ? projectByKey.get(scopedProjectKey(activeThread.environmentId, activeThread.projectId))
+      ? projectByKey.get(scopedProjectKey(activeThread.machineId, activeThread.projectId))
       : null;
     if (activeProject) {
       actions.unshift({
@@ -283,7 +283,7 @@ export function CommandPalette(props: {
           selectThreadRoute({
             draft: {
               requestId: uuidv4(),
-              environmentId: activeProject.environmentId,
+              machineId: activeProject.machineId,
               projectId: activeProject.id,
               title: activeProject.title,
             },
@@ -308,16 +308,16 @@ export function CommandPalette(props: {
       );
     }
     const projectItems: CommandPaletteItem[] = projects.map((project) => ({
-      key: `project:${scopedProjectKey(project.environmentId, project.id)}`,
+      key: `project:${scopedProjectKey(project.machineId, project.id)}`,
       kind: "project",
       title: project.title,
-      detail: `New thread · ${savedConnectionsById[project.environmentId]?.environmentLabel ?? project.environmentId}`,
+      detail: `New thread · ${savedConnectionsById[project.machineId]?.machineLabel ?? project.machineId}`,
       searchTerms: [project.workspaceRoot, "new thread", "project"],
       run: () =>
         selectThreadRoute({
           draft: {
             requestId: uuidv4(),
-            environmentId: project.environmentId,
+            machineId: project.machineId,
             projectId: project.id,
             title: project.title,
           },
@@ -331,17 +331,17 @@ export function CommandPalette(props: {
         ),
       )
       .map((thread) => {
-        const project = projectByKey.get(scopedProjectKey(thread.environmentId, thread.projectId));
-        const environment =
-          savedConnectionsById[thread.environmentId]?.environmentLabel ?? thread.environmentId;
+        const project = projectByKey.get(scopedProjectKey(thread.machineId, thread.projectId));
+        const machine =
+          savedConnectionsById[thread.machineId]?.machineLabel ?? thread.machineId;
         return {
-          key: scopedThreadKey(thread.environmentId, thread.id),
+          key: scopedThreadKey(thread.machineId, thread.id),
           kind: "thread",
           title: thread.title || "Untitled thread",
-          detail: [project?.title, environment].filter(Boolean).join(" · "),
+          detail: [project?.title, machine].filter(Boolean).join(" · "),
           searchTerms: [
             project?.title ?? "",
-            environment,
+            machine,
             thread.branch ?? "",
             ...threadPullRequestSearchTerms(thread),
           ],

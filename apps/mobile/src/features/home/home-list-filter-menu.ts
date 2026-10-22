@@ -1,7 +1,7 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 
-export interface HomeListFilterMenuEnvironment {
-  readonly environmentId: EnvironmentId;
+export interface HomeListFilterMenuMachine {
+  readonly machineId: MachineId;
   readonly label: string;
 }
 
@@ -30,34 +30,34 @@ export interface HomeListFilterMenu {
 }
 
 export function buildHomeListFilterMenu(props: {
-  readonly environments: ReadonlyArray<HomeListFilterMenuEnvironment>;
+  readonly machines: ReadonlyArray<HomeListFilterMenuMachine>;
   readonly projects: ReadonlyArray<HomeListFilterMenuProject>;
-  readonly selectedEnvironmentId: EnvironmentId | null;
+  readonly selectedMachineId: MachineId | null;
   readonly selectedProjectKey: string | null;
-  readonly onEnvironmentChange: (environmentId: EnvironmentId | null) => void;
+  readonly onMachineChange: (machineId: MachineId | null) => void;
   readonly onProjectChange: (projectKey: string | null) => void;
 }): HomeListFilterMenu {
   const items: Array<HomeListFilterMenuAction | HomeListFilterMenuSubmenu> = [];
 
   items.push({
     type: "submenu",
-    title: "Environment",
+    title: "Machine",
     items: [
       {
         type: "action",
-        title: "All environments",
-        subtitle: "Show threads from every environment",
-        state: props.selectedEnvironmentId === null ? "on" : "off",
-        onPress: () => props.onEnvironmentChange(null),
+        title: "All machines",
+        subtitle: "Show threads from every machine",
+        state: props.selectedMachineId === null ? "on" : "off",
+        onPress: () => props.onMachineChange(null),
       },
-      ...props.environments.map((environment) => ({
+      ...props.machines.map((machine) => ({
         type: "action" as const,
-        title: environment.label,
+        title: machine.label,
         state:
-          props.selectedEnvironmentId === environment.environmentId
+          props.selectedMachineId === machine.machineId
             ? ("on" as const)
             : ("off" as const),
-        onPress: () => props.onEnvironmentChange(environment.environmentId),
+        onPress: () => props.onMachineChange(machine.machineId),
       })),
     ],
   });

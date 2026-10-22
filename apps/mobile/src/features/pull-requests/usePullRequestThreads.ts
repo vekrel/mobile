@@ -19,10 +19,10 @@ import { useAndroidWorkspaceSelection } from "../workspace/useAndroidWorkspaceSe
 import { pullRequestComposerContext } from "../../lib/composerContext";
 import { scopedThreadKey } from "../../lib/scopedEntities";
 import { uuidv4 } from "../../lib/uuid";
-import { useEnvironmentServerConfig } from "../../state/entities";
+import { useMachineServerConfig } from "../../state/entities";
 import { composerPullRequests } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
-import { useEnvironmentScope } from "../../state/session";
+import { useMachineQuery } from "../../state/query";
+import { useMachineScope } from "../../state/session";
 import {
   createNewTaskDraft,
   getComposerDraftSnapshot,
@@ -47,8 +47,8 @@ export function usePullRequestThreads(
   filePath?: string,
 ) {
   const target = pullRequestTarget(params);
-  const config = useEnvironmentServerConfig(target.environmentId);
-  const supported = threadPullRequestLinkMode(config?.environment.capabilities) === "multiple";
+  const config = useMachineServerConfig(target.machineId);
+  const supported = threadPullRequestLinkMode(config?.machine.capabilities) === "multiple";
   const parsed = pr ? parseChangeRequestUrl(pr.url) : null;
   const reference = {
     ...target,
@@ -59,7 +59,7 @@ export function usePullRequestThreads(
   // The iOS split host projects detail screens beneath a synthetic workspace
   // route. Its parent's focus flag is not the visible detail's focus flag.
   const focused = useNavigationState((state) => state.routes[state.index]?.key === route.key);
-  const relations = useEnvironmentQuery(
+  const relations = useMachineQuery(
     pr && supported && focused ? composerPullRequests.linkedThreads(reference) : null,
   );
   const [lastRelations, setLastRelations] = useState({ key, data: relations.data });
@@ -67,16 +67,16 @@ export function usePullRequestThreads(
     setLastRelations({ key, data: relations.data });
   const threads =
     (relations.data ?? (lastRelations.key === key ? lastRelations.data : null))?.threads ?? [];
-  const connected = usePullRequestConnected(params.environmentId);
-  const canOperate = useEnvironmentScope(target.environmentId, AuthOrchestrationOperateScope);
+  const connected = usePullRequestConnected(params.machineId);
+  const canOperate = useMachineScope(target.machineId, AuthOrchestrationOperateScope);
   const canAsk = !connected || canOperate;
-  const canCheckout = useEnvironmentScope(target.environmentId, AuthSourceControlWriteScope);
+  const canCheckout = useMachineScope(target.machineId, AuthSourceControlWriteScope);
   const navigation = useNavigation();
   const selectAndroidWorkspace = useAndroidWorkspaceSelection();
   const pending = useRef(false);
   const previousPrompts = useRef(new Map<string, string>());
   const openThread = (thread: LinkedThread) => {
-    const destination = { environmentId: params.environmentId, threadId: thread.id };
+    const destination = { machineId: params.machineId, threadId: thread.id };
     if (Platform.OS === "android") selectAndroidWorkspace({ name: "Thread", params: destination });
     else navigation.navigate("Thread", destination);
   };
@@ -90,9 +90,9 @@ export function usePullRequestThreads(
         throw new Error("Starting work from this PR requires source control write access.");
       await waitForComposerDraftsLoaded();
       const draftKey = thread
-        ? scopedThreadKey(target.environmentId, ThreadId.make(thread.id))
+        ? scopedThreadKey(target.machineId, ThreadId.make(thread.id))
         : createNewTaskDraft({
-            environmentId: target.environmentId,
+            machineId: target.machineId,
             projectId: target.input.projectId,
           });
       if (!thread)
@@ -161,7 +161,7 @@ export function usePullRequestThreads(
     ...relations,
     threads,
     canAsk,
-    canWatch: config?.environment.capabilities.threadPullRequestWatch === true,
+    canWatch: config?.machine.capabilities.threadPullRequestWatch === true,
     busy,
     ask,
     openThread,

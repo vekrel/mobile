@@ -1,40 +1,40 @@
 import {
-  createEnvironmentShellAtoms,
-  createEnvironmentShellSummaryAtom,
-  createEnvironmentSnapshotAtom,
-  createShellEnvironmentAtoms,
-  type EnvironmentShellState,
+  createMachineShellAtoms,
+  createMachineShellSummaryAtom,
+  createMachineSnapshotAtom,
+  createShellMachineAtoms,
+  type MachineShellState,
 } from "@vekrel/client-runtime/state/shell";
 import { useAtomValue } from "@effect/atom-react";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import * as Option from "effect/Option";
 import { Atom } from "effect/reactivity";
 
-import { environmentCatalog } from "../connection/catalog";
+import { machineCatalog } from "../connection/catalog";
 import { connectionAtomRuntime } from "../connection/runtime";
 
-export const shellEnvironment = createShellEnvironmentAtoms(connectionAtomRuntime);
-export const environmentShell = createEnvironmentShellAtoms(connectionAtomRuntime);
-export const environmentSnapshotAtom = createEnvironmentSnapshotAtom(environmentShell.stateAtom);
-export const environmentShellSummaryAtom = createEnvironmentShellSummaryAtom({
-  catalogValueAtom: environmentCatalog.catalogValueAtom,
-  shellStateValueAtom: environmentShell.stateValueAtom,
+export const shellMachine = createShellMachineAtoms(connectionAtomRuntime);
+export const machineShell = createMachineShellAtoms(connectionAtomRuntime);
+export const machineSnapshotAtom = createMachineSnapshotAtom(machineShell.stateAtom);
+export const machineShellSummaryAtom = createMachineShellSummaryAtom({
+  catalogValueAtom: machineCatalog.catalogValueAtom,
+  shellStateValueAtom: machineShell.stateValueAtom,
 });
 
-const EMPTY_ENVIRONMENT_SHELL_STATE_ATOM = Atom.make<EnvironmentShellState>({
+const EMPTY_MACHINE_SHELL_STATE_ATOM = Atom.make<MachineShellState>({
   snapshot: Option.none(),
   status: "empty",
   error: Option.none(),
 });
 
-const shellStatus = (state: EnvironmentShellState) => state.status;
-const shellHasError = (state: EnvironmentShellState) => Option.isSome(state.error);
+const shellStatus = (state: MachineShellState) => state.status;
+const shellHasError = (state: MachineShellState) => Option.isSome(state.error);
 
-export function useEnvironmentShellReadiness(environmentId: EnvironmentId | null) {
+export function useMachineShellReadiness(machineId: MachineId | null) {
   const atom =
-    environmentId === null
-      ? EMPTY_ENVIRONMENT_SHELL_STATE_ATOM
-      : environmentShell.stateValueAtom(environmentId);
+    machineId === null
+      ? EMPTY_MACHINE_SHELL_STATE_ATOM
+      : machineShell.stateValueAtom(machineId);
   return {
     status: useAtomValue(atom, shellStatus),
     hasError: useAtomValue(atom, shellHasError),

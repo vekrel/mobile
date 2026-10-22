@@ -1,4 +1,4 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import { THREAD_JUMP_KEYBINDING_COMMANDS } from "@vekrel/contracts";
 import { useCallback } from "react";
 
@@ -29,7 +29,7 @@ export function threadJumpTarget(
 
 export function useThreadJumpShortcuts(
   items: ReadonlyArray<ThreadShortcutListItem>,
-  onSelectThread: (thread: EnvironmentThreadShell) => void,
+  onSelectThread: (thread: MachineThreadShell) => void,
 ) {
   const jumpToThread = useCallback(
     (command: HardwareKeyboardCommand) => {

@@ -1,4 +1,4 @@
-import { DraftEnvironmentControl } from "./DraftEnvironmentControl";
+import { DraftMachineControl } from "./DraftMachineControl";
 import { NativeScrollEdgeEffectsContext } from "../../native/NativeScrollViewMarker";
 import { DraftThreadHeader } from "./DraftThreadHeader";
 import { threadHeaderAppearance } from "./thread-header-appearance";
@@ -31,7 +31,7 @@ import { KeyboardController } from "react-native-keyboard-controller";
 import {
   AuthOrchestrationOperateScope,
   PROVIDER_SEND_TURN_MAX_ATTACHMENTS,
-  resolveEnvironmentMachineKind,
+  resolveMachineKind,
 } from "@vekrel/contracts";
 
 import { ComposerEditor, type ComposerEditorHandle } from "../../components/ComposerEditor";
@@ -47,7 +47,7 @@ import {
 
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { AppText as Text } from "../../components/ui/AppText";
-import { threadContextsOutsideEnvironment } from "@vekrel/shared/composerContextReferences";
+import { threadContextsOutsideMachine } from "@vekrel/shared/composerContextReferences";
 
 import { makeTurnCommandMetadata } from "../../lib/commandMetadata";
 
@@ -61,10 +61,10 @@ import {
   type ComposerDraft,
   waitForComposerDraftsLoaded,
 } from "../../state/use-composer-drafts";
-import { useEnvironmentServerConfig, useProjects } from "../../state/entities";
+import { useMachineServerConfig, useProjects } from "../../state/entities";
 import { useProjectClone } from "../../state/projectClones";
-import { projectEnvironment } from "../../state/projects";
-import { sourceControlEnvironment } from "../../state/sourceControl";
+import { projectMachine } from "../../state/projects";
+import { sourceControlMachine } from "../../state/sourceControl";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { ProjectCloneBanner } from "./ProjectCloneBanner";
 import {
@@ -75,11 +75,11 @@ import {
 import { enqueueThreadOutboxMessage } from "../../state/thread-outbox";
 import {
   useRemoteConnections,
-  useRemoteEnvironmentRuntime,
-} from "../../state/use-remote-environment-registry";
+  useRemoteMachineRuntime,
+} from "../../state/use-remote-machine-registry";
 import { useNewTaskFlow } from "./new-task-flow-provider";
 import {
-  nextEnvironmentId,
+  nextMachineId,
   useHardwareKeyboardCommand,
 } from "../keyboard/hardwareKeyboardCommands";
 import { resolveProjectThreadCreationBranch } from "./projectThreadCreationValidation";
@@ -92,9 +92,9 @@ import {
 import { useIncomingShare } from "../sharing/IncomingShareProvider";
 import { selectIncomingShareAttachmentsForServer } from "../sharing/incoming-share-model";
 import { appAtomRegistry } from "../../state/atom-registry";
-import { serverEnvironment } from "../../state/server";
+import { serverMachine } from "../../state/server";
 
-import { readEnvironmentScope, useEnvironmentScope } from "../../state/session";
+import { readMachineScope, useMachineScope } from "../../state/session";
 
 function NewTaskWorkspaceIcon(props: {
   readonly workspaceMode: "local" | "worktree";
@@ -143,7 +143,7 @@ function NewTaskWorkspaceIcon(props: {
 
 export function NewTaskDraftScreen(props: {
   readonly initialProjectRef?: {
-    readonly environmentId?: string;
+    readonly machineId?: string;
     readonly projectId?: string;
     readonly branch?: string | null;
     readonly worktreePath?: string | null;
@@ -171,26 +171,26 @@ export function NewTaskDraftScreen(props: {
     const scope = projectScopes.find((candidate) =>
       candidate.projectRefs.some(
         (ref) =>
-          ref.environmentId === selectedProject.environmentId &&
+          ref.machineId === selectedProject.machineId &&
           ref.projectId === selectedProject.id,
       ),
     );
     return scope?.title ?? selectedProject.title;
   })();
-  const { onReconnectEnvironment } = useRemoteConnections();
-  const environmentRuntime = useRemoteEnvironmentRuntime(selectedProject?.environmentId ?? null);
-  const connectionState = environmentRuntime?.connectionState ?? "offline";
-  const selectedEnvironmentServerConfig = useEnvironmentServerConfig(
-    selectedProject?.environmentId ?? null,
+  const { onReconnectMachine } = useRemoteConnections();
+  const machineRuntime = useRemoteMachineRuntime(selectedProject?.machineId ?? null);
+  const connectionState = machineRuntime?.connectionState ?? "offline";
+  const selectedMachineServerConfig = useMachineServerConfig(
+    selectedProject?.machineId ?? null,
   );
-  const environmentConnected = connectionState === "connected";
-  const canOperate = useEnvironmentScope(
-    selectedProject?.environmentId ?? null,
+  const machineConnected = connectionState === "connected";
+  const canOperate = useMachineScope(
+    selectedProject?.machineId ?? null,
     AuthOrchestrationOperateScope,
   );
   const projectCloneState = useProjectClone(
     selectedProject
-      ? { environmentId: selectedProject.environmentId, projectId: selectedProject.id }
+      ? { machineId: selectedProject.machineId, projectId: selectedProject.id }
       : null,
   );
   const projectClone = projectCloneState === "pending" ? null : projectCloneState;
@@ -199,13 +199,13 @@ export function NewTaskDraftScreen(props: {
     props.initialProjectRef?.cloning === true &&
     selectedProject !== null &&
     selectedProject.id === props.initialProjectRef.projectId &&
-    selectedProject.environmentId === props.initialProjectRef.environmentId;
+    selectedProject.machineId === props.initialProjectRef.machineId;
   const cloneBlocksStart =
     awaitingKnownClone || (projectClone !== null && projectClone.phase !== "done");
-  const cancelProjectClone = useAtomCommand(sourceControlEnvironment.cancelProjectClone, {
+  const cancelProjectClone = useAtomCommand(sourceControlMachine.cancelProjectClone, {
     reportFailure: false,
   });
-  const retryProjectClone = useAtomCommand(sourceControlEnvironment.retryProjectClone, {
+  const retryProjectClone = useAtomCommand(sourceControlMachine.retryProjectClone, {
     reportFailure: false,
   });
   const runCloneAction = async (
@@ -218,7 +218,7 @@ export function NewTaskDraftScreen(props: {
       Dialog.alert(title, error instanceof Error ? error.message : "An error occurred.");
     }
   };
-  const deleteProject = useAtomCommand(projectEnvironment.delete, { reportFailure: false });
+  const deleteProject = useAtomCommand(projectMachine.delete, { reportFailure: false });
   const selectedProjectRef = useRef(selectedProject);
   useEffect(() => {
     selectedProjectRef.current = selectedProject;
@@ -227,7 +227,7 @@ export function NewTaskDraftScreen(props: {
     if (!selectedProject) return;
     const removed = selectedProject;
     const result = await deleteProject({
-      environmentId: removed.environmentId,
+      machineId: removed.machineId,
       input: { projectId: removed.id },
     });
     if (AsyncResult.isFailure(result)) {
@@ -239,30 +239,30 @@ export function NewTaskDraftScreen(props: {
       return;
     }
     const current = selectedProjectRef.current;
-    if (current?.id === removed.id && current.environmentId === removed.environmentId) {
+    if (current?.id === removed.id && current.machineId === removed.machineId) {
       navigation.dispatch(StackActions.replace("Home"));
     }
   };
   const uploadStates = useAtomValue(composerAttachmentUploadsAtom);
   const attachmentBlockReason = selectedProject
     ? composerAttachmentUploadBlockReason({
-        environmentId: selectedProject.environmentId,
+        machineId: selectedProject.machineId,
         attachments: flow.attachments,
-        connected: environmentConnected,
-        serverConfig: selectedEnvironmentServerConfig,
+        connected: machineConnected,
+        serverConfig: selectedMachineServerConfig,
         states: uploadStates,
       })
     : null;
   const attachmentsUploading =
-    environmentConnected &&
+    machineConnected &&
     selectedProject !== null &&
     composerAttachmentsStillUploading({
-      environmentId: selectedProject.environmentId,
+      machineId: selectedProject.machineId,
       attachments: flow.attachments,
-      serverConfig: selectedEnvironmentServerConfig,
+      serverConfig: selectedMachineServerConfig,
       states: uploadStates,
     });
-  const queuesInsteadOfStarting = !environmentConnected || attachmentsUploading;
+  const queuesInsteadOfStarting = !machineConnected || attachmentsUploading;
   const promptInputRef = useRef<ComposerEditorHandle>(null);
   const loadedBranchesProjectKeyRef = useRef<string | null>(null);
   const [importingShareKey, setImportingShareKey] = useState<string | null>(null);
@@ -290,11 +290,11 @@ export function NewTaskDraftScreen(props: {
   const [consumedIncomingShareId, setConsumedIncomingShareId] = useState<string | null>(null);
   const incomingShare = props.incomingShareId ? getShare(props.incomingShareId) : null;
   const requestedInitialProjectAvailable = Boolean(
-    props.initialProjectRef?.environmentId &&
+    props.initialProjectRef?.machineId &&
     props.initialProjectRef.projectId &&
     projects.some(
       (project) =>
-        project.environmentId === props.initialProjectRef?.environmentId &&
+        project.machineId === props.initialProjectRef?.machineId &&
         project.id === props.initialProjectRef?.projectId,
     ),
   );
@@ -302,7 +302,7 @@ export function NewTaskDraftScreen(props: {
     isReturningToProjectPicker && !requestedInitialProjectAvailable;
   const isIncomingShareAwaitingServerConfig = Boolean(
     incomingShare?.attachments.some((attachment) => attachment.type === "file") &&
-    selectedEnvironmentServerConfig === null,
+    selectedMachineServerConfig === null,
   );
   const isIncomingShareTransferPending = Boolean(
     incomingShare &&
@@ -313,15 +313,15 @@ export function NewTaskDraftScreen(props: {
   const isImportingContext = flow.draftKey ? contextImports[flow.draftKey] === true : false;
   const isComposerInteractionLocked =
     isIncomingShareTransferPending || flow.submitting || isImportingContext;
-  const { environments, selectedEnvironmentId, switchEnvironment, switchingToEnvironmentId } = flow;
-  const cycleEnvironment = () => {
+  const { machines, selectedMachineId, switchMachine, switchingToMachineId } = flow;
+  const cycleMachine = () => {
     if (isComposerInteractionLocked) return true;
-    const next = nextEnvironmentId(environments, switchingToEnvironmentId ?? selectedEnvironmentId);
-    if (next !== null) void switchEnvironment(next);
+    const next = nextMachineId(machines, switchingToMachineId ?? selectedMachineId);
+    if (next !== null) void switchMachine(next);
     return true;
   };
-  const cycleEnvironmentCommands = environments.length > 1 ? (["cycleHost"] as const) : [];
-  useHardwareKeyboardCommand(cycleEnvironmentCommands, cycleEnvironment);
+  const cycleMachineCommands = machines.length > 1 ? (["cycleHost"] as const) : [];
+  useHardwareKeyboardCommand(cycleMachineCommands, cycleMachine);
   const composerWorkspaceCwd =
     (flow.workspaceMode === "worktree"
       ? selectedProject?.workspaceRoot
@@ -453,25 +453,25 @@ export function NewTaskDraftScreen(props: {
       lastInitialProjectRefRef.current = props.initialProjectRef;
       appliedInitialProjectKeyRef.current = null;
     }
-    const initialEnvironmentId = props.initialProjectRef?.environmentId;
+    const initialMachineId = props.initialProjectRef?.machineId;
     const initialProjectId = props.initialProjectRef?.projectId;
-    if (initialEnvironmentId && initialProjectId) {
+    if (initialMachineId && initialProjectId) {
       const directProject =
         projects.find(
           (project) =>
-            project.environmentId === initialEnvironmentId && project.id === initialProjectId,
+            project.machineId === initialMachineId && project.id === initialProjectId,
         ) ?? null;
 
       if (directProject) {
         // Apply the route's project once. Re-applying on every change would
-        // instantly revert environment/project switches made in the picker.
-        const directProjectKey = `${directProject.environmentId}:${directProject.id}`;
+        // instantly revert machine/project switches made in the picker.
+        const directProjectKey = `${directProject.machineId}:${directProject.id}`;
         if (appliedInitialProjectKeyRef.current === directProjectKey) {
           return;
         }
         if (props.initialProjectRef?.branch) {
           if (
-            selectedProject?.environmentId !== directProject.environmentId ||
+            selectedProject?.machineId !== directProject.machineId ||
             selectedProject.id !== directProject.id
           ) {
             setProject(directProject);
@@ -491,7 +491,7 @@ export function NewTaskDraftScreen(props: {
         }
         appliedInitialProjectKeyRef.current = directProjectKey;
         if (
-          selectedProject?.environmentId === directProject.environmentId &&
+          selectedProject?.machineId === directProject.machineId &&
           selectedProject.id === directProject.id
         ) {
           return;
@@ -535,7 +535,7 @@ export function NewTaskDraftScreen(props: {
       loadedBranchesProjectKeyRef.current = null;
       return;
     }
-    const projectKey = `${selectedProject.environmentId}:${selectedProject.id}`;
+    const projectKey = `${selectedProject.machineId}:${selectedProject.id}`;
     if (loadedBranchesProjectKeyRef.current === projectKey) {
       return;
     }
@@ -547,12 +547,12 @@ export function NewTaskDraftScreen(props: {
     const shareId = props.incomingShareId;
     const draftKey = flow.draftKey;
     const destinationProject = selectedProject;
-    const initialEnvironmentId = props.initialProjectRef?.environmentId;
+    const initialMachineId = props.initialProjectRef?.machineId;
     const initialProjectId = props.initialProjectRef?.projectId;
     const selectedProjectMatchesRoute =
-      !initialEnvironmentId ||
+      !initialMachineId ||
       !initialProjectId ||
-      (destinationProject?.environmentId === initialEnvironmentId &&
+      (destinationProject?.machineId === initialMachineId &&
         destinationProject.id === initialProjectId);
     if (
       !shareId ||
@@ -584,7 +584,7 @@ export function NewTaskDraftScreen(props: {
 
     if (
       incomingShare.attachments.some((attachment) => attachment.type === "file") &&
-      selectedEnvironmentServerConfig === null
+      selectedMachineServerConfig === null
     ) {
       return;
     }
@@ -604,7 +604,7 @@ export function NewTaskDraftScreen(props: {
     setImportingShareKey(importKey);
     void (async () => {
       await reserveShare(shareId, {
-        environmentId: String(destinationProject.environmentId),
+        machineId: String(destinationProject.machineId),
         projectId: String(destinationProject.id),
       });
       didReserveShare = true;
@@ -618,7 +618,7 @@ export function NewTaskDraftScreen(props: {
       const selectedAttachments = selectIncomingShareAttachmentsForServer({
         attachments: incomingShare.attachments,
         serverConfig: appAtomRegistry.get(
-          serverEnvironment.configValueAtom(destinationProject.environmentId),
+          serverMachine.configValueAtom(destinationProject.machineId),
         ),
       });
       if (selectedAttachments.status === "pending") {
@@ -703,7 +703,7 @@ export function NewTaskDraftScreen(props: {
                     }
                     if (didReserveShare) {
                       await releaseShareReservation(shareId, {
-                        environmentId: String(destinationProject.environmentId),
+                        machineId: String(destinationProject.machineId),
                         projectId: String(destinationProject.id),
                       });
                     }
@@ -768,19 +768,19 @@ export function NewTaskDraftScreen(props: {
     isIncomingShareInboxLoading,
     isIncomingShareUnavailable,
     props.incomingShareId,
-    props.initialProjectRef?.environmentId,
+    props.initialProjectRef?.machineId,
     props.initialProjectRef?.projectId,
     releaseShareReservation,
     reserveShare,
-    selectedEnvironmentServerConfig,
+    selectedMachineServerConfig,
     selectedProject,
     shareImportAttempt,
   ]);
 
-  const selectedEnvironmentLabel =
-    flow.environments.find(
-      (environment) => environment.environmentId === flow.selectedEnvironmentId,
-    )?.environmentLabel ?? "Environment";
+  const selectedMachineLabel =
+    flow.machines.find(
+      (machine) => machine.machineId === flow.selectedMachineId,
+    )?.machineLabel ?? "Machine";
   const availableCurrentBranchName =
     flow.availableBranches.find((branch) => branch.current)?.name ??
     flow.availableBranches.find((branch) => branch.isDefault)?.name ??
@@ -803,7 +803,7 @@ export function NewTaskDraftScreen(props: {
     worktreePath: flow.selectedWorktreePath,
   });
   const showBranchLoading =
-    environmentConnected && flow.branchesLoading && flow.availableBranches.length === 0;
+    machineConnected && flow.branchesLoading && flow.availableBranches.length === 0;
 
   const {
     onPickDraftMedia: handlePickMedia,
@@ -812,7 +812,7 @@ export function NewTaskDraftScreen(props: {
     onNativePasteText: handleNativePasteText,
   } = useComposerAttachmentActions({
     draftKey: flow.draftKey,
-    serverConfig: selectedEnvironmentServerConfig,
+    serverConfig: selectedMachineServerConfig,
     locked: isComposerInteractionLocked,
   });
 
@@ -830,8 +830,8 @@ export function NewTaskDraftScreen(props: {
       return null;
     }
     if (
-      environmentConnected &&
-      !readEnvironmentScope(selectedProject.environmentId, AuthOrchestrationOperateScope)
+      machineConnected &&
+      !readMachineScope(selectedProject.machineId, AuthOrchestrationOperateScope)
     ) {
       return null;
     }
@@ -839,7 +839,7 @@ export function NewTaskDraftScreen(props: {
     if (appAtomRegistry.get(composerContextImportsAtom)[draftKey]) return null;
     const modelSelection =
       resolveSelectableModelSelection(
-        selectedEnvironmentServerConfig,
+        selectedMachineServerConfig,
         draft.modelSelection ?? null,
         selectedProject.id,
       ) ?? flow.selectedModel;
@@ -866,15 +866,15 @@ export function NewTaskDraftScreen(props: {
       return null;
     }
     if (
-      environmentConnected &&
+      machineConnected &&
       isModelSelectionUnavailable(
-        selectedEnvironmentServerConfig,
+        selectedMachineServerConfig,
         modelSelection,
         selectedProject.id,
       )
     ) {
       const { title, detail } = describeUnavailableModelSelection(
-        selectedEnvironmentServerConfig,
+        selectedMachineServerConfig,
         modelSelection,
         selectedProject.id,
       );
@@ -897,16 +897,16 @@ export function NewTaskDraftScreen(props: {
       Dialog.alert("Too much context", contextBlockReason);
       return null;
     }
-    const strandedThread = threadContextsOutsideEnvironment({
+    const strandedThread = threadContextsOutsideMachine({
       text: draft.text,
       records: draft.context?.records ?? [],
-      environmentId: selectedProject.environmentId,
+      machineId: selectedProject.machineId,
     })[0];
     if (strandedThread) {
       const owner =
-        flow.environments.find(
-          (environment) => environment.environmentId === strandedThread.environmentId,
-        )?.environmentLabel ?? "its machine";
+        flow.machines.find(
+          (machine) => machine.machineId === strandedThread.machineId,
+        )?.machineLabel ?? "its machine";
       Dialog.alert(
         "Attached thread unavailable",
         `"${strandedThread.title}" is on another machine. Switch back to ${owner} or remove it from the draft.`,
@@ -946,7 +946,7 @@ export function NewTaskDraftScreen(props: {
     promptInputRef.current?.blur();
     navigation.dispatch(
       CommonActions.setParams(
-        submittedThreadParams(String(message.environmentId), String(message.threadId)),
+        submittedThreadParams(String(message.machineId), String(message.threadId)),
       ),
     );
     const draftSnapshot = getComposerDraftSnapshot(draftKey);
@@ -987,7 +987,7 @@ export function NewTaskDraftScreen(props: {
     void KeyboardController.dismiss({ animated: true });
     navigation.navigate("NewTaskProject", { incomingShareId: props.incomingShareId });
   };
-  const openContextPicker = (routeName: "NewTaskBranch" | "NewTaskEnvironment") => {
+  const openContextPicker = (routeName: "NewTaskBranch" | "NewTaskMachine") => {
     if (isComposerInteractionLocked) {
       return;
     }
@@ -996,13 +996,13 @@ export function NewTaskDraftScreen(props: {
     navigation.navigate(routeName);
   };
 
-  const environmentControl = (
-    <DraftEnvironmentControl
+  const machineControl = (
+    <DraftMachineControl
       connectionState={connectionState}
-      label={selectedEnvironmentLabel}
-      machineKind={resolveEnvironmentMachineKind(selectedEnvironmentServerConfig)}
+      label={selectedMachineLabel}
+      machineKind={resolveMachineKind(selectedMachineServerConfig)}
       disabled={isComposerInteractionLocked}
-      onChooseEnvironment={() => openContextPicker("NewTaskEnvironment")}
+      onChooseMachine={() => openContextPicker("NewTaskMachine")}
     />
   );
   const hero = flow.isScratchDraft ? (
@@ -1020,7 +1020,7 @@ export function NewTaskDraftScreen(props: {
           label="No project"
           onPress={chooseProject}
         />
-        {environmentControl}
+        {machineControl}
       </View>
     </View>
   ) : (
@@ -1050,7 +1050,7 @@ export function NewTaskDraftScreen(props: {
         </View>
       </View>
 
-      {environmentControl}
+      {machineControl}
     </View>
   );
   // The nested hero scroll view does not receive UIKit's automatic navigation inset in split columns.
@@ -1136,9 +1136,9 @@ export function NewTaskDraftScreen(props: {
           }}
         />
         <View className="flex-1 justify-end gap-3 p-4">
-          {environmentControl}
+          {machineControl}
           <Text className="text-foreground-muted">
-            Your draft is saved on this device. Connect to an environment to choose its first model.
+            Your draft is saved on this device. Connect to a machine to choose its first model.
           </Text>
           <ComposerEditor
             draftKey={flow.draftKey}
@@ -1153,7 +1153,7 @@ export function NewTaskDraftScreen(props: {
     );
   }
   const thread = draftThreadShell({
-    environmentId: selectedProject.environmentId,
+    machineId: selectedProject.machineId,
     projectId: selectedProject.id,
     threadId: ThreadId.make(flow.editingPendingTask?.threadId ?? creationMetadata.threadId),
     modelSelection: flow.selectedModel,
@@ -1166,7 +1166,7 @@ export function NewTaskDraftScreen(props: {
   return (
     <>
       <ThreadScreenBinding
-        environmentId={selectedProject.environmentId}
+        machineId={selectedProject.machineId}
         header={
           <DraftThreadHeader thread={thread} project={selectedProject} cwd={composerWorkspaceCwd} />
         }
@@ -1181,7 +1181,7 @@ export function NewTaskDraftScreen(props: {
                     onCancel={() =>
                       void runCloneAction("Failed to cancel clone", () =>
                         cancelProjectClone({
-                          environmentId: selectedProject.environmentId,
+                          machineId: selectedProject.machineId,
                           input: { projectId: selectedProject.id },
                         }),
                       )
@@ -1189,7 +1189,7 @@ export function NewTaskDraftScreen(props: {
                     onRetry={() =>
                       void runCloneAction("Failed to retry clone", () =>
                         retryProjectClone({
-                          environmentId: selectedProject.environmentId,
+                          machineId: selectedProject.machineId,
                           input: { projectId: selectedProject.id },
                         }),
                       )
@@ -1210,8 +1210,8 @@ export function NewTaskDraftScreen(props: {
         selectedThreadDetailRef={null}
         contentPresentation={{ kind: "ready" }}
         screenTone={connectionTone(connectionState)}
-        connectionError={environmentRuntime?.connectionError ?? null}
-        environmentLabel={selectedEnvironmentLabel}
+        connectionError={machineRuntime?.connectionError ?? null}
+        machineLabel={selectedMachineLabel}
         feedbackSubmissions={[]}
         onDismissFeedback={() => {}}
         selectedThreadFeed={[]}
@@ -1241,7 +1241,7 @@ export function NewTaskDraftScreen(props: {
         selectedThreadQueueCount={0}
         queuedMessages={[]}
         dispatchingMessageId={null}
-        serverConfig={selectedEnvironmentServerConfig}
+        serverConfig={selectedMachineServerConfig}
         usesAutomaticContentInsets
         onOpenConnectionEditor={() => navigation.navigate("Connections")}
         onChangeDraftMessage={flow.setPrompt}
@@ -1253,7 +1253,7 @@ export function NewTaskDraftScreen(props: {
         onStopThread={() => {}}
         onResumeQueue={null}
         onSendMessage={handleStart}
-        onReconnectEnvironment={() => onReconnectEnvironment(selectedProject.environmentId)}
+        onReconnectMachine={() => onReconnectMachine(selectedProject.machineId)}
         canSwitchThreadProvider
         onUpdateThreadModelSelection={(selection) =>
           flow.setSelectedModelKey(`${selection.instanceId}:${selection.model}`, selection.options)

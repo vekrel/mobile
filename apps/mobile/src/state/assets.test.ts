@@ -1,7 +1,7 @@
 import {
   AuthFilesystemReadScope,
-  EnvironmentAuthorizationError,
-  EnvironmentId,
+  MachineAuthorizationError,
+  MachineId,
   ThreadId,
   type AuthSessionState,
 } from "@vekrel/contracts";
@@ -25,29 +25,29 @@ vi.mock("@effect/atom-react", () => ({
       : AsyncResult.initial(false),
 }));
 vi.mock("./session", () => ({
-  environmentSession: { sessionStateAtom: () => ({}) },
+  machineSession: { sessionStateAtom: () => ({}) },
   usePreparedConnection: () => ({ _tag: "Some", value: { httpBaseUrl: "https://host.test" } }),
 }));
 vi.mock("./presentation", () => ({
-  useEnvironmentPresentation: () => ({
+  useMachinePresentation: () => ({
     isReady: true,
     presentation: { connection: { phase: state.phase, error: null } },
   }),
 }));
 vi.mock("./query", () => ({
-  useEnvironmentQuery: () => ({ data: state.session, error: null }),
+  useMachineQuery: () => ({ data: state.session, error: null }),
 }));
-vi.mock("./projectClones", () => ({ environmentProjectCloneListAtom: () => null }));
+vi.mock("./projectClones", () => ({ machineProjectCloneListAtom: () => null }));
 vi.mock("../connection/runtime", () => ({ connectionAtomRuntime: {} }));
 vi.mock("@vekrel/client-runtime/state/assets", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@vekrel/client-runtime/state/assets")>()),
-  createAssetEnvironmentAtoms: () => ({ createUrl: state.assetQuery }),
+  createAssetMachineAtoms: () => ({ createUrl: state.assetQuery }),
 }));
 vi.mock("./use-atom-query-runner", () => ({ useAtomQueryRunner: () => state.mint }));
 
 import { useRefreshAssetUrl, useAssetUrlState } from "./assets";
 
-const environmentId = EnvironmentId.make("asset-environment");
+const machineId = MachineId.make("asset-machine");
 const threadId = ThreadId.make("asset-thread");
 const resource = { _tag: "media-file", threadId, path: "/repo/image.png" } as const;
 
@@ -63,11 +63,11 @@ beforeEach(() => {
 it.each(["workspace-file", "media-file"] as const)(
   "keeps %s loading until its file grant resolves",
   (_tag) => {
-    expect(useAssetUrlState(environmentId, { ...resource, _tag })).toEqual({ _tag: "Loading" });
+    expect(useAssetUrlState(machineId, { ...resource, _tag })).toEqual({ _tag: "Loading" });
     expect(state.assetQuery).not.toHaveBeenCalled();
 
     state.session = { authenticated: true, scopes: [AuthFilesystemReadScope] };
-    expect(useAssetUrlState(environmentId, { ...resource, _tag })).toEqual({
+    expect(useAssetUrlState(machineId, { ...resource, _tag })).toEqual({
       _tag: "Success",
       expiresAt: 1,
       url: "https://host.test/api/assets/image.png",
@@ -77,12 +77,12 @@ it.each(["workspace-file", "media-file"] as const)(
 
 it("hides host assets with a denied grant while preserving attachments", () => {
   state.session = { authenticated: true, scopes: [] };
-  expect(useAssetUrlState(environmentId, resource)).toEqual({
+  expect(useAssetUrlState(machineId, resource)).toEqual({
     _tag: "Failure",
     reason: "missing-file-access",
   });
   expect(state.assetQuery).not.toHaveBeenCalled();
-  expect(useAssetUrlState(environmentId, { _tag: "attachment", attachmentId: "upload" })).toEqual({
+  expect(useAssetUrlState(machineId, { _tag: "attachment", attachmentId: "upload" })).toEqual({
     _tag: "Success",
     expiresAt: 1,
     url: "https://host.test/api/assets/image.png",
@@ -90,15 +90,15 @@ it("hides host assets with a denied grant while preserving attachments", () => {
 });
 
 it("lets the server authorize an explicit refresh before the client grant loads", async () => {
-  await expect(useRefreshAssetUrl(environmentId, resource)()).resolves.toBe(
+  await expect(useRefreshAssetUrl(machineId, resource)()).resolves.toBe(
     "https://host.test/api/assets/image.png",
   );
-  expect(state.mint).toHaveBeenCalledWith({ environmentId, input: { resource } });
+  expect(state.mint).toHaveBeenCalledWith({ machineId, input: { resource } });
 
-  const denied = new EnvironmentAuthorizationError({
+  const denied = new MachineAuthorizationError({
     message: "This connection cannot read host files.",
     requiredScope: AuthFilesystemReadScope,
   });
   state.mint.mockResolvedValue(AsyncResult.failure(Cause.fail(denied)));
-  await expect(useRefreshAssetUrl(environmentId, resource)()).resolves.toBeNull();
+  await expect(useRefreshAssetUrl(machineId, resource)()).resolves.toBeNull();
 });

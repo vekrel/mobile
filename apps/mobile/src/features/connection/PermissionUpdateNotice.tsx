@@ -6,23 +6,23 @@ import * as SecureStore from "expo-secure-store";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { whenProtectedDataAvailable } from "../../lib/protectedData";
-import { useEnvironments } from "../../state/environments";
-import { environmentSession } from "../../state/session";
+import { useMachines } from "../../state/machines";
+import { machineSession } from "../../state/session";
 
 const storageKey = "vekrel.permission-update.v1";
 const dismissedThisLaunch = new Set<string>();
 const shownThisLaunch = new Set<string>();
 
 export function PermissionUpdateNotice() {
-  const { environments } = useEnvironments();
+  const { machines } = useMachines();
   const [dismissed, setDismissed] = useState<ReadonlySet<string> | null>(null);
   const showing = useRef(false);
   const affected = useAtomValue(
     useMemo(
       () =>
         Atom.make((get) =>
-          environments.filter(({ environmentId }) => {
-            const session = get(environmentSession.sessionStateAtom(environmentId));
+          machines.filter(({ machineId }) => {
+            const session = get(machineSession.sessionStateAtom(machineId));
             return (
               session._tag === "Success" &&
               !session.waiting &&
@@ -30,7 +30,7 @@ export function PermissionUpdateNotice() {
             );
           }),
         ),
-      [environments],
+      [machines],
     ),
   );
 
@@ -59,21 +59,21 @@ export function PermissionUpdateNotice() {
 
   useEffect(() => {
     if (dismissed === null || showing.current) return;
-    const environment = affected.find(
-      ({ environmentId }) => !dismissed.has(environmentId) && !shownThisLaunch.has(environmentId),
+    const machine = affected.find(
+      ({ machineId }) => !dismissed.has(machineId) && !shownThisLaunch.has(machineId),
     );
-    if (!environment) return;
+    if (!machine) return;
     showing.current = true;
-    shownThisLaunch.add(environment.environmentId);
+    shownThisLaunch.add(machine.machineId);
     const dismiss = () => {
-      dismissedThisLaunch.add(environment.environmentId);
+      dismissedThisLaunch.add(machine.machineId);
       const next = new Set([...dismissed, ...dismissedThisLaunch]);
       showing.current = false;
       setDismissed(next);
       void SecureStore.setItemAsync(storageKey, JSON.stringify([...next])).catch(() => {});
     };
     Dialog.alert(
-      `Permissions have changed for ${environment.label}`,
+      `Permissions have changed for ${machine.label}`,
       "This connection still uses the old permissions, so some actions may no longer be available. Pair again using a new link with the permissions you need.",
       [{ text: "Got it", onPress: dismiss }],
       { cancelable: false },

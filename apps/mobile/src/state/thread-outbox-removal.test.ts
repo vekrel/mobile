@@ -1,4 +1,4 @@
-import { CommandId, EnvironmentId, MessageId, ProjectId, ThreadId } from "@vekrel/contracts";
+import { CommandId, MachineId, MessageId, ProjectId, ThreadId } from "@vekrel/contracts";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 const harness = vi.hoisted(() => ({
@@ -39,18 +39,18 @@ vi.mock("./use-composer-drafts", async (importOriginal) => {
 });
 
 import { appAtomRegistry } from "./atom-registry";
-import { clearThreadOutboxEnvironment, removeThreadOutboxMessage } from "./thread-outbox-removal";
+import { clearThreadOutboxMachine, removeThreadOutboxMessage } from "./thread-outbox-removal";
 import type { QueuedThreadMessage } from "./thread-outbox-model";
 import { composerDraftsAtom } from "./use-composer-drafts";
 
 function queuedMessage(input: {
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly messageId: string;
   readonly fileUri: string;
   readonly creation?: true;
 }): QueuedThreadMessage {
   return {
-    environmentId: EnvironmentId.make(input.environmentId),
+    machineId: MachineId.make(input.machineId),
     threadId: ThreadId.make(`thread-${input.messageId}`),
     messageId: MessageId.make(input.messageId),
     commandId: CommandId.make(`command-${input.messageId}`),
@@ -93,7 +93,7 @@ afterEach(() => {
 describe("thread outbox removal", () => {
   it("releases a removed message's attachment files with the removal itself", async () => {
     const message = queuedMessage({
-      environmentId: "environment-1",
+      machineId: "machine-1",
       messageId: "message-1",
       fileUri: "file:///documents/t3-composer-attachments/report.pdf",
     });
@@ -107,7 +107,7 @@ describe("thread outbox removal", () => {
 
   it("keeps an edited message and its files when a revision-checked removal loses", async () => {
     const message = queuedMessage({
-      environmentId: "environment-1",
+      machineId: "machine-1",
       messageId: "message-edited",
       fileUri: "file:///documents/t3-composer-attachments/report.pdf",
       creation: true,
@@ -129,21 +129,21 @@ describe("thread outbox removal", () => {
     expect(remaining).toEqual([edited]);
   });
 
-  it("releases only the cleared environment's queued attachment files", async () => {
+  it("releases only the cleared machine's queued attachment files", async () => {
     const cleared = queuedMessage({
-      environmentId: "environment-1",
+      machineId: "machine-1",
       messageId: "message-cleared",
       fileUri: "file:///documents/t3-composer-attachments/cleared.pdf",
     });
     const kept = queuedMessage({
-      environmentId: "environment-2",
+      machineId: "machine-2",
       messageId: "message-kept",
       fileUri: "file:///documents/t3-composer-attachments/kept.pdf",
     });
     await harness.manager.enqueue(cleared);
     await harness.manager.enqueue(kept);
 
-    await clearThreadOutboxEnvironment(cleared.environmentId);
+    await clearThreadOutboxMachine(cleared.machineId);
 
     expect(harness.cleanup).toHaveBeenCalledExactlyOnceWith(cleared.attachments);
     const remaining = Object.values(
@@ -154,19 +154,19 @@ describe("thread outbox removal", () => {
 
   it("clears only removed pending drafts and keeps drafts for live messages", async () => {
     const cleared = queuedMessage({
-      environmentId: "environment-1",
+      machineId: "machine-1",
       messageId: "message-cleared-pending",
       fileUri: "file:///documents/t3-composer-attachments/cleared-pending.pdf",
       creation: true,
     });
     const replaced = queuedMessage({
-      environmentId: "environment-1",
+      machineId: "machine-1",
       messageId: "message-replaced-pending",
       fileUri: "file:///documents/t3-composer-attachments/replaced-pending.pdf",
       creation: true,
     });
     const kept = queuedMessage({
-      environmentId: "environment-2",
+      machineId: "machine-2",
       messageId: "message-kept-pending",
       fileUri: "file:///documents/t3-composer-attachments/kept-pending.pdf",
       creation: true,
@@ -190,7 +190,7 @@ describe("thread outbox removal", () => {
     appAtomRegistry.set(composerDraftsAtom, {
       [clearedDraftKey]: { text: "edited", attachments: [editorOnlyFile] },
       [`pending-task:${replaced.messageId}`]: { text: "replacement", attachments: [] },
-      [`pending-task:${kept.messageId}`]: { text: "other environment", attachments: [] },
+      [`pending-task:${kept.messageId}`]: { text: "other machine", attachments: [] },
     });
     await Promise.all([
       harness.manager.enqueue(cleared),
@@ -198,7 +198,7 @@ describe("thread outbox removal", () => {
       harness.manager.enqueue(kept),
     ]);
 
-    const clearing = clearThreadOutboxEnvironment(cleared.environmentId);
+    const clearing = clearThreadOutboxMachine(cleared.machineId);
     await hydrationStarted.promise;
     const replacing = harness.manager.enqueue(replacement);
     hydrationBarrier.resolve();
@@ -221,7 +221,7 @@ describe("thread outbox removal", () => {
 
   it("keeps removal successful when pending draft persistence fails", async () => {
     const message = queuedMessage({
-      environmentId: "environment-1",
+      machineId: "machine-1",
       messageId: "message-draft-flush-fails",
       fileUri: "file:///documents/t3-composer-attachments/queued.pdf",
       creation: true,

@@ -20,14 +20,14 @@ import { type MediaActionsSource } from "../lib/mediaActionsSource";
 import { PresentationSource } from "./ui/NativePresentation";
 import type { FilePreviewSource } from "./FilePreviewModal";
 import { isPdfFile } from "../lib/filePreview";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import {
   retryComposerAttachmentUpload,
   useComposerAttachmentUploadState,
 } from "../state/composer-attachment-uploads";
 
 export interface ComposerAttachmentStripProps {
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly attachments: ReadonlyArray<DraftComposerAttachment>;
   readonly onRemove: (imageId: string) => void;
   readonly onPressPreview?: (source: FilePreviewSource) => void;
@@ -42,7 +42,7 @@ export interface ComposerAttachmentStripProps {
 }
 
 type ComposerAttachmentThumbnailProps = {
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly attachment: DraftComposerAttachment;
   readonly size: number;
   readonly borderRadius: number;
@@ -56,7 +56,7 @@ type ComposerAttachmentThumbnailProps = {
 };
 
 export function ComposerAttachmentThumbnail(props: ComposerAttachmentThumbnailProps) {
-  const upload = useComposerAttachmentUploadState(props.environmentId, props.attachment.id);
+  const upload = useComposerAttachmentUploadState(props.machineId, props.attachment.id);
   return (
     <View style={{ width: props.size, height: props.size }}>
       <ComposerAttachmentContent {...props} />
@@ -71,8 +71,8 @@ export function ComposerAttachmentThumbnail(props: ComposerAttachmentThumbnailPr
           accessibilityHint={upload.status === "failed" ? upload.reason : undefined}
           disabled={upload.status !== "failed"}
           onPress={() =>
-            props.environmentId &&
-            retryComposerAttachmentUpload(props.environmentId, props.attachment.id)
+            props.machineId &&
+            retryComposerAttachmentUpload(props.machineId, props.attachment.id)
           }
           className="absolute bottom-0.5 left-0.5 flex-row items-center gap-0.5 rounded-full bg-black/70 px-1 py-0.5"
         >
@@ -338,7 +338,7 @@ export function ComposerAttachmentStrip(props: ComposerAttachmentStripProps) {
               }}
             >
               <ComposerAttachmentThumbnail
-                environmentId={props.environmentId}
+                machineId={props.machineId}
                 attachment={attachment}
                 size={size}
                 borderRadius={radius}

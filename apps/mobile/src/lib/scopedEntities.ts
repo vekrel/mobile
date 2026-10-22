@@ -1,16 +1,16 @@
-import { EnvironmentId, ProjectId, RuntimeRequestId, ThreadId } from "@vekrel/contracts";
+import { MachineId, ProjectId, RuntimeRequestId, ThreadId } from "@vekrel/contracts";
 
-export function scopedProjectKey(environmentId: EnvironmentId, projectId: ProjectId): string {
-  return `${environmentId}:${projectId}`;
+export function scopedProjectKey(machineId: MachineId, projectId: ProjectId): string {
+  return `${machineId}:${projectId}`;
 }
 
-export function scopedThreadKey(environmentId: EnvironmentId, threadId: ThreadId): string {
-  return `${environmentId}:${threadId}`;
+export function scopedThreadKey(machineId: MachineId, threadId: ThreadId): string {
+  return `${machineId}:${threadId}`;
 }
 
 export function scopedRequestKey(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   requestId: RuntimeRequestId,
 ): string {
-  return `${environmentId}:${requestId}`;
+  return `${machineId}:${requestId}`;
 }

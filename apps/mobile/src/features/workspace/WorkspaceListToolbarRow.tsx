@@ -18,7 +18,7 @@ export function WorkspaceListToolbarRow(props: {
   readonly onOpenSearch: () => void;
   readonly searchAccessibilityLabel: string;
   readonly titleAccessibilityLabel: string;
-  readonly onOpenEnvironments: () => void;
+  readonly onOpenMachines: () => void;
   /** Stays trailing while searching, so it never moves and still narrows the results. */
   readonly filter: ReactNode;
 }) {
@@ -40,7 +40,7 @@ export function WorkspaceListToolbarRow(props: {
           <View className="min-w-0 flex-1 pl-4">
             <WorkspaceConnectionTitle
               grow
-              onPress={props.onOpenEnvironments}
+              onPress={props.onOpenMachines}
               brand={
                 <CompactBrandTitle
                   allowFontScaling={false}

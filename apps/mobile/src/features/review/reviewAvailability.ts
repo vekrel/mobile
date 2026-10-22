@@ -1,6 +1,6 @@
 export function resolveReviewAvailability(input: {
-  readonly hasEnvironmentPresentation: boolean;
-  readonly isEnvironmentConnected: boolean;
+  readonly hasMachinePresentation: boolean;
+  readonly isMachineConnected: boolean;
   readonly hasCachedSelectedDiff: boolean;
   readonly hasAnyCachedDiff: boolean;
 }): {
@@ -8,8 +8,8 @@ export function resolveReviewAvailability(input: {
   readonly showSectionToolbar: boolean;
 } {
   const showConnectionNotice =
-    input.hasEnvironmentPresentation &&
-    !input.isEnvironmentConnected &&
+    input.hasMachinePresentation &&
+    !input.isMachineConnected &&
     !input.hasCachedSelectedDiff;
 
   return {

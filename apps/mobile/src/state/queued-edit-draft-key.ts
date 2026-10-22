@@ -1,6 +1,6 @@
 /**
- * `<environmentId>:<threadId>~queued-edit~<runId>`: the marker holds no colon,
- * so `composerDraftEnvironmentId` still reads the environment from the segment
+ * `<machineId>:<threadId>~queued-edit~<runId>`: the marker holds no colon,
+ * so `composerDraftMachineId` still reads the machine from the segment
  * before the last colon and attachment uploads keep working, while the user's
  * own draft for the thread stays untouched under its own key.
  */

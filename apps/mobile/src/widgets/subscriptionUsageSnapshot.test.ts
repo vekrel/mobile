@@ -1,5 +1,5 @@
 import {
-  EnvironmentId,
+  MachineId,
   ProviderDriverKind,
   ProviderInstanceId,
   UsageLimitSourceId,
@@ -43,7 +43,7 @@ function provider(overrides: Partial<ServerProvider> = {}): ServerProvider {
 function presentations(providers: readonly ServerProvider[] = [provider()]) {
   return new Map([
     [
-      EnvironmentId.make("env"),
+      MachineId.make("env"),
       { entry: { target: { label: "Remote" } }, serverConfig: { providers } },
     ],
   ]);
@@ -67,7 +67,7 @@ describe("subscription widget snapshots", () => {
   it("uses upstream deduplication for a native account also present in a proxy hub", () => {
     const input = new Map([
       [
-        EnvironmentId.make("env"),
+        MachineId.make("env"),
         {
           entry: { target: { label: "Remote" } },
           serverConfig: {
@@ -95,7 +95,7 @@ describe("subscription widget snapshots", () => {
     expect(buildSubscriptionUsageSnapshot(input, deepLink).providers[0]?.detail).toBe(
       "Subscription remaining",
     );
-    input.get(EnvironmentId.make("env"))!.serverConfig.providers = [];
+    input.get(MachineId.make("env"))!.serverConfig.providers = [];
     const snapshot = buildSubscriptionUsageSnapshot(input, deepLink);
     expect(snapshot.providers[0]?.name).toBe("Codex");
     expect(JSON.stringify(snapshot)).not.toContain("example.com");
@@ -114,9 +114,9 @@ describe("subscription widget snapshots", () => {
     expect(snapshot.providers[0]?.totalWindows).toBe(20);
     expect(snapshot.providers[0]?.windows[0]?.remaining).toBe(5);
   });
-  it("uses the freshest copy of an account across environments before pooling", () => {
+  it("uses the freshest copy of an account across machines before pooling", () => {
     const input = presentations();
-    input.set(EnvironmentId.make("other"), {
+    input.set(MachineId.make("other"), {
       entry: { target: { label: "Other" } },
       serverConfig: {
         providers: [

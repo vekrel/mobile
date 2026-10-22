@@ -1,31 +1,31 @@
 import { executeAtomQuery } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentId, ProjectEntry } from "@vekrel/contracts";
+import type { MachineId, ProjectEntry } from "@vekrel/contracts";
 import * as Cause from "effect/Cause";
 import { useEffect, useReducer, useRef, useState } from "react";
 
 import { appAtomRegistry } from "../../state/atom-registry";
-import { projectEnvironment } from "../../state/projects";
+import { projectMachine } from "../../state/projects";
 import { useDebouncedValue } from "../../state/queries";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 
 export function useFileTreeEntries(input: {
   readonly cwd: string | null;
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly searchQuery: string;
 }) {
-  const { cwd, environmentId } = input;
+  const { cwd, machineId } = input;
   const searching = input.searchQuery.trim().length > 0;
   const query = input.searchQuery.trim().slice(0, 256);
   const debouncedQuery = useDebouncedValue(query, 200);
-  const root = useEnvironmentQuery(
-    cwd !== null && environmentId !== null
-      ? projectEnvironment.listEntries({ environmentId, input: { cwd, directoryPath: "" } })
+  const root = useMachineQuery(
+    cwd !== null && machineId !== null
+      ? projectMachine.listEntries({ machineId, input: { cwd, directoryPath: "" } })
       : null,
   );
-  const search = useEnvironmentQuery(
-    searching && debouncedQuery.length > 0 && cwd !== null && environmentId !== null
-      ? projectEnvironment.searchEntries({
-          environmentId,
+  const search = useMachineQuery(
+    searching && debouncedQuery.length > 0 && cwd !== null && machineId !== null
+      ? projectMachine.searchEntries({
+          machineId,
           input: { cwd, query: debouncedQuery, limit: 200 },
         })
       : null,
@@ -35,7 +35,7 @@ export function useFileTreeEntries(input: {
   const refreshVersion = useRef(0);
   const directories = {
     cwd,
-    environmentId,
+    machineId,
     entries: new Map<string, ReadonlyArray<ProjectEntry>>(),
     requested: new Set<string>(),
     pending: new Map<string, AbortController>(),
@@ -55,7 +55,7 @@ export function useFileTreeEntries(input: {
   const loadDirectory = (directoryPath: string, refresh = false) => {
     if (
       cwd === null ||
-      environmentId === null ||
+      machineId === null ||
       (!refresh && directories.entries.has(directoryPath)) ||
       directories.pending.has(directoryPath)
     ) {
@@ -66,7 +66,7 @@ export function useFileTreeEntries(input: {
     directories.pending.set(directoryPath, controller);
     directories.errors.delete(directoryPath);
     render();
-    const atom = projectEnvironment.listEntries({ environmentId, input: { cwd, directoryPath } });
+    const atom = projectMachine.listEntries({ machineId, input: { cwd, directoryPath } });
     appAtomRegistry.refresh(atom);
     return executeAtomQuery(appAtomRegistry, atom, {
       signal: controller.signal,
@@ -142,13 +142,13 @@ export function useFileTreeEntries(input: {
       }
     };
     const queries =
-      cwd !== null && environmentId !== null
+      cwd !== null && machineId !== null
         ? [
-            projectEnvironment.listEntries({ environmentId, input: { cwd, directoryPath: "" } }),
+            projectMachine.listEntries({ machineId, input: { cwd, directoryPath: "" } }),
             ...(searching
               ? [
-                  projectEnvironment.searchEntries({
-                    environmentId,
+                  projectMachine.searchEntries({
+                    machineId,
                     input: { cwd, query: debouncedQuery, limit: 200 },
                   }),
                 ]

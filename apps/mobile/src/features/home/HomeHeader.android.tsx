@@ -4,7 +4,7 @@ import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { ThreadListToolbar } from "./ThreadListToolbar";
 import type { HomeHeaderProps } from "./HomeHeader.types";
 
-export type { HomeHeaderEnvironment } from "./HomeHeader.types";
+export type { HomeHeaderMachine } from "./HomeHeader.types";
 
 function checkedMenuState(checked: boolean) {
   return checked ? ("on" as const) : undefined;
@@ -12,22 +12,22 @@ function checkedMenuState(checked: boolean) {
 
 export function HomeHeader(props: HomeHeaderProps) {
   const hasCustomListOptions =
-    props.selectedEnvironmentId !== null || props.selectedProjectKey !== null;
+    props.selectedMachineId !== null || props.selectedProjectKey !== null;
   const menuActions = useMemo<MenuAction[]>(
     () => [
       {
-        id: "environment",
-        title: "Environment",
+        id: "machine",
+        title: "Machine",
         subactions: [
           {
-            id: "environment:all",
-            title: "All environments",
-            state: checkedMenuState(props.selectedEnvironmentId === null),
+            id: "machine:all",
+            title: "All machines",
+            state: checkedMenuState(props.selectedMachineId === null),
           },
-          ...props.environments.map((environment) => ({
-            id: `environment:${environment.environmentId}`,
-            title: environment.label,
-            state: checkedMenuState(props.selectedEnvironmentId === environment.environmentId),
+          ...props.machines.map((machine) => ({
+            id: `machine:${machine.machineId}`,
+            title: machine.label,
+            state: checkedMenuState(props.selectedMachineId === machine.machineId),
           })),
         ],
       },
@@ -52,23 +52,23 @@ export function HomeHeader(props: HomeHeaderProps) {
             },
           ] satisfies MenuAction[])),
     ],
-    [props.environments, props.projects, props.selectedEnvironmentId, props.selectedProjectKey],
+    [props.machines, props.projects, props.selectedMachineId, props.selectedProjectKey],
   );
   const handleMenuAction = useCallback(
     (event: { nativeEvent: { event: string } }) => {
       const id = event.nativeEvent.event;
-      if (id === "environment:all") {
-        props.onEnvironmentChange(null);
+      if (id === "machine:all") {
+        props.onMachineChange(null);
         return;
       }
 
-      if (id.startsWith("environment:")) {
-        const environmentId = id.slice("environment:".length);
-        const environment = props.environments.find(
-          (candidate) => candidate.environmentId === environmentId,
+      if (id.startsWith("machine:")) {
+        const machineId = id.slice("machine:".length);
+        const machine = props.machines.find(
+          (candidate) => candidate.machineId === machineId,
         );
-        if (environment) {
-          props.onEnvironmentChange(environment.environmentId);
+        if (machine) {
+          props.onMachineChange(machine.machineId);
         }
         return;
       }
@@ -98,7 +98,7 @@ export function HomeHeader(props: HomeHeaderProps) {
         filterActions={menuActions}
         filterCustomized={hasCustomListOptions}
         onFilterAction={handleMenuAction}
-        onOpenEnvironments={props.onOpenEnvironments}
+        onOpenMachines={props.onOpenMachines}
       />
     </>
   );

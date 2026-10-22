@@ -4,8 +4,8 @@ import {
   squashAtomCommandFailure,
 } from "@vekrel/client-runtime/state/runtime";
 import type { MenuAction } from "@react-native-menu/menu";
-import type { EnvironmentId } from "@vekrel/contracts";
-import type { RelayClientEnvironmentRecord } from "@vekrel/contracts/relay";
+import type { MachineId } from "@vekrel/contracts";
+import type { RelayClientMachineRecord } from "@vekrel/contracts/relay";
 import { type ReactNode, useRef, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, Text, View } from "react-native";
 
@@ -16,8 +16,8 @@ import { Menu } from "../../components/ui/Menu";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 import { useAtomCommand } from "../../state/use-atom-command";
 import {
-  deregisterManagedRelayEnvironmentCommand,
-  useManagedRelayEnvironments,
+  deregisterManagedRelayMachineCommand,
+  useManagedRelayMachines,
 } from "./managedRelayState";
 
 const linkedAtFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
@@ -29,53 +29,53 @@ function linkedAtLabel(value: string): string {
     : `Linked ${linkedAtFormatter.format(linkedAt)}`;
 }
 
-function endpointLabel(environment: RelayClientEnvironmentRecord): string {
-  return environment.endpoint.providerKind === "cloudflare_tunnel"
+function endpointLabel(machine: RelayClientMachineRecord): string {
+  return machine.endpoint.providerKind === "cloudflare_tunnel"
     ? "Managed tunnel"
     : "Activity publishing only";
 }
 
-function confirmDeregister(environment: RelayClientEnvironmentRecord, onConfirm: () => void) {
+function confirmDeregister(machine: RelayClientMachineRecord, onConfirm: () => void) {
   const title = "Deregister server?";
-  const message = `“${environment.label}” will be removed from this account. T3 Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.`;
+  const message = `“${machine.label}” will be removed from this account. T3 Connect access will be revoked, any managed tunnel will be removed, and a host space will become available. Local connections on your devices are not changed.`;
   Dialog.confirm({ title, message, confirmText: "Deregister", destructive: true, onConfirm });
 }
 
 export function T3ConnectProfilePage() {
-  const environmentsState = useManagedRelayEnvironments();
-  const deregisterEnvironment = useAtomCommand(deregisterManagedRelayEnvironmentCommand, {
+  const machinesState = useManagedRelayMachines();
+  const deregisterMachine = useAtomCommand(deregisterManagedRelayMachineCommand, {
     reportFailure: false,
   });
-  const [deregisteringEnvironmentId, setDeregisteringEnvironmentId] =
-    useState<EnvironmentId | null>(null);
+  const [deregisteringMachineId, setDeregisteringMachineId] =
+    useState<MachineId | null>(null);
   const mutationPendingRef = useRef(false);
   // Deregistered rows stay in the cached list until the refresh lands, so hide
   // them by the linkedAt they had. A re-link produces a new linkedAt and shows again.
-  const [removedEnvironments, setRemovedEnvironments] = useState<{
+  const [removedMachines, setRemovedMachines] = useState<{
     readonly accountId: string | null;
-    readonly linkedAtById: ReadonlyMap<EnvironmentId, string>;
+    readonly linkedAtById: ReadonlyMap<MachineId, string>;
   }>({ accountId: null, linkedAtById: new Map() });
 
-  const handleDeregister = async (environment: RelayClientEnvironmentRecord) => {
-    const accountId = environmentsState.accountId;
+  const handleDeregister = async (machine: RelayClientMachineRecord) => {
+    const accountId = machinesState.accountId;
     if (!accountId || mutationPendingRef.current) return;
 
     mutationPendingRef.current = true;
-    setDeregisteringEnvironmentId(environment.environmentId);
-    const result = await deregisterEnvironment({
+    setDeregisteringMachineId(machine.machineId);
+    const result = await deregisterMachine({
       accountId,
-      environmentId: environment.environmentId,
+      machineId: machine.machineId,
     });
     mutationPendingRef.current = false;
-    setDeregisteringEnvironmentId(null);
+    setDeregisteringMachineId(null);
 
     if (result._tag === "Success") {
-      setRemovedEnvironments((current) => {
+      setRemovedMachines((current) => {
         const linkedAtById = new Map(current.accountId === accountId ? current.linkedAtById : []);
-        linkedAtById.set(environment.environmentId, environment.linkedAt);
+        linkedAtById.set(machine.machineId, machine.linkedAt);
         return { accountId, linkedAtById };
       });
-      environmentsState.refresh();
+      machinesState.refresh();
       return;
     }
     if (isAtomCommandInterrupted(result)) return;
@@ -83,8 +83,8 @@ export function T3ConnectProfilePage() {
     const cause = squashAtomCommandFailure(result);
     const message = cause instanceof Error ? cause.message : "Could not deregister the server.";
     const traceId = findErrorTraceId(cause);
-    console.error("[t3-connect] Could not deregister environment", {
-      environmentId: environment.environmentId,
+    console.error("[t3-connect] Could not deregister machine", {
+      machineId: machine.machineId,
       message,
       traceId,
       cause,
@@ -104,17 +104,17 @@ export function T3ConnectProfilePage() {
     );
   };
 
-  const removedEnvironmentLinkedAt =
-    removedEnvironments.accountId === environmentsState.accountId
-      ? removedEnvironments.linkedAtById
-      : new Map<EnvironmentId, string>();
-  const environments = (environmentsState.data ?? []).filter(
-    (environment) =>
-      removedEnvironmentLinkedAt.get(environment.environmentId) !== environment.linkedAt,
+  const removedMachineLinkedAt =
+    removedMachines.accountId === machinesState.accountId
+      ? removedMachines.linkedAtById
+      : new Map<MachineId, string>();
+  const machines = (machinesState.data ?? []).filter(
+    (machine) =>
+      removedMachineLinkedAt.get(machine.machineId) !== machine.linkedAt,
   );
   const isInitialLoad =
-    !environmentsState.accountId || (environmentsState.data === null && !environmentsState.error);
-  const errorTraceId = environmentsState.errorTraceId;
+    !machinesState.accountId || (machinesState.data === null && !machinesState.error);
+  const errorTraceId = machinesState.errorTraceId;
 
   return (
     <ScrollView
@@ -123,18 +123,18 @@ export function T3ConnectProfilePage() {
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={
         <RefreshControl
-          refreshing={environmentsState.isPending && environmentsState.data !== null}
-          onRefresh={environmentsState.refresh}
+          refreshing={machinesState.isPending && machinesState.data !== null}
+          onRefresh={machinesState.refresh}
         />
       }
     >
       <ClerkSectionHeader>Registered servers</ClerkSectionHeader>
 
-      {environmentsState.error ? (
+      {machinesState.error ? (
         <>
           <ClerkRow
-            title="Could not load T3 Connect environments"
-            subtitle={environmentsState.error}
+            title="Could not load T3 Connect machines"
+            subtitle={machinesState.error}
           />
           {errorTraceId ? (
             <ClerkButtonRow
@@ -148,32 +148,32 @@ export function T3ConnectProfilePage() {
       ) : isInitialLoad ? (
         <View className="flex-row items-center gap-3 px-6 py-4">
           <AppActivityIndicator colorClassName={"accent-clerk-foreground-muted"} size="small" />
-          <Text className="text-base text-clerk-foreground-muted">Loading environments</Text>
+          <Text className="text-base text-clerk-foreground-muted">Loading machines</Text>
         </View>
-      ) : environments.length > 0 ? (
-        environments.map((environment) => (
+      ) : machines.length > 0 ? (
+        machines.map((machine) => (
           <ClerkRow
-            key={environment.environmentId}
-            title={environment.label}
-            subtitle={`${linkedAtLabel(environment.linkedAt)} · ${endpointLabel(environment)}`}
+            key={machine.machineId}
+            title={machine.label}
+            subtitle={`${linkedAtLabel(machine.linkedAt)} · ${endpointLabel(machine)}`}
             accessory={
-              deregisteringEnvironmentId === environment.environmentId ? (
+              deregisteringMachineId === machine.machineId ? (
                 <AppActivityIndicator
                   colorClassName={"accent-clerk-foreground-muted"}
                   size="small"
                 />
               ) : (
                 <Menu
-                  actions={ENVIRONMENT_MENU_ACTIONS}
+                  actions={MACHINE_MENU_ACTIONS}
                   isAnchoredToRight
                   onPressAction={() =>
-                    confirmDeregister(environment, () => void handleDeregister(environment))
+                    confirmDeregister(machine, () => void handleDeregister(machine))
                   }
                 >
                   <Pressable
-                    accessibilityLabel={`Actions for ${environment.label}`}
+                    accessibilityLabel={`Actions for ${machine.label}`}
                     accessibilityRole="button"
-                    disabled={deregisteringEnvironmentId !== null}
+                    disabled={deregisteringMachineId !== null}
                     className="size-[30px] items-center justify-center active:opacity-60 disabled:opacity-50"
                   >
                     <View className="rotate-90">
@@ -204,7 +204,7 @@ export function T3ConnectProfilePage() {
   );
 }
 
-const ENVIRONMENT_MENU_ACTIONS = [
+const MACHINE_MENU_ACTIONS = [
   { id: "deregister", title: "Deregister", image: "trash", attributes: { destructive: true } },
 ] satisfies MenuAction[];
 

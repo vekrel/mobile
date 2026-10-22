@@ -7,7 +7,7 @@ import {
   getGitActionDisabledReason,
   requiresDefaultBranchConfirmation,
 } from "@vekrel/client-runtime/state/vcs";
-import { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import { MachineId, ThreadId } from "@vekrel/contracts";
 import {
   CommonActions,
   StackActions,
@@ -36,12 +36,12 @@ import {
   NativeStackScreenOptions,
   nativeHeaderScrollEdgeEffects,
 } from "../../../native/StackHeader";
-import { useEnvironmentQuery } from "../../../state/query";
+import { useMachineQuery } from "../../../state/query";
 import { useThreadSelection } from "../../../state/use-thread-selection";
 import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-git-actions";
 import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
 import { useSelectedThreadWorktree } from "../../../state/use-selected-thread-worktree";
-import { vcsEnvironment } from "../../../state/vcs";
+import { vcsMachine } from "../../../state/vcs";
 import { resolveGitOverviewReviewNavigationAction } from "./git-overview-navigation";
 import { menuItemIconName, statusSummary } from "./gitSheetComponents";
 import {
@@ -54,7 +54,7 @@ import { useLinkedPullRequestActions } from "../useLinkedPullRequestActions";
 const HEADER_SCROLL_EDGE_EFFECTS = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
 
 type GitOverviewSheetProps = StaticScreenProps<{
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly threadId: string;
 }> & {
   readonly headerInset?: number;
@@ -63,8 +63,8 @@ type GitOverviewSheetProps = StaticScreenProps<{
 
 export function GitOverviewSheet(props: GitOverviewSheetProps) {
   const navigation = useNavigation();
-  const { environmentId, threadId } = props.route.params;
-  const isBlankLink = environmentId.trim().length === 0 || threadId.trim().length === 0;
+  const { machineId, threadId } = props.route.params;
+  const isBlankLink = machineId.trim().length === 0 || threadId.trim().length === 0;
   useEffect(() => {
     if (isBlankLink) navigation.goBack();
   }, [isBlankLink, navigation]);
@@ -78,29 +78,29 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
   const insets = useSafeAreaInsets();
   const presentation = props.presentation ?? "sheet";
   const isInspector = presentation === "inspector";
-  const environmentId = EnvironmentId.make(props.route.params.environmentId);
+  const machineId = MachineId.make(props.route.params.machineId);
   const threadId = ThreadId.make(props.route.params.threadId);
-  const { selectedThread, selectedThreadProject, selectedEnvironmentRuntime } =
+  const { selectedThread, selectedThreadProject, selectedMachineRuntime } =
     useThreadSelection();
   const openPullRequest = useOpenPullRequest({
     replace: presentation === "sheet",
     context: selectedThread ?? undefined,
   });
   const { selectedThreadCwd, selectedThreadWorktreePath } = useSelectedThreadWorktree();
-  const linkedPrLines = useLinkedPullRequestLines(selectedThread, selectedEnvironmentRuntime);
+  const linkedPrLines = useLinkedPullRequestLines(selectedThread, selectedMachineRuntime);
   const linkedPrActions = useLinkedPullRequestActions({
     thread: selectedThread,
     project: selectedThreadProject,
-    runtime: selectedEnvironmentRuntime,
+    runtime: selectedMachineRuntime,
   });
   const gitState = useSelectedThreadGitState();
   const gitActions = useSelectedThreadGitActions();
   const { canWriteSourceControl, canChangeThreadBranch } = gitActions;
 
-  const gitStatus = useEnvironmentQuery(
+  const gitStatus = useMachineQuery(
     selectedThread !== null && selectedThreadCwd !== null
-      ? vcsEnvironment.status({
-          environmentId: selectedThread.environmentId,
+      ? vcsMachine.status({
+          machineId: selectedThread.machineId,
           input: { cwd: selectedThreadCwd },
         })
       : null,
@@ -161,7 +161,7 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
       requiresDefaultBranchConfirmation(input.action, isDefaultRef)
     ) {
       navigation.navigate("GitConfirm", {
-        environmentId: String(environmentId),
+        machineId: String(machineId),
         threadId: String(threadId),
         confirmAction: confirmableAction,
         branchName,
@@ -185,7 +185,7 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
     if (!canWriteSourceControl) return;
     if (item.dialogAction === "commit") {
       navigation.navigate("GitCommit", {
-        environmentId: String(environmentId),
+        machineId: String(machineId),
         threadId: String(threadId),
       });
       return;
@@ -278,7 +278,7 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
           description="Inspect changes, uncommitted edits, and turn diffs"
           disabled={busy || !isRepo}
           onPress={() => {
-            const params = { environmentId, threadId };
+            const params = { machineId, threadId };
             navigation.dispatch(
               resolveGitOverviewReviewNavigationAction(presentation) === "replace"
                 ? StackActions.replace("ThreadReview", params)
@@ -297,7 +297,7 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
           disabled={busy || !isRepo}
           onPress={() =>
             navigation.navigate("GitBranches", {
-              environmentId: String(environmentId),
+              machineId: String(machineId),
               threadId: String(threadId),
             })
           }

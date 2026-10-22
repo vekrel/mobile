@@ -38,9 +38,9 @@ export function clearThreadComposerError(threadKey: string, messageId?: string):
   appAtomRegistry.set(threadComposerErrorsAtom, next);
 }
 
-export function clearThreadComposerErrorsForEnvironment(environmentId: string): void {
+export function clearThreadComposerErrorsForMachine(machineId: string): void {
   const current = appAtomRegistry.get(threadComposerErrorsAtom);
-  const prefix = `${environmentId}:`;
+  const prefix = `${machineId}:`;
   const keys = Object.keys(current).filter((key) => key.startsWith(prefix));
   if (keys.length === 0) {
     return;

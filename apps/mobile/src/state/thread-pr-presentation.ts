@@ -1,6 +1,6 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import type {
-  ExecutionEnvironmentCapabilities,
+  ExecutionMachineCapabilities,
   ThreadPullRequestLink,
   VcsStatusResult,
 } from "@vekrel/contracts";
@@ -100,9 +100,9 @@ export function presentThreadLinkedPullRequests(
 }
 
 export function resolveThreadPrSource(
-  thread: Pick<EnvironmentThreadShell, "pullRequests" | "linkedPullRequest" | "branchPullRequest">,
+  thread: Pick<MachineThreadShell, "pullRequests" | "linkedPullRequest" | "branchPullRequest">,
   capabilities:
-    | Pick<ExecutionEnvironmentCapabilities, "threadPullRequests" | "threadPullRequestLinking">
+    | Pick<ExecutionMachineCapabilities, "threadPullRequests" | "threadPullRequestLinking">
     | undefined,
 ) {
   const supportsSnapshots = capabilities?.threadPullRequests === true;

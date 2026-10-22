@@ -1,7 +1,7 @@
-import { scopeProjectRef, scopeThreadRef } from "@vekrel/client-runtime/environment";
+import { scopeProjectRef, scopeThreadRef } from "@vekrel/client-runtime/machine";
 import { resolveProviderInstanceDisplayName } from "@vekrel/client-runtime/state/provider-instance-display";
 import { resolveSubagentMetadata } from "@vekrel/client-runtime/state/subagent-display";
-import type { EnvironmentId, OrchestrationV2Subagent } from "@vekrel/contracts";
+import type { MachineId, OrchestrationV2Subagent } from "@vekrel/contracts";
 import type { ReactNode } from "react";
 import { View } from "react-native";
 
@@ -9,7 +9,7 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { cn } from "../../lib/cn";
-import { useEnvironmentServerConfig, useProject, useThreadShell } from "../../state/entities";
+import { useMachineServerConfig, useProject, useThreadShell } from "../../state/entities";
 import { subagentCardDetail } from "./subagent-card-presentation";
 import { SUBAGENT_TONE_TEXT_CLASS, SubagentStatusDot } from "./SubagentStatusDot";
 import { resolveSubagentRowPresentation } from "./threadAgentsPresentation";
@@ -29,7 +29,7 @@ type SubagentRowSubagent = Pick<
 >;
 
 export function SubagentRow(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly subagent: SubagentRowSubagent;
   readonly elapsed: ReactNode;
 }) {
@@ -70,7 +70,7 @@ export function SubagentRow(props: {
             <SymbolView name="chevron.right" size={12} tintColorClassName="accent-icon-subtle" />
           ) : null}
         </View>
-        <SubagentMetadata environmentId={props.environmentId} subagent={props.subagent} />
+        <SubagentMetadata machineId={props.machineId} subagent={props.subagent} />
         {detail ? (
           <Text
             numberOfLines={3}
@@ -88,22 +88,22 @@ export function SubagentRow(props: {
 }
 
 function SubagentMetadata(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly subagent: SubagentRowSubagent;
 }) {
-  const { environmentId, subagent } = props;
-  const config = useEnvironmentServerConfig(environmentId);
+  const { machineId, subagent } = props;
+  const config = useMachineServerConfig(machineId);
   const provider = config?.providers.find(
     (candidate) => candidate.instanceId === subagent.providerInstanceId,
   );
-  const parent = useThreadShell(scopeThreadRef(environmentId, subagent.threadId))?.source;
+  const parent = useThreadShell(scopeThreadRef(machineId, subagent.threadId))?.source;
   const child = useThreadShell(
-    subagent.childThreadId === null ? null : scopeThreadRef(environmentId, subagent.childThreadId),
+    subagent.childThreadId === null ? null : scopeThreadRef(machineId, subagent.childThreadId),
   )?.source;
   const parentProject = useProject(
-    parent ? scopeProjectRef(environmentId, parent.projectId) : null,
+    parent ? scopeProjectRef(machineId, parent.projectId) : null,
   );
-  const childProject = useProject(child ? scopeProjectRef(environmentId, child.projectId) : null);
+  const childProject = useProject(child ? scopeProjectRef(machineId, child.projectId) : null);
   const { modelLabel, workspace } = resolveSubagentMetadata({
     model: subagent.model,
     provider,

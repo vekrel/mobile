@@ -24,9 +24,9 @@ import { authClientMetadata } from "../lib/authClientMetadata";
 import * as Runtime from "../lib/runtime";
 import * as MobileStorage from "../persistence/mobile-storage";
 import { appAtomRegistry } from "../state/atom-registry";
-import { clearThreadOutboxEnvironment } from "../state/thread-outbox-removal";
-import { clearComposerDraftsEnvironment } from "../state/use-composer-drafts";
-import { clearThreadComposerErrorsForEnvironment } from "../state/thread-composer-error";
+import { clearThreadOutboxMachine } from "../state/thread-outbox-removal";
+import { clearComposerDraftsMachine } from "../state/use-composer-drafts";
+import { clearThreadComposerErrorsForMachine } from "../state/thread-composer-error";
 import { mobileApplicationActiveWakeup } from "./app-state-wakeups";
 import * as ConnectionStorage from "./storage";
 
@@ -168,7 +168,7 @@ const layerCapabilities = Layer.effectContext(
           if (session === null) {
             return yield* new ConnectionBlockedError({
               reason: "authentication",
-              detail: "Sign in to T3 Connect to connect this environment.",
+              detail: "Sign in to T3 Connect to connect this machine.",
             });
           }
           const token = yield* session.readClerkToken().pipe(
@@ -191,8 +191,8 @@ const layerCapabilities = Layer.effectContext(
       }),
     ).pipe(
       Context.add(
-        ClientCapabilities.PrimaryEnvironmentAuth,
-        ClientCapabilities.PrimaryEnvironmentAuth.of({
+        ClientCapabilities.PrimaryMachineAuth,
+        ClientCapabilities.PrimaryMachineAuth.of({
           bearerToken: Effect.succeed(Option.none()),
         }),
       ),
@@ -222,20 +222,20 @@ const layerCapabilities = Layer.effectContext(
         }),
       ),
       Context.add(
-        ClientCapabilities.SshEnvironmentGateway,
-        ClientCapabilities.SshEnvironmentGateway.of({
+        ClientCapabilities.SshMachineGateway,
+        ClientCapabilities.SshMachineGateway.of({
           provision: () =>
             Effect.fail(
               new ConnectionBlockedError({
                 reason: "unsupported",
-                detail: "SSH environments are only available in the desktop app.",
+                detail: "SSH machines are only available in the desktop app.",
               }),
             ),
           prepare: () =>
             Effect.fail(
               new ConnectionBlockedError({
                 reason: "unsupported",
-                detail: "SSH environments are only available in the desktop app.",
+                detail: "SSH machines are only available in the desktop app.",
               }),
             ),
           disconnect: () => Effect.void,
@@ -255,21 +255,21 @@ const layerPlatformConnectionSource = Layer.succeed(
 const layerProvidedConnectionStorage = ConnectionStorage.layer.pipe(Layer.provide(Runtime.layer));
 const layerProvidedCapabilities = layerCapabilities.pipe(Layer.provide(Runtime.layer));
 
-const layerEnvironmentOwnedDataCleanup = Layer.succeed(
-  Persistence.EnvironmentOwnedDataCleanup,
-  Persistence.EnvironmentOwnedDataCleanup.of({
-    clear: (environmentId) =>
+const layerMachineOwnedDataCleanup = Layer.succeed(
+  Persistence.MachineOwnedDataCleanup,
+  Persistence.MachineOwnedDataCleanup.of({
+    clear: (machineId) =>
       Effect.all(
         [
-          Effect.promise(() => clearThreadOutboxEnvironment(environmentId)),
-          Effect.promise(() => clearComposerDraftsEnvironment(environmentId)),
-          Effect.sync(() => clearThreadComposerErrorsForEnvironment(environmentId)),
+          Effect.promise(() => clearThreadOutboxMachine(machineId)),
+          Effect.promise(() => clearComposerDraftsMachine(machineId)),
+          Effect.sync(() => clearThreadComposerErrorsForMachine(machineId)),
         ],
         { concurrency: "unbounded", discard: true },
       ).pipe(
         Effect.catch((cause) =>
-          Effect.logWarning("Could not clear mobile environment-owned data.", {
-            environmentId,
+          Effect.logWarning("Could not clear mobile machine-owned data.", {
+            machineId,
             cause,
           }),
         ),
@@ -284,7 +284,7 @@ type ConnectionPlatformLayerSource =
   | typeof layerWakeups
   | typeof layerProvidedCapabilities
   | typeof layerPlatformConnectionSource
-  | typeof layerEnvironmentOwnedDataCleanup;
+  | typeof layerMachineOwnedDataCleanup;
 
 export const layer: Layer.Layer<
   Layer.Success<ConnectionPlatformLayerSource>,
@@ -297,5 +297,5 @@ export const layer: Layer.Layer<
   layerWakeups,
   layerProvidedCapabilities,
   layerPlatformConnectionSource,
-  layerEnvironmentOwnedDataCleanup,
+  layerMachineOwnedDataCleanup,
 );

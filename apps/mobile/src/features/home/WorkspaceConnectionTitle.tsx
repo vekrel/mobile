@@ -132,7 +132,7 @@ export function WorkspaceConnectionTitle(props: {
   return (
     <StatusFadeIn animate={status.fadeIn} grow={props.grow} maxWidth={props.maxWidth}>
       <Pressable
-        accessibilityHint="Opens environment settings"
+        accessibilityHint="Opens machine settings"
         accessibilityLabel={status.label}
         accessibilityRole="button"
         disabled={props.onPress === undefined}
@@ -172,7 +172,7 @@ export function WorkspaceConnectionTitle(props: {
 export function getConnectionAwareBrandHeaderOptions(opts: {
   readonly headerWidth: number;
   readonly trailingItemCount?: number;
-  readonly onOpenEnvironments: () => void;
+  readonly onOpenMachines: () => void;
   readonly fallbackTitleStyle?: NativeStackNavigationOptions["headerTitleStyle"];
 }): NativeStackNavigationOptions {
   const maxWidth = Math.max(0, opts.headerWidth - 64 - 44 * (opts.trailingItemCount ?? 1));
@@ -183,7 +183,7 @@ export function getConnectionAwareBrandHeaderOptions(opts: {
       <WorkspaceConnectionTitle
         brand={<CompactBrandTitle />}
         maxWidth={maxWidth}
-        onPress={opts.onOpenEnvironments}
+        onPress={opts.onOpenMachines}
         statusOffset={brandTitleOffset()}
       />
     ),

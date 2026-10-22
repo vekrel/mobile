@@ -16,7 +16,7 @@ export type ReviewDraft = {
 export const EMPTY_REVIEW_DRAFT: ReviewDraft = { summary: "", comment: "", comments: [] };
 export function pullRequestReviewKey(params: PullRequestParams) {
   return JSON.stringify([
-    params.environmentId,
+    params.machineId,
     params.projectId,
     params.host ?? "",
     params.repository,

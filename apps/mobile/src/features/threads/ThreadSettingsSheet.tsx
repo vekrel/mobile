@@ -12,7 +12,7 @@ import {
   resolveModelPreferences,
 } from "@vekrel/shared/serverSettings";
 import type {
-  EnvironmentId,
+  MachineId,
   ModelSelection,
   ProjectId,
   ProviderInstanceId,
@@ -70,9 +70,9 @@ import {
 import { NativeStackScreenOptions, nativeHeaderScrollEdgeEffects } from "../../native/StackHeader";
 import { NATIVE_LIQUID_GLASS_SUPPORTED } from "../../native/native-glass";
 import { ChatGptSharingStatus } from "./ChatGptSharingStatus";
-import { environmentCatalog } from "../../connection/catalog";
-import { useEnvironmentQuery } from "../../state/query";
-import { environmentServerConfigsAtom, serverEnvironment } from "../../state/server";
+import { machineCatalog } from "../../connection/catalog";
+import { useMachineQuery } from "../../state/query";
+import { machineServerConfigsAtom, serverMachine } from "../../state/server";
 import { mobilePreferencesAtom } from "../../state/preferences";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useNewTaskFlow } from "./new-task-flow-provider";
@@ -132,7 +132,7 @@ const EMPTY_MODEL_FAVORITES: ReadonlyArray<{
 }> = [];
 const FAVORITES_PROVIDER_FILTER = "@favorites";
 // Servers that predate `migrateModelPreferences` drop it and keep reporting null favorites.
-const attemptedMigrationGenerations = new Map<EnvironmentId, number>();
+const attemptedMigrationGenerations = new Map<MachineId, number>();
 function ProviderHeader(props: {
   readonly driver: string | undefined;
   readonly iconUrl: string | undefined;
@@ -246,7 +246,7 @@ type ThreadSettingsSubmenuPage =
   | { readonly kind: "runtime" };
 
 type ThreadSettingsSessionProps = {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly projectId: ProjectId | null;
   readonly providerInstanceId?: ProviderInstanceId;
   readonly lockedProviderInstanceId?: ProviderInstanceId;
@@ -304,7 +304,7 @@ export function useExistingThreadSettingsRoutePresentation() {
 }
 
 type ThreadSettingsSessionValue = {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly providerInstanceId?: ProviderInstanceId;
   readonly providerGroups: ReadonlyArray<ProviderGroup>;
   readonly favoriteKeys: ReadonlySet<string>;
@@ -345,11 +345,11 @@ function ThreadSettingsSessionProvider(
 ) {
   const registry = use(RegistryContext);
   const preferences = useAtomValue(mobilePreferencesAtom);
-  const configs = useAtomValue(environmentServerConfigsAtom);
-  const config = props.environmentId ? configs.get(props.environmentId) : undefined;
+  const configs = useAtomValue(machineServerConfigsAtom);
+  const config = props.machineId ? configs.get(props.machineId) : undefined;
   const settings = config?.settings;
-  const connection = useEnvironmentQuery(
-    props.environmentId ? environmentCatalog.stateAtom(props.environmentId) : null,
+  const connection = useMachineQuery(
+    props.machineId ? machineCatalog.stateAtom(props.machineId) : null,
   ).data;
   const connectionGeneration = connection?.phase === "connected" ? connection.generation : null;
   const [manageHidden, setManageHidden] = useState(false);
@@ -378,25 +378,25 @@ function ThreadSettingsSessionProvider(
   const modelFavorites = resolveModelPreferences(settings ?? DEFAULT_SERVER_SETTINGS, {
     favorites: legacyFavorites,
   }).favorites;
-  const saveSettings = useAtomCommand(serverEnvironment.updateSettings, "model favorites update");
+  const saveSettings = useAtomCommand(serverMachine.updateSettings, "model favorites update");
   useEffect(() => {
     if (
-      !props.environmentId ||
+      !props.machineId ||
       !settings ||
       !AsyncResult.isSuccess(preferences) ||
       connectionGeneration === null ||
-      attemptedMigrationGenerations.get(props.environmentId) === connectionGeneration
+      attemptedMigrationGenerations.get(props.machineId) === connectionGeneration
     )
       return;
     const patch = modelPreferencesMigrationPatch(settings, { favorites: legacyFavorites });
     if (!patch) return;
-    attemptedMigrationGenerations.set(props.environmentId, connectionGeneration);
-    void saveSettings({ environmentId: props.environmentId, input: { patch } });
+    attemptedMigrationGenerations.set(props.machineId, connectionGeneration);
+    void saveSettings({ machineId: props.machineId, input: { patch } });
   }, [
     connectionGeneration,
     legacyFavorites,
     preferences,
-    props.environmentId,
+    props.machineId,
     saveSettings,
     settings,
   ]);
@@ -404,15 +404,15 @@ function ThreadSettingsSessionProvider(
     modelFavorites.map((favorite) => modelFavoriteKey(favorite.provider, favorite.model)),
   );
   const toggleFavorite = async (option: ModelOption) => {
-    const environmentId = props.environmentId;
-    if (!favoritesLoaded || !environmentId) return;
-    const currentSettings = registry.get(environmentServerConfigsAtom).get(environmentId)?.settings;
+    const machineId = props.machineId;
+    if (!favoritesLoaded || !machineId) return;
+    const currentSettings = registry.get(machineServerConfigsAtom).get(machineId)?.settings;
     if (!currentSettings) return;
     const favorites = resolveModelPreferences(currentSettings, {
       favorites: legacyFavorites,
     }).favorites;
     const key = JSON.stringify([
-      environmentId,
+      machineId,
       option.selection.instanceId,
       option.selection.model,
     ]);
@@ -429,7 +429,7 @@ function ThreadSettingsSessionProvider(
     pendingFavorites.current.set(key, pending);
     void Haptics.selectionAsync();
     const result = await saveSettings({
-      environmentId: environmentId,
+      machineId: machineId,
       input: {
         patch: {
           setModelFavorites: [
@@ -445,7 +445,7 @@ function ThreadSettingsSessionProvider(
     });
     if (
       AsyncResult.isSuccess(result) &&
-      registry.get(environmentServerConfigsAtom).get(environmentId)?.settings.favorites ===
+      registry.get(machineServerConfigsAtom).get(machineId)?.settings.favorites ===
         currentSettings.favorites
     ) {
       pending.pending = false;
@@ -454,7 +454,7 @@ function ThreadSettingsSessionProvider(
       if (
         previous &&
         !previous.pending &&
-        registry.get(environmentServerConfigsAtom).get(environmentId)?.settings.favorites ===
+        registry.get(machineServerConfigsAtom).get(machineId)?.settings.favorites ===
           previous.settings.favorites
       ) {
         pendingFavorites.current.set(key, previous);
@@ -466,7 +466,7 @@ function ThreadSettingsSessionProvider(
   const toggleHidden = (option: ModelOption) => {
     if (
       !settings ||
-      !props.environmentId ||
+      !props.machineId ||
       !option.canHide ||
       pendingHidden.current.has(option.key)
     )
@@ -475,7 +475,7 @@ function ThreadSettingsSessionProvider(
     setPendingHiddenKeys(new Set(pendingHidden.current));
     void Haptics.selectionAsync();
     void saveSettings({
-      environmentId: props.environmentId,
+      machineId: props.machineId,
       input: {
         patch: {
           setModelsHidden: [
@@ -616,7 +616,7 @@ function ThreadSettingsSessionProvider(
   };
 
   const value = {
-    environmentId: props.environmentId,
+    machineId: props.machineId,
     providerInstanceId: props.providerInstanceId,
     providerGroups,
     manageHidden,
@@ -842,10 +842,10 @@ function ThreadSettingsOptionsItem(props: {
 }) {
   const insets = useSafeAreaInsets();
   const session = useThreadSettingsSession();
-  const configs = useAtomValue(environmentServerConfigsAtom);
-  const selectedProvider = session.environmentId
+  const configs = useAtomValue(machineServerConfigsAtom);
+  const selectedProvider = session.machineId
     ? (configs
-        .get(session.environmentId)
+        .get(session.machineId)
         ?.providers.find((provider) => provider.instanceId === session.providerInstanceId) ?? null)
     : null;
   // Both iOS search layouts float a bottom toolbar over the list's last rows.
@@ -940,15 +940,15 @@ function ThreadSettingsMainContent(props: {
   readonly onOpenSubmenu: (submenu: ThreadSettingsSubmenuPage) => void;
 }) {
   const session = useThreadSettingsSession();
-  const refreshProvidersCommand = useAtomCommand(serverEnvironment.refreshProviders, {
+  const refreshProvidersCommand = useAtomCommand(serverMachine.refreshProviders, {
     reportFailure: false,
   });
   const refreshProviderCatalog = createProviderCatalogRefreshRunner(refreshProvidersCommand);
   const [isRefreshingProviders, setIsRefreshingProviders] = useState(false);
   const refreshProviders = () => {
-    if (!session.environmentId || isRefreshingProviders) return;
+    if (!session.machineId || isRefreshingProviders) return;
     setIsRefreshingProviders(true);
-    void refreshProviderCatalog(session.environmentId).then((result) => {
+    void refreshProviderCatalog(session.machineId).then((result) => {
       setIsRefreshingProviders(false);
       const error = providerCatalogRefreshError(result);
       if (error) Dialog.alert("Could not refresh models", error);
@@ -1075,7 +1075,7 @@ function ThreadSettingsMainContent(props: {
       }
       recycleItems
       refreshControl={
-        session.environmentId ? (
+        session.machineId ? (
           <RefreshControl refreshing={isRefreshingProviders} onRefresh={refreshProviders} />
         ) : undefined
       }
@@ -1542,7 +1542,7 @@ export function NewTaskThreadSettingsRouteScreen() {
 
   return (
     <ThreadSettingsPickerScreen
-      environmentId={flow.selectedEnvironmentId}
+      machineId={flow.selectedMachineId}
       projectId={flow.selectedProject?.id ?? null}
       {...(flow.selectedModel ? { providerInstanceId: flow.selectedModel.instanceId } : {})}
       providerGroups={flow.providerGroups}

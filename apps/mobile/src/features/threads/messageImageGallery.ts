@@ -1,4 +1,4 @@
-import type { ChatAttachment, EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { ChatAttachment, MachineId, ThreadId } from "@vekrel/contracts";
 import { imageMimeType } from "@vekrel/shared/image";
 import type { FilePreviewItem } from "../../components/FilePreviewModal.types";
 import { markdownImageSources } from "../../lib/markdownImageSources";
@@ -7,7 +7,7 @@ import { resolveMarkdownMediaPreview } from "../../lib/markdownMedia";
 export function messageImageGallery(
   message: { readonly text: string; readonly attachments?: readonly ChatAttachment[] },
   context: {
-    environmentId: EnvironmentId;
+    machineId: MachineId;
     threadId: ThreadId;
     workspaceRoot: string | null | undefined;
   },
@@ -18,7 +18,7 @@ export function messageImageGallery(
     images.push({
       kind: "image",
       name: attachment.name,
-      environmentId: context.environmentId,
+      machineId: context.machineId,
       resource: {
         _tag: "attachment",
         attachmentId: attachment.id,

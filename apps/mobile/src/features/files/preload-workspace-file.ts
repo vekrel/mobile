@@ -1,14 +1,14 @@
 import { AuthFilesystemReadScope } from "@vekrel/contracts";
-import { readEnvironmentScope } from "../../state/session";
+import { readMachineScope } from "../../state/session";
 import { executeAtomQuery } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import {
   isWorkspaceBrowserPreviewPath,
   isWorkspaceImagePreviewPath,
 } from "@vekrel/shared/filePreview";
 
 import { appAtomRegistry } from "../../state/atom-registry";
-import { projectEnvironment } from "../../state/projects";
+import { projectMachine } from "../../state/projects";
 import { isVideoPreviewFile } from "./filePath";
 import { prepareSourceFileDocument } from "./source-file-document";
 import { sourceHighlightAtom } from "./sourceHighlightingState";
@@ -19,20 +19,20 @@ const MAX_HIGHLIGHT_PRELOAD_CHARACTERS = 256 * 1024;
 
 function preloadKey(input: {
   readonly cwd: string;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly relativePath: string;
 }): string {
-  return JSON.stringify([input.environmentId, input.cwd, input.relativePath]);
+  return JSON.stringify([input.machineId, input.cwd, input.relativePath]);
 }
 
 export function preloadWorkspaceFileContents(input: {
   readonly cwd: string;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly relativePath: string;
   readonly theme: ReviewDiffTheme;
 }): void {
   if (
-    !readEnvironmentScope(input.environmentId, AuthFilesystemReadScope) ||
+    !readMachineScope(input.machineId, AuthFilesystemReadScope) ||
     isWorkspaceBrowserPreviewPath(input.relativePath) ||
     isWorkspaceImagePreviewPath(input.relativePath) ||
     isVideoPreviewFile(input.relativePath)
@@ -47,8 +47,8 @@ export function preloadWorkspaceFileContents(input: {
 
   const preload = executeAtomQuery(
     appAtomRegistry,
-    projectEnvironment.readFile({
-      environmentId: input.environmentId,
+    projectMachine.readFile({
+      machineId: input.machineId,
       input: { cwd: input.cwd, relativePath: input.relativePath },
     }),
     {

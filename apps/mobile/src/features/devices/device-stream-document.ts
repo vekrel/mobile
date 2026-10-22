@@ -23,8 +23,8 @@ export function deviceStreamBaseUrl(
 ) {
   if (viewerPlatform !== "android") return "file:///";
   // Android targets stream through WebCodecs, which needs a secure context. iOS targets
-  // stream an MJPEG image from the environment, which a synthetic https document blocks as
-  // mixed content on plain-http environments even with mixedContentMode="always".
+  // stream an MJPEG image from the machine, which a synthetic https document blocks as
+  // mixed content on plain-http machines even with mixedContentMode="always".
   if (devicePlatform === "android") return "https://localhost/";
   return `${new URL(httpBase).origin}/`;
 }

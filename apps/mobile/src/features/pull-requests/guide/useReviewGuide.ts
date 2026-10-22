@@ -5,14 +5,14 @@ import { AsyncResult } from "effect/reactivity";
 import { useRef, useState } from "react";
 import { usePullRequestConnected } from "../usePullRequestConnected";
 import { composerPullRequests } from "../../../state/pull-requests";
-import { useEnvironmentQuery } from "../../../state/query";
-import { serverEnvironment } from "../../../state/server";
+import { useMachineQuery } from "../../../state/query";
+import { serverMachine } from "../../../state/server";
 import { useAtomCommand } from "../../../state/use-atom-command";
 import { pullRequestTarget, type PullRequestParams } from "../usePullRequestDiff";
 
 export function useReviewGuidesEnabled(params: PullRequestParams) {
   const settings = useAtomValue(
-    serverEnvironment.settingsValueAtom(pullRequestTarget(params).environmentId),
+    serverMachine.settingsValueAtom(pullRequestTarget(params).machineId),
   );
   return settings?.reviewGuidesEnabled === true;
 }
@@ -20,10 +20,10 @@ export function useReviewGuidesEnabled(params: PullRequestParams) {
 export function useReviewGuide(params: PullRequestParams) {
   const target = pullRequestTarget(params);
   const enabled = useReviewGuidesEnabled(params);
-  const query = useEnvironmentQuery(enabled ? composerPullRequests.reviewGuide(target) : null);
-  const connected = usePullRequestConnected(target.environmentId);
+  const query = useMachineQuery(enabled ? composerPullRequests.reviewGuide(target) : null);
+  const connected = usePullRequestConnected(target.machineId);
   const permitted = useAtomValue(
-    composerPullRequests.generateReviewGuide.permissionAtom(target.environmentId),
+    composerPullRequests.generateReviewGuide.permissionAtom(target.machineId),
   );
   const canWrite = connected && permitted;
   const generate = useAtomCommand(composerPullRequests.generateReviewGuide, {

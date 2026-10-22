@@ -1,7 +1,7 @@
 import { Button } from "../../components/ui/Button";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import * as Dialog from "../../components/ui/Dialog";
-import type { EnvironmentId, ThreadId, TurnItemId } from "@vekrel/contracts";
+import type { MachineId, ThreadId, TurnItemId } from "@vekrel/contracts";
 import {
   makeMcpAppHost,
   McpAppHostRefusal,
@@ -11,7 +11,7 @@ import {
   type McpAppHost,
   type McpAppHostContext,
 } from "@vekrel/client-runtime/mcp-apps";
-import { scopeThreadRef } from "@vekrel/client-runtime/environment";
+import { scopeThreadRef } from "@vekrel/client-runtime/machine";
 import { squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import { CommandId, MessageId } from "@vekrel/contracts";
 import {
@@ -35,9 +35,9 @@ import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
 import { uuidv4 } from "../../lib/uuid";
 import { useAssetUrlState } from "../../state/assets";
 import { useThreadShell } from "../../state/entities";
-import { mcpAppEnvironment } from "../../state/mcpApps";
-import { orchestrationEnvironment } from "../../state/orchestration";
-import { useEnvironmentQuery } from "../../state/query";
+import { mcpAppMachine } from "../../state/mcpApps";
+import { orchestrationMachine } from "../../state/orchestration";
+import { useMachineQuery } from "../../state/query";
 import { enqueueThreadOutboxMessage } from "../../state/thread-outbox";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
@@ -95,7 +95,7 @@ const MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024;
  * comes back when it closes.
  */
 export function ThreadMcpApp(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly conversationThreadId: ThreadId;
   readonly itemId: TurnItemId;
@@ -145,7 +145,7 @@ export function ThreadMcpApp(props: {
     }),
     [app],
   );
-  const asset = useAssetUrlState(props.environmentId, resource);
+  const asset = useAssetUrlState(props.machineId, resource);
   // The view keeps its first URL: a re-minted one would reload the app.
   const [uri, setUri] = useState<string | null>(null);
   if (uri === null && asset._tag === "Success") setUri(asset.url);
@@ -186,9 +186,9 @@ export function ThreadMcpApp(props: {
   }, [navigation, presentedFullscreen]);
 
   // The feed omits tool input and output; the app needs both.
-  const detail = useEnvironmentQuery(
-    orchestrationEnvironment.turnItem({
-      environmentId: props.environmentId,
+  const detail = useMachineQuery(
+    orchestrationMachine.turnItem({
+      machineId: props.machineId,
       input: { threadId: props.threadId, itemId: props.itemId, revision: props.revision },
     }),
   );
@@ -202,17 +202,17 @@ export function ThreadMcpApp(props: {
     };
   }, [storedItem]);
 
-  const callTool = useAtomCommand(mcpAppEnvironment.callTool, { reportFailure: false });
-  const toolInfo = useAtomCommand(mcpAppEnvironment.toolInfo, { reportFailure: false });
-  const readResource = useAtomCommand(mcpAppEnvironment.readResource, { reportFailure: false });
-  const updateModelContext = useAtomCommand(mcpAppEnvironment.updateModelContext, {
+  const callTool = useAtomCommand(mcpAppMachine.callTool, { reportFailure: false });
+  const toolInfo = useAtomCommand(mcpAppMachine.toolInfo, { reportFailure: false });
+  const readResource = useAtomCommand(mcpAppMachine.readResource, { reportFailure: false });
+  const updateModelContext = useAtomCommand(mcpAppMachine.updateModelContext, {
     reportFailure: false,
   });
   const [toolDefinition, setToolDefinition] = useState<unknown>(undefined);
   // Read by the host on every message, so it always sees current values
   // without being rebuilt (which would drop the app's session).
   const conversation = useThreadShell(
-    scopeThreadRef(props.environmentId, props.conversationThreadId),
+    scopeThreadRef(props.machineId, props.conversationThreadId),
   );
   const awaitingUser =
     conversation?.hasPendingApprovals === true || conversation?.hasPendingUserInput === true;
@@ -236,7 +236,7 @@ export function ThreadMcpApp(props: {
     let cancelled = false;
     void latest.current
       .toolInfo({
-        environmentId: props.environmentId,
+        machineId: props.machineId,
         input: { threadId: props.threadId, itemId: props.itemId, name: app.tool },
       })
       .then((info) => {
@@ -247,7 +247,7 @@ export function ThreadMcpApp(props: {
     return () => {
       cancelled = true;
     };
-  }, [props.environmentId, props.threadId, props.itemId, app.tool]);
+  }, [props.machineId, props.threadId, props.itemId, app.tool]);
   const webView = useRef<WebView<object>>(null);
   const hostRef = useRef<McpAppHost | null>(null);
   const userActive = useRef(false);
@@ -255,8 +255,8 @@ export function ThreadMcpApp(props: {
   useEffect(() => {
     if (uri === null) return;
     const scope = () => {
-      const { environmentId, threadId, itemId } = latest.current.props;
-      return { environmentId, input: { threadId, itemId } };
+      const { machineId, threadId, itemId } = latest.current.props;
+      return { machineId, input: { threadId, itemId } };
     };
     const hostContext = (): McpAppHostContext => {
       const current = latest.current;
@@ -294,8 +294,8 @@ export function ThreadMcpApp(props: {
         ),
       hostContext,
       callTool: async ({ name, arguments: args }) => {
-        const { environmentId, input } = scope();
-        const info = await latest.current.toolInfo({ environmentId, input: { ...input, name } });
+        const { machineId, input } = scope();
+        const info = await latest.current.toolInfo({ machineId, input: { ...input, name } });
         if (info._tag !== "Success") throw commandFailure(info);
         if (!info.value.callable) throw new McpAppHostRefusal("This app cannot call that tool.");
         if (
@@ -309,16 +309,16 @@ export function ThreadMcpApp(props: {
           throw new McpAppHostRefusal("Declined by the user.");
         }
         const result = await latest.current.callTool({
-          environmentId,
+          machineId,
           input: { ...input, name, arguments: args },
         });
         if (result._tag !== "Success") throw commandFailure(result);
         return result.value;
       },
       readResource: async ({ uri: resourceUri }) => {
-        const { environmentId, input } = scope();
+        const { machineId, input } = scope();
         const result = await latest.current.readResource({
-          environmentId,
+          machineId,
           input: { ...input, uri: resourceUri },
         });
         if (result._tag !== "Success") throw commandFailure(result);
@@ -339,7 +339,7 @@ export function ThreadMcpApp(props: {
           throw new McpAppHostRefusal("Declined by the user.");
         }
         await enqueueThreadOutboxMessage({
-          environmentId: latest.current.props.environmentId,
+          machineId: latest.current.props.machineId,
           threadId: latest.current.props.conversationThreadId,
           messageId: MessageId.make(uuidv4()),
           commandId: CommandId.make(uuidv4()),
@@ -350,9 +350,9 @@ export function ThreadMcpApp(props: {
         });
       },
       updateModelContext: async (context) => {
-        const { environmentId, input } = scope();
+        const { machineId, input } = scope();
         const result = await latest.current.updateModelContext({
-          environmentId,
+          machineId,
           input: {
             ...input,
             ...context,
@@ -382,7 +382,7 @@ export function ThreadMcpApp(props: {
           }
           setPresentedFullscreen(true);
           latest.current.navigation.navigate("ThreadMcpApp", {
-            environmentId: String(current.environmentId),
+            machineId: String(current.machineId),
             threadId: String(current.threadId),
             conversationThreadId: String(current.conversationThreadId),
             itemId: String(current.itemId),
@@ -408,9 +408,9 @@ export function ThreadMcpApp(props: {
           if (file._tag === "embedded") {
             bytes = file.bytes;
           } else {
-            const { environmentId, input } = scope();
+            const { machineId, input } = scope();
             const read = await latest.current.readResource({
-              environmentId,
+              machineId,
               input: { ...input, uri: file.uri },
             });
             if (read._tag !== "Success") throw commandFailure(read);

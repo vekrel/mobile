@@ -568,7 +568,7 @@ describe("composer file attachments", () => {
     expect(isForegroundHandoffActive()).toBe(false);
   });
 
-  it("rejects files that exceed the environment's advertised upload limit", async () => {
+  it("rejects files that exceed the machine's advertised upload limit", async () => {
     mocks.pickFile.mockResolvedValue({
       canceled: false,
       assets: [

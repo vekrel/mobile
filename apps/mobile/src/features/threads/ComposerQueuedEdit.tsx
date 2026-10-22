@@ -1,5 +1,5 @@
 import { Button } from "../../components/ui/Button";
-import type { ChatAttachment, EnvironmentId } from "@vekrel/contracts";
+import type { ChatAttachment, MachineId } from "@vekrel/contracts";
 import { Image } from "expo-image";
 import { Pressable, ScrollView, View } from "react-native";
 
@@ -30,7 +30,7 @@ export function ComposerQueuedEditBanner(props: {
 }
 
 export function ComposerQueuedEditAttachments(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachments: ReadonlyArray<ChatAttachment>;
   readonly disabled: boolean;
   readonly onRemove: (attachmentId: string) => void;
@@ -47,7 +47,7 @@ export function ComposerQueuedEditAttachments(props: {
       {props.attachments.map((attachment) => (
         <QueuedEditAttachmentChip
           key={attachment.id}
-          environmentId={props.environmentId}
+          machineId={props.machineId}
           attachment={attachment}
           disabled={props.disabled}
           onRemove={props.onRemove}
@@ -58,7 +58,7 @@ export function ComposerQueuedEditAttachments(props: {
 }
 
 function QueuedEditAttachmentChip(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachment: ChatAttachment;
   readonly disabled: boolean;
   readonly onRemove: (attachmentId: string) => void;
@@ -72,13 +72,13 @@ function QueuedEditAttachmentChip(props: {
     mimeType: attachment.mimeType,
     disposition: "inline",
   } as const;
-  const url = useAssetUrl(props.environmentId, isImage ? resource : null);
+  const url = useAssetUrl(props.machineId, isImage ? resource : null);
 
   return (
     <View className="max-w-[180px] flex-row items-center gap-2 rounded-xl border border-border bg-card py-1 pl-1 pr-2">
       {isImage && url !== null ? (
         <Image
-          source={assetImageSource(props.environmentId, resource, url)}
+          source={assetImageSource(props.machineId, resource, url)}
           cachePolicy="memory-disk"
           contentFit="cover"
           style={{ width: 24, height: 24, borderRadius: 6 }}

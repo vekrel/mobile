@@ -1,9 +1,9 @@
-import { EnvironmentRegistry } from "@vekrel/client-runtime/connection";
-import { EnvironmentRpcSubscriptionObserver, request } from "@vekrel/client-runtime/rpc";
+import { MachineRegistry } from "@vekrel/client-runtime/connection";
+import { MachineRpcSubscriptionObserver, request } from "@vekrel/client-runtime/rpc";
 import {
   type BackgroundScope,
   type ClientActivityReportInput,
-  type EnvironmentId,
+  type MachineId,
   WS_METHODS,
 } from "@vekrel/contracts";
 import * as Clock from "effect/Clock";
@@ -37,15 +37,15 @@ function normalizeAppState(
 }
 
 export const layerObserver = Layer.succeed(
-  EnvironmentRpcSubscriptionObserver,
-  EnvironmentRpcSubscriptionObserver.of({
+  MachineRpcSubscriptionObserver,
+  MachineRpcSubscriptionObserver.of({
     observe: observeMobileBackgroundActivitySubscription,
   }),
 );
 
 export const layerReporter = Layer.effectDiscard(
   Effect.gen(function* () {
-    const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
+    const registry = yield* MachineRegistry.MachineRegistry;
     const storage = yield* MobileStorage.MobileStorage;
     const clientId = yield* storage.loadOrCreateAgentAwarenessDeviceId.pipe(
       Effect.map((deviceId) => `mobile-${deviceId}`),
@@ -61,12 +61,12 @@ export const layerReporter = Layer.effectDiscard(
       const entries = yield* SubscriptionRef.get(registry.entries);
       yield* Effect.forEach(
         entries.keys(),
-        (environmentId) =>
+        (machineId) =>
           registry
             .run(
-              environmentId,
+              machineId,
               request(WS_METHODS.serverReportClientActivity, {
-                environmentId: environmentId as EnvironmentId,
+                machineId: machineId as MachineId,
                 clientId,
                 clientKind: "mobile",
                 visible: active,
@@ -75,13 +75,13 @@ export const layerReporter = Layer.effectDiscard(
                 appState: normalizeAppState(appState),
                 scopes: [
                   ...BASELINE_SCOPES,
-                  ...retainedMobileBackgroundScopes(environmentId as EnvironmentId),
+                  ...retainedMobileBackgroundScopes(machineId as MachineId),
                 ],
                 ttlMs: LEASE_TTL_MS,
                 observedAt: DateTime.makeUnsafe(observedAtMs),
               }),
             )
-            // Not `ignore`: tearing down an environment mid-request interrupts its report,
+            // Not `ignore`: tearing down a machine mid-request interrupts its report,
             // and an interrupt leaking out here would end the reporting loop for good.
             .pipe(Effect.ignoreCause),
         { concurrency: "unbounded", discard: true },

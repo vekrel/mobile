@@ -10,13 +10,13 @@ const state = vi.hoisted(() => ({
   worktrees: [] as string[],
   thread: {
     id: "thread",
-    environmentId: "environment",
+    machineId: "machine",
     branch: "main",
     worktreePath: null as string | null,
   },
   commits: 0,
   pushes: 0,
-  metadataRequests: [] as { environmentId: string; branch: string }[],
+  metadataRequests: [] as { machineId: string; branch: string }[],
   results: [] as { type: string; description?: string }[],
   afterGitAction: undefined as (() => void) | undefined,
   statusRefreshes: 0,
@@ -29,10 +29,10 @@ vi.mock("react", () => ({
   useEffectEvent: (callback: unknown) => callback,
 }));
 vi.mock("./session", () => ({
-  useEnvironmentScope: (environmentId: unknown, scope: string) =>
-    (environmentId === state.thread.environmentId ? state.scopes : state.primaryScopes).has(scope),
-  readEnvironmentScope: (environmentId: unknown, scope: string) =>
-    (environmentId === state.thread.environmentId ? state.scopes : state.primaryScopes).has(scope),
+  useMachineScope: (machineId: unknown, scope: string) =>
+    (machineId === state.thread.machineId ? state.scopes : state.primaryScopes).has(scope),
+  readMachineScope: (machineId: unknown, scope: string) =>
+    (machineId === state.thread.machineId ? state.scopes : state.primaryScopes).has(scope),
 }));
 vi.mock("./use-thread-selection", () => ({
   useThreadSelection: () => ({
@@ -51,22 +51,22 @@ vi.mock("./queries", () => ({
 }));
 vi.mock("./use-atom-command", () => ({ useAtomCommand: (command: unknown) => command }));
 vi.mock("./atom-registry", () => ({ appAtomRegistry: {} }));
-vi.mock("./use-remote-environment-registry", () => ({ setPendingConnectionError: () => {} }));
+vi.mock("./use-remote-machine-registry", () => ({ setPendingConnectionError: () => {} }));
 vi.mock("./use-vcs-action-state", () => ({
   showGitActionResult: (result: { type: string; description?: string }) =>
     state.results.push(result),
 }));
 vi.mock("../lib/uuid", () => ({ uuidv4: () => "action" }));
 vi.mock("./threads", () => ({
-  threadEnvironment: {
+  threadMachine: {
     updateMetadata: async ({
-      environmentId,
+      machineId,
       input,
     }: {
-      environmentId: string;
+      machineId: string;
       input: { branch: string; worktreePath: string | null };
     }) => {
-      state.metadataRequests.push({ environmentId, branch: input.branch });
+      state.metadataRequests.push({ machineId, branch: input.branch });
       if (!state.scopes.has(AuthOrchestrationOperateScope)) {
         return AsyncResult.failure(Cause.fail(new Error("Task operation denied")));
       }
@@ -76,7 +76,7 @@ vi.mock("./threads", () => ({
   },
 }));
 vi.mock("./vcs", () => ({
-  vcsEnvironment: {
+  vcsMachine: {
     refreshStatus: async () => {
       state.statusRefreshes += 1;
       return AsyncResult.success({ refName: state.branch });

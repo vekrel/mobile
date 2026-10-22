@@ -1,10 +1,10 @@
-import { DEFAULT_SERVER_SETTINGS, EnvironmentId, ProjectId } from "@vekrel/contracts";
+import { DEFAULT_SERVER_SETTINGS, MachineId, ProjectId } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { planAutoSettleSettingsSync } from "./autoSettleSettingsSync";
 
 const reference = {
-  environmentId: EnvironmentId.make("reference"),
+  machineId: MachineId.make("reference"),
   settings: {
     ...DEFAULT_SERVER_SETTINGS,
     sidebarAutoSettleAfterDays: 7,
@@ -15,9 +15,9 @@ const reference = {
 };
 
 describe("auto-settle settings sync", () => {
-  it("ignores differences in independently configured environment settings", () => {
+  it("ignores differences in independently configured machine settings", () => {
     const target = {
-      environmentId: EnvironmentId.make("remote"),
+      machineId: MachineId.make("remote"),
       label: "Remote",
       settings: {
         ...reference.settings,
@@ -25,7 +25,7 @@ describe("auto-settle settings sync", () => {
         continueThreadsAfterServerUpdate: true,
         sourceControlWritingStyle: {
           ...reference.settings.sourceControlWritingStyle,
-          customInstructions: "Keep this environment's writing instructions.",
+          customInstructions: "Keep this machine's writing instructions.",
         },
       },
     };
@@ -39,9 +39,9 @@ describe("auto-settle settings sync", () => {
     });
   });
 
-  it("applies only auto-settle defaults when another environment differs", () => {
+  it("applies only auto-settle defaults when another machine differs", () => {
     const target = {
-      environmentId: EnvironmentId.make("remote"),
+      machineId: MachineId.make("remote"),
       label: "Remote",
       settings: {
         ...reference.settings,
@@ -67,10 +67,10 @@ describe("auto-settle settings sync", () => {
     expect(updated.sourceControlWritingStyle).toEqual(target.settings.sourceControlWritingStyle);
   });
 
-  it("notices different project checkouts on the same environment", () => {
+  it("notices different project checkouts on the same machine", () => {
     const projectReference = { ...reference, projectId: ProjectId.make("one") };
     const otherCheckout = {
-      environmentId: reference.environmentId,
+      machineId: reference.machineId,
       projectId: ProjectId.make("two"),
       label: "Other checkout",
       settings: { ...reference.settings, sidebarAutoSettleAfterDays: null },

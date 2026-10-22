@@ -3,11 +3,11 @@ import { nativePullRequestDestination } from "../lib/pullRequestNavigation";
 import { useCallback } from "react";
 import { Platform } from "react-native";
 import { resetAndroidWorkspace } from "../lib/android-workspace-navigation";
-import { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import { MachineId, ThreadId } from "@vekrel/contracts";
 import { useThreadShell } from "../state/entities";
 import { tryOpenExternalUrl } from "../lib/openExternalUrl";
 
-type PullRequestContext = { readonly environmentId: string; readonly projectId: string };
+type PullRequestContext = { readonly machineId: string; readonly projectId: string };
 
 // Route-free so navigator layouts such as the workspace sidebar, which have no
 // route context for useRoute, can open pull requests for any thread.
@@ -35,7 +35,7 @@ export function useOpenPullRequest(options?: {
   const route = useRoute();
   const routeContext = route.params as
     | {
-        environmentId?: string | string[];
+        machineId?: string | string[];
         projectId?: string | string[];
         threadId?: string | string[];
       }
@@ -44,11 +44,11 @@ export function useOpenPullRequest(options?: {
     const text = Array.isArray(value) ? value[0] : value;
     return text?.trim() ? text : undefined;
   };
-  const environmentId = options?.context?.environmentId ?? first(routeContext?.environmentId);
+  const machineId = options?.context?.machineId ?? first(routeContext?.machineId);
   const threadId = first(routeContext?.threadId);
   const thread = useThreadShell(
-    environmentId && threadId
-      ? { environmentId: EnvironmentId.make(environmentId), threadId: ThreadId.make(threadId) }
+    machineId && threadId
+      ? { machineId: MachineId.make(machineId), threadId: ThreadId.make(threadId) }
       : null,
   );
   const projectId =
@@ -58,10 +58,10 @@ export function useOpenPullRequest(options?: {
     (url: string) =>
       navigateToPullRequest(
         url,
-        environmentId && projectId
-          ? { environmentId: String(environmentId), projectId: String(projectId) }
+        machineId && projectId
+          ? { machineId: String(machineId), projectId: String(projectId) }
           : null,
       ),
-    [environmentId, projectId, navigateToPullRequest],
+    [machineId, projectId, navigateToPullRequest],
   );
 }

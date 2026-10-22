@@ -1,5 +1,5 @@
 import { MISSING_FILE_ACCESS_MESSAGE } from "@vekrel/client-runtime/state/assets";
-import type { AssetResource, EnvironmentId } from "@vekrel/contracts";
+import type { AssetResource, MachineId } from "@vekrel/contracts";
 import { Image } from "expo-image";
 import { createContext, useContext, useEffect, useEffectEvent, useId, useState } from "react";
 import { fetch } from "expo/fetch";
@@ -237,7 +237,7 @@ function ThreadMarkdownSvg(props: {
 }
 
 export function ThreadMarkdownImage(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly resource: Extract<
     AssetResource,
     { readonly _tag: "attachment" | "media-file" | "draft-workspace-file" | "tool-output-image" }
@@ -248,7 +248,7 @@ export function ThreadMarkdownImage(props: {
   readonly onPressPreview: (source: FilePreviewSource) => void;
 }) {
   const withGallery = useFilePreviewGallery();
-  const assetUrl = useAssetUrlState(props.environmentId, props.resource);
+  const assetUrl = useAssetUrlState(props.machineId, props.resource);
 
   return (
     <ThreadMarkdownImageView
@@ -281,7 +281,7 @@ export function ThreadMarkdownImage(props: {
           withGallery({
             ...rest,
             gallery: undefined,
-            environmentId: props.environmentId,
+            machineId: props.machineId,
             resource: props.resource,
           }),
         );

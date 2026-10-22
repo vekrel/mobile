@@ -132,7 +132,7 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
       {
         name: "SubscriptionUsage",
         displayName: "Subscription usage",
-        description: "Subscription quotas from your connected Vekrel environments.",
+        description: "Subscription quotas from your connected Vekrel machines.",
         ios: {
           configuration: {
             title: "Subscription usage",

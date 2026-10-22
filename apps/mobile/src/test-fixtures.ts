@@ -1,9 +1,9 @@
 import {
   presentThreadShell,
-  type EnvironmentThreadShell,
+  type MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import {
-  EnvironmentId,
+  MachineId,
   ProjectId,
   ProviderInstanceId,
   ThreadId,
@@ -54,9 +54,9 @@ export function makeRawThreadShell(
 }
 
 export function makeThreadShellFixture(
-  overrides: Partial<EnvironmentThreadShell> = {},
-): EnvironmentThreadShell {
-  const environmentId = overrides.environmentId ?? EnvironmentId.make("environment-test");
+  overrides: Partial<MachineThreadShell> = {},
+): MachineThreadShell {
+  const machineId = overrides.machineId ?? MachineId.make("machine-test");
   const raw = makeRawThreadShell({
     id: overrides.id,
     projectId: overrides.projectId,
@@ -68,5 +68,5 @@ export function makeThreadShellFixture(
     branch: overrides.branch,
     worktreePath: overrides.worktreePath,
   });
-  return { ...presentThreadShell(environmentId, raw), ...overrides };
+  return { ...presentThreadShell(machineId, raw), ...overrides };
 }

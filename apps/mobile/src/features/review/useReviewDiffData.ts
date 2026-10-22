@@ -14,14 +14,14 @@ import {
 } from "./reviewModel";
 
 import type {
-  EnvironmentId,
+  MachineId,
   ReviewDiffFileStat,
   ReviewDiffPreviewSource,
 } from "@vekrel/contracts";
 import { RegistryContext, useAtomValue } from "@effect/atom-react";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
-import { reviewEnvironment } from "../../state/review";
+import { reviewMachine } from "../../state/review";
 
 const EMPTY_INLINE_REVIEW_COMMENTS = Object.freeze([]);
 type ParsedFilePatch = AsyncResult.AsyncResult<
@@ -123,7 +123,7 @@ export function formatHeaderDiffSummary(
 
 export function useReviewDiffData(input: {
   readonly threadKey: string | null;
-  readonly environmentId: EnvironmentId | undefined;
+  readonly machineId: MachineId | undefined;
   readonly cwd: string | null;
   readonly selectedSection: ReviewSectionItem | null;
   readonly revision: string | undefined;
@@ -147,9 +147,9 @@ export function useReviewDiffData(input: {
     [lazySource, selectedSection?.diff, selectedSection?.id, threadKey],
   );
   const registry = useContext(RegistryContext);
-  const { environmentId, cwd } = input;
+  const { machineId, cwd } = input;
   const scope = JSON.stringify([
-    environmentId,
+    machineId,
     cwd,
     source?.kind,
     source?.baseRef,
@@ -162,12 +162,12 @@ export function useReviewDiffData(input: {
   );
   const queries = useMemo(
     () =>
-      !environmentId || !cwd || !lazySource
+      !machineId || !cwd || !lazySource
         ? []
         : (lazySource.files ?? []).map((file, index) =>
             indices.has(index)
-              ? reviewEnvironment.diffFilePatch({
-                  environmentId,
+              ? reviewMachine.diffFilePatch({
+                  machineId,
                   input: {
                     cacheKey: scope,
                     request: {
@@ -183,11 +183,11 @@ export function useReviewDiffData(input: {
                 })
               : null,
           ),
-    [environmentId, cwd, lazySource, indices, scope],
+    [machineId, cwd, lazySource, indices, scope],
   );
   const parsedQuery = useMemo(
     () =>
-      Atom.family((query: ReturnType<typeof reviewEnvironment.diffFilePatch>) =>
+      Atom.family((query: ReturnType<typeof reviewMachine.diffFilePatch>) =>
         Atom.map(query, (result) =>
           AsyncResult.map(result, (source) => ({
             source,

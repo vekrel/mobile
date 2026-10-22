@@ -1,6 +1,6 @@
 import { presentThreadShell } from "@vekrel/client-runtime/state/shell";
 import type {
-  EnvironmentId,
+  MachineId,
   ThreadId,
   ProjectId,
   ModelSelection,
@@ -10,7 +10,7 @@ import type {
 import * as DateTime from "effect/DateTime";
 
 export function draftThreadShell(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly projectId: ProjectId;
   readonly modelSelection: ModelSelection;
@@ -21,7 +21,7 @@ export function draftThreadShell(input: {
   readonly createdAt: string;
 }) {
   const timestamp = DateTime.makeUnsafe(input.createdAt);
-  return presentThreadShell(input.environmentId, {
+  return presentThreadShell(input.machineId, {
     id: input.threadId,
     projectId: input.projectId,
     title: "New thread",

@@ -1,8 +1,8 @@
 import type {
-  EnvironmentProject,
-  EnvironmentThreadShell,
+  MachineProject,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
-import { EnvironmentId, ProjectId, ProviderInstanceId, ThreadId } from "@vekrel/contracts";
+import { MachineId, ProjectId, ProviderInstanceId, ThreadId } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { buildHomeProjectScopes, findHomeProjectScope } from "./homeThreadList";
@@ -10,8 +10,8 @@ import { makeThreadShellFixture } from "../../test-fixtures";
 import { buildThreadListV2Items } from "../threads/threadListV2";
 
 function makeProject(
-  input: Partial<EnvironmentProject> & Pick<EnvironmentProject, "environmentId" | "id" | "title">,
-): EnvironmentProject {
+  input: Partial<MachineProject> & Pick<MachineProject, "machineId" | "id" | "title">,
+): MachineProject {
   return {
     workspaceRoot: `/workspaces/${input.id}`,
     repositoryIdentity: null,
@@ -24,9 +24,9 @@ function makeProject(
 }
 
 function makeThread(
-  input: Partial<EnvironmentThreadShell> &
-    Pick<EnvironmentThreadShell, "environmentId" | "id" | "projectId" | "title">,
-): EnvironmentThreadShell {
+  input: Partial<MachineThreadShell> &
+    Pick<MachineThreadShell, "machineId" | "id" | "projectId" | "title">,
+): MachineThreadShell {
   return makeThreadShellFixture({
     modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "gpt-5.4" },
     runtimeMode: "full-access",
@@ -45,33 +45,33 @@ function makeThread(
 }
 
 describe("home project scopes", () => {
-  it("filters threads across both scratch hosts while retaining the selected environment boundary", () => {
-    const localEnvironmentId = EnvironmentId.make("local");
-    const remoteEnvironmentId = EnvironmentId.make("remote");
+  it("filters threads across both scratch hosts while retaining the selected machine boundary", () => {
+    const localMachineId = MachineId.make("local");
+    const remoteMachineId = MachineId.make("remote");
     const projects = [
       makeProject({
-        environmentId: localEnvironmentId,
+        machineId: localMachineId,
         id: ProjectId.make("scratch-local"),
         title: "No project",
         workspaceRoot: "/local/scratch",
         isScratch: true,
       }),
       makeProject({
-        environmentId: remoteEnvironmentId,
+        machineId: remoteMachineId,
         id: ProjectId.make("scratch-remote"),
         title: "No project",
         workspaceRoot: "/remote/scratch",
         isScratch: true,
       }),
       makeProject({
-        environmentId: remoteEnvironmentId,
+        machineId: remoteMachineId,
         id: ProjectId.make("ordinary"),
         title: "No project",
       }),
     ];
     const threads = projects.map((project) =>
       makeThread({
-        environmentId: project.environmentId,
+        machineId: project.machineId,
         projectId: project.id,
         id: ThreadId.make(`thread-${project.id}`),
         title: project.id,
@@ -79,14 +79,14 @@ describe("home project scopes", () => {
     );
     const scopes = buildHomeProjectScopes({
       projects,
-      environmentId: null,
+      machineId: null,
       projectGroupingMode: "separate",
     });
     expect(scopes).toHaveLength(2);
     const scratchScope = scopes.find((scope) => scope.representative.isScratch)!;
     const filtered = buildThreadListV2Items({
       threads,
-      environmentId: null,
+      machineId: null,
       projectRefs: scratchScope.projectRefs,
       searchQuery: "",
       now: "2026-06-01T00:00:00.000Z",
@@ -99,18 +99,18 @@ describe("home project scopes", () => {
     );
     const remoteScopes = buildHomeProjectScopes({
       projects,
-      environmentId: remoteEnvironmentId,
+      machineId: remoteMachineId,
       projectGroupingMode: "separate",
     });
     const remoteScratch = remoteScopes.find((scope) => scope.representative.isScratch)!;
     expect(remoteScratch.key).toBe(scratchScope.key);
     expect(remoteScratch.projectRefs).toEqual([
-      { environmentId: remoteEnvironmentId, projectId: projects[1]!.id },
+      { machineId: remoteMachineId, projectId: projects[1]!.id },
     ]);
     expect(
       buildThreadListV2Items({
         threads,
-        environmentId: remoteEnvironmentId,
+        machineId: remoteMachineId,
         projectRefs: remoteScratch.projectRefs,
         searchQuery: "",
         now: "2026-06-01T00:00:00.000Z",
@@ -119,8 +119,8 @@ describe("home project scopes", () => {
   });
 
   it("keeps repository identity from an older duplicate when the freshness winner lacks it", () => {
-    const localEnvironmentId = EnvironmentId.make("environment-local");
-    const remoteEnvironmentId = EnvironmentId.make("environment-remote");
+    const localMachineId = MachineId.make("machine-local");
+    const remoteMachineId = MachineId.make("machine-remote");
     const repositoryIdentity = {
       canonicalKey: "github.com/pingdotgg/t3code",
       locator: {
@@ -131,13 +131,13 @@ describe("home project scopes", () => {
     };
     const projects = [
       makeProject({
-        environmentId: localEnvironmentId,
+        machineId: localMachineId,
         id: ProjectId.make("project-local"),
         title: "vekrel",
         repositoryIdentity,
       }),
       makeProject({
-        environmentId: remoteEnvironmentId,
+        machineId: remoteMachineId,
         id: ProjectId.make("project-remote-with-identity"),
         title: "vekrel",
         workspaceRoot: "/remote/t3code",
@@ -145,7 +145,7 @@ describe("home project scopes", () => {
         updatedAt: "2026-06-01T00:00:00.000Z",
       }),
       makeProject({
-        environmentId: remoteEnvironmentId,
+        machineId: remoteMachineId,
         id: ProjectId.make("project-remote-fresh"),
         title: "vekrel",
         workspaceRoot: "/remote/t3code/",
@@ -155,7 +155,7 @@ describe("home project scopes", () => {
 
     const scopes = buildHomeProjectScopes({
       projects,
-      environmentId: null,
+      machineId: null,
       projectGroupingMode: "repository",
     });
 
@@ -168,10 +168,10 @@ describe("home project scopes", () => {
   });
 
   it("does not merge unrelated repositories that share a title", () => {
-    const environmentId = EnvironmentId.make("environment-1");
+    const machineId = MachineId.make("machine-1");
     const projects = ["one", "two"].map((name) =>
       makeProject({
-        environmentId,
+        machineId,
         id: ProjectId.make(`project-${name}`),
         title: "app",
         repositoryIdentity: {
@@ -188,38 +188,38 @@ describe("home project scopes", () => {
     expect(
       buildHomeProjectScopes({
         projects,
-        environmentId: null,
+        machineId: null,
         projectGroupingMode: "repository",
       }),
     ).toHaveLength(2);
   });
 
   it("prefers an exact scope key over a project ID that collides with it", () => {
-    const environmentId = EnvironmentId.make("environment-local");
+    const machineId = MachineId.make("machine-local");
     const collidingProject = makeProject({
-      environmentId,
+      machineId,
       id: ProjectId.make("/workspaces/target"),
       title: "Colliding",
       workspaceRoot: "/workspaces/colliding",
     });
     const targetProject = makeProject({
-      environmentId,
+      machineId,
       id: ProjectId.make("project-target"),
       title: "Target",
       workspaceRoot: "/workspaces/target",
     });
     const scopes = buildHomeProjectScopes({
       projects: [collidingProject, targetProject],
-      environmentId: null,
+      machineId: null,
       projectGroupingMode: "separate",
     });
     const targetScope = scopes.find((scope) => scope.title === "Target");
     expect(scopes.map((scope) => scope.title)).toEqual(["Colliding", "Target"]);
-    expect(targetScope?.key).toBe("environment-local:/workspaces/target");
+    expect(targetScope?.key).toBe("machine-local:/workspaces/target");
 
-    expect(findHomeProjectScope(scopes, "environment-local:/workspaces/target")).toBe(targetScope);
-    expect(findHomeProjectScope(scopes, "environment-local:project-target")).toBe(targetScope);
-    expect(findHomeProjectScope(scopes, "environment-local:missing")).toBeNull();
+    expect(findHomeProjectScope(scopes, "machine-local:/workspaces/target")).toBe(targetScope);
+    expect(findHomeProjectScope(scopes, "machine-local:project-target")).toBe(targetScope);
+    expect(findHomeProjectScope(scopes, "machine-local:missing")).toBeNull();
     expect(findHomeProjectScope(scopes, null)).toBeNull();
   });
 });

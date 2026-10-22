@@ -1,26 +1,26 @@
-import { canCreateProjectInEnvironment } from "@vekrel/client-runtime/operations/projects";
-import type { EnvironmentConnectionPhase } from "@vekrel/client-runtime/connection";
-import type { EnvironmentId } from "@vekrel/contracts";
+import { canCreateProjectInMachine } from "@vekrel/client-runtime/operations/projects";
+import type { MachineConnectionPhase } from "@vekrel/client-runtime/connection";
+import type { MachineId } from "@vekrel/contracts";
 
-export function resolveAddProjectEnvironment<
+export function resolveAddProjectMachine<
   T extends {
-    readonly environmentId: EnvironmentId;
-    readonly connectionState: EnvironmentConnectionPhase;
+    readonly machineId: MachineId;
+    readonly connectionState: MachineConnectionPhase;
   },
->(environmentOptions: ReadonlyArray<T>, requestedEnvironmentId: EnvironmentId | null): T | null {
-  if (requestedEnvironmentId !== null) {
+>(machineOptions: ReadonlyArray<T>, requestedMachineId: MachineId | null): T | null {
+  if (requestedMachineId !== null) {
     return (
-      environmentOptions.find(
-        (environment) =>
-          environment.environmentId === requestedEnvironmentId &&
-          canCreateProjectInEnvironment(environment.connectionState),
+      machineOptions.find(
+        (machine) =>
+          machine.machineId === requestedMachineId &&
+          canCreateProjectInMachine(machine.connectionState),
       ) ?? null
     );
   }
 
   return (
-    environmentOptions.find((environment) =>
-      canCreateProjectInEnvironment(environment.connectionState),
+    machineOptions.find((machine) =>
+      canCreateProjectInMachine(machine.connectionState),
     ) ?? null
   );
 }

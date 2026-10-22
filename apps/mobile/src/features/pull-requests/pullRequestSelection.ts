@@ -10,16 +10,16 @@ export function selectedPullRequestKey(state: Pick<NavigationState, "routes" | "
     const params = route.params;
     if (
       params &&
-      "environmentId" in params &&
+      "machineId" in params &&
       "host" in params &&
       "repository" in params &&
       "number" in params &&
-      typeof params.environmentId === "string" &&
+      typeof params.machineId === "string" &&
       typeof params.host === "string" &&
       typeof params.repository === "string" &&
       typeof params.number === "number"
     ) {
-      return `${params.environmentId}:${pullRequestListKey({
+      return `${params.machineId}:${pullRequestListKey({
         host: params.host,
         repository: params.repository,
         number: params.number,

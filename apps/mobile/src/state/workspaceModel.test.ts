@@ -1,39 +1,39 @@
-import type { EnvironmentShellSummary } from "@vekrel/client-runtime/state/shell";
+import type { MachineShellSummary } from "@vekrel/client-runtime/state/shell";
 import {
   BearerConnectionProfile,
   BearerConnectionTarget,
 } from "@vekrel/client-runtime/connection";
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Option from "effect/Option";
 
-import { projectWorkspaceEnvironment, projectWorkspaceState } from "./workspaceModel";
-import type { EnvironmentPresentation } from "./environments";
+import { projectWorkspaceMachine, projectWorkspaceState } from "./workspaceModel";
+import type { MachinePresentation } from "./machines";
 
-const ENVIRONMENT_ID = EnvironmentId.make("environment-1");
+const MACHINE_ID = MachineId.make("machine-1");
 
-function environment(
-  phase: EnvironmentPresentation["connection"]["phase"],
-): EnvironmentPresentation {
-  const connectionId = `bearer:${ENVIRONMENT_ID}`;
+function machine(
+  phase: MachinePresentation["connection"]["phase"],
+): MachinePresentation {
+  const connectionId = `bearer:${MACHINE_ID}`;
   return {
-    environmentId: ENVIRONMENT_ID,
+    machineId: MACHINE_ID,
     label: "Julius's MacBook Pro",
-    displayUrl: "https://environment.example.test",
+    displayUrl: "https://machine.example.test",
     relayManaged: false,
     entry: {
       target: new BearerConnectionTarget({
-        environmentId: ENVIRONMENT_ID,
+        machineId: MACHINE_ID,
         label: "Julius's MacBook Pro",
         connectionId,
       }),
       profile: Option.some(
         new BearerConnectionProfile({
           connectionId,
-          environmentId: ENVIRONMENT_ID,
+          machineId: MACHINE_ID,
           label: "Julius's MacBook Pro",
-          httpBaseUrl: "https://environment.example.test",
-          wsBaseUrl: "wss://environment.example.test",
+          httpBaseUrl: "https://machine.example.test",
+          wsBaseUrl: "wss://machine.example.test",
         }),
       ),
       enabled: true,
@@ -47,7 +47,7 @@ function environment(
   };
 }
 
-const EMPTY_SHELL_SUMMARY: EnvironmentShellSummary = {
+const EMPTY_SHELL_SUMMARY: MachineShellSummary = {
   hasSnapshot: false,
   hasSynchronizingShell: false,
   hasCachedShell: false,
@@ -55,7 +55,7 @@ const EMPTY_SHELL_SUMMARY: EnvironmentShellSummary = {
   firstError: null,
 };
 
-const CACHED_SHELL_SUMMARY: EnvironmentShellSummary = {
+const CACHED_SHELL_SUMMARY: MachineShellSummary = {
   ...EMPTY_SHELL_SUMMARY,
   hasSnapshot: true,
   hasSynchronizingShell: true,
@@ -64,34 +64,34 @@ const CACHED_SHELL_SUMMARY: EnvironmentShellSummary = {
 
 describe("mobile workspace projection", () => {
   it("reports offline before stale connected presentations", () => {
-    const environments = [projectWorkspaceEnvironment(ENVIRONMENT_ID, environment("connected"))];
+    const machines = [projectWorkspaceMachine(MACHINE_ID, machine("connected"))];
     const state = projectWorkspaceState({
       isReady: true,
       networkStatus: "offline",
-      environments,
+      machines,
       shellSummary: EMPTY_SHELL_SUMMARY,
-      hasSyncingConnectedEnvironment: false,
+      hasSyncingConnectedMachine: false,
     });
 
     expect(state.connectionState).toBe("offline");
     expect(state.networkStatus).toBe("offline");
-    expect(state.hasReadyEnvironment).toBe(false);
+    expect(state.hasReadyMachine).toBe(false);
   });
 
   it("keeps retained snapshots visible while reconnecting without claiming readiness", () => {
-    const environments = [projectWorkspaceEnvironment(ENVIRONMENT_ID, environment("reconnecting"))];
+    const machines = [projectWorkspaceMachine(MACHINE_ID, machine("reconnecting"))];
     const state = projectWorkspaceState({
       isReady: true,
       networkStatus: "online",
-      environments,
+      machines,
       shellSummary: CACHED_SHELL_SUMMARY,
-      hasSyncingConnectedEnvironment: false,
+      hasSyncingConnectedMachine: false,
     });
 
     expect(state.hasLoadedShellSnapshot).toBe(true);
     expect(state.hasPendingShellSnapshot).toBe(true);
-    expect(state.hasSyncingConnectedEnvironment).toBe(false);
-    expect(state.hasReadyEnvironment).toBe(false);
+    expect(state.hasSyncingConnectedMachine).toBe(false);
+    expect(state.hasReadyMachine).toBe(false);
     expect(state.connectionState).toBe("reconnecting");
   });
 });

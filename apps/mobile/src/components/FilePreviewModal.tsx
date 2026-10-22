@@ -35,9 +35,9 @@ function PreviewItemResolver(props: {
   readonly onOpenError?: (error: unknown) => void;
 }) {
   const { source } = props;
-  const environmentId = "environmentId" in source ? source.environmentId : null;
+  const machineId = "machineId" in source ? source.machineId : null;
   const refreshAssetUrl = useRefreshAssetUrl(
-    environmentId,
+    machineId,
     "resource" in source ? source.resource : null,
   );
   // Resolve once per presentation; background URL refreshes must not reopen the native viewer.
@@ -50,27 +50,27 @@ function PreviewItemResolver(props: {
   });
   useEffect(() => Keyboard.dismiss(), []);
   useEffect(() => {
-    if (environmentId === null || uri !== null) return;
+    if (machineId === null || uri !== null) return;
     let cancelled = false;
     // A cached URL may have expired while the app was suspended. Await reauthorization
     // before handing a URL to Quick Look or ACTION_VIEW, which retain that URL.
     void refreshAssetUrl()
       .then((url) => {
         if (cancelled) return;
-        if (!url) throw new Error("Reconnect to this environment and try again.");
+        if (!url) throw new Error("Reconnect to this machine and try again.");
         setUri(url + (source.srcFragment ?? ""));
       })
       .catch((error: unknown) => {
         if (cancelled) return;
         onResolutionError(
           error,
-          "Reconnect to this environment and try again. The file may have been moved or deleted.",
+          "Reconnect to this machine and try again. The file may have been moved or deleted.",
         );
       });
     return () => {
       cancelled = true;
     };
-  }, [environmentId, uri, refreshAssetUrl, source.srcFragment]);
+  }, [machineId, uri, refreshAssetUrl, source.srcFragment]);
   useEffect(() => {
     if (!("attachment" in source)) return;
     const controller = new AbortController();

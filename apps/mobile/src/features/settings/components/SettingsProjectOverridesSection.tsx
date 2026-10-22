@@ -21,7 +21,7 @@ export function SettingsProjectOverridesSection(props: {
         {!props.pending && props.supportsOverrides && props.hasOverrides ? (
           <Button
             label="Use defaults"
-            accessibilityHint="Use environment defaults for this project"
+            accessibilityHint="Use machine defaults for this project"
             tone="text"
             disabled={props.disabled}
             onPress={props.onClear}
@@ -30,7 +30,7 @@ export function SettingsProjectOverridesSection(props: {
       </View>
       {!props.supportsOverrides ? (
         <Text className="px-4 pb-3 text-sm text-foreground-muted">
-          Update the selected environments to edit project overrides.
+          Update the selected machines to edit project overrides.
         </Text>
       ) : null}
     </SettingsSection>

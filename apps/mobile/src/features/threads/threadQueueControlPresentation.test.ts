@@ -32,7 +32,7 @@ describe("threadQueueControlPresentation", () => {
   it("shows an assistant quote as its quoted text", () => {
     const href = formatAssistantCitationHref({
       version: 1,
-      environmentId: "environment:test" as never,
+      machineId: "machine:test" as never,
       threadId: "thread:test" as never,
       messageId: "message:assistant" as never,
       text: "Retry the sync after the lock clears.",

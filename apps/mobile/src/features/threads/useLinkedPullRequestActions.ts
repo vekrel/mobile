@@ -3,8 +3,8 @@ import {
   resolveLinkPullRequestInput,
 } from "@vekrel/client-runtime/pull-request-link-input";
 import type {
-  EnvironmentProject,
-  EnvironmentThreadShell,
+  MachineProject,
+  MachineThreadShell,
 } from "@vekrel/client-runtime/state/shell";
 import {
   isAtomCommandInterrupted,
@@ -19,22 +19,22 @@ import { useCallback, useMemo } from "react";
 import * as Dialog from "../../components/ui/Dialog";
 import { tryOpenExternalUrl } from "../../lib/openExternalUrl";
 import type { MenuProps } from "../../components/ui/Menu.types";
-import type { EnvironmentRuntimeState } from "../../state/remote-runtime-types";
-import { useEnvironmentScope } from "../../state/session";
-import { threadEnvironment } from "../../state/threads";
+import type { MachineRuntimeState } from "../../state/remote-runtime-types";
+import { useMachineScope } from "../../state/session";
+import { threadMachine } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 
 type MenuAction = MenuProps["actions"][number];
 
 export function useLinkedPullRequestActions(input: {
-  readonly thread: EnvironmentThreadShell | null;
-  readonly project: EnvironmentProject | null;
-  readonly runtime: EnvironmentRuntimeState | null;
+  readonly thread: MachineThreadShell | null;
+  readonly project: MachineProject | null;
+  readonly runtime: MachineRuntimeState | null;
 }) {
   const { thread, project, runtime } = input;
-  const capabilities = runtime?.serverConfig?.environment.capabilities;
-  const canOperate = useEnvironmentScope(
-    thread?.environmentId ?? null,
+  const capabilities = runtime?.serverConfig?.machine.capabilities;
+  const canOperate = useMachineScope(
+    thread?.machineId ?? null,
     AuthOrchestrationOperateScope,
   );
   const canEdit = canOperate && capabilities?.threadPullRequests === true;
@@ -46,9 +46,9 @@ export function useLinkedPullRequestActions(input: {
     thread.settledAt === null &&
     thread.settledOverride !== "settled" &&
     thread.lineage.relationshipToParent !== "subagent";
-  const link = useAtomCommand(threadEnvironment.linkPullRequest, { reportFailure: false });
-  const unlink = useAtomCommand(threadEnvironment.unlinkPullRequest, { reportFailure: false });
-  const watch = useAtomCommand(threadEnvironment.watchPullRequest, { reportFailure: false });
+  const link = useAtomCommand(threadMachine.linkPullRequest, { reportFailure: false });
+  const unlink = useAtomCommand(threadMachine.unlinkPullRequest, { reportFailure: false });
+  const watch = useAtomCommand(threadMachine.watchPullRequest, { reportFailure: false });
 
   const run = useCallback(
     async (failureTitle: string, pending: Promise<AtomCommandResult<unknown, unknown>>) => {
@@ -74,12 +74,12 @@ export function useLinkedPullRequestActions(input: {
         linked,
       });
       if (mutation === null || mutation.type === "thread.meta.update") return;
-      const environmentId = thread.environmentId;
+      const machineId = thread.machineId;
       void run(
         linked ? "Couldn't link this pull request" : "Couldn't unlink this pull request",
         mutation.type === "thread.pull-request.link"
-          ? link({ environmentId, input: mutation.input })
-          : unlink({ environmentId, input: mutation.input }),
+          ? link({ machineId, input: mutation.input })
+          : unlink({ machineId, input: mutation.input }),
       );
     },
     [capabilities, link, run, thread, unlink],
@@ -153,7 +153,7 @@ export function useLinkedPullRequestActions(input: {
         void run(
           "Couldn't change watching",
           watch({
-            environmentId: thread.environmentId,
+            machineId: thread.machineId,
             input: {
               threadId: thread.id,
               host: link.host,

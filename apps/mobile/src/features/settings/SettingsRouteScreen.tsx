@@ -9,15 +9,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { hasCloudPublicConfig } from "../cloud/publicConfig";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
-import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
+import { useSavedRemoteConnections } from "../../state/use-remote-machine-registry";
 import { SettingsRow } from "./components/SettingsRow";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsScreen } from "./components/SettingsScreen";
 import {
-  AndroidSettingsEnvironmentFilter,
-  SettingsEnvironmentFilterHeader,
-} from "./components/SettingsEnvironmentFilterHeader";
-import { useSettingsEnvironmentFilter } from "./settings-environment-filter";
+  AndroidSettingsMachineFilter,
+  SettingsMachineFilterHeader,
+} from "./components/SettingsMachineFilterHeader";
+import { useSettingsMachineFilter } from "./settings-machine-filter";
 
 export function SettingsRouteScreen() {
   const navigation = useNavigation();
@@ -44,9 +44,9 @@ export function SettingsRouteScreen() {
           </Toolbar>
         </>
       ) : null}
-      <SettingsEnvironmentFilterHeader closeSettings />
+      <SettingsMachineFilterHeader closeSettings />
       {Platform.OS === "android" ? (
-        <SettingsScreen title="Settings" trailing={<AndroidSettingsEnvironmentFilter />}>
+        <SettingsScreen title="Settings" trailing={<AndroidSettingsMachineFilter />}>
           {content}
         </SettingsScreen>
       ) : (
@@ -87,10 +87,10 @@ function ConfiguredSettingsRouteScreen() {
           />
           <SettingsRow
             icon="desktopcomputer"
-            label="Environments"
+            label="Machines"
             value={`${Object.keys(savedConnectionsById).length}`}
             valuePosition="trailing"
-            target="SettingsEnvironments"
+            target="SettingsMachines"
           />
           <SettingsRow icon="bell.badge" label="Notifications" target="SettingsNotifications" />
         </SettingsSection>
@@ -104,7 +104,7 @@ function ConfiguredSettingsRouteScreen() {
 function LocalSettingsRouteScreen() {
   const insets = useSafeAreaInsets();
   const { savedConnectionsById } = useSavedRemoteConnections();
-  const environmentCount = Object.keys(savedConnectionsById).length;
+  const machineCount = Object.keys(savedConnectionsById).length;
 
   return (
     <View collapsable={false} className="flex-1 bg-sheet">
@@ -120,10 +120,10 @@ function LocalSettingsRouteScreen() {
         <SettingsSection title="Connections">
           <SettingsRow
             icon="desktopcomputer"
-            label="Environments"
-            value={`${environmentCount}`}
+            label="Machines"
+            value={`${machineCount}`}
             valuePosition="trailing"
-            target="SettingsEnvironments"
+            target="SettingsMachines"
           />
         </SettingsSection>
 
@@ -134,14 +134,14 @@ function LocalSettingsRouteScreen() {
 }
 
 function SettingsIndexSections() {
-  const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsEnvironmentFilter();
+  const { selectedTargets, projectGroups, selectedProjectKey } = useSettingsMachineFilter();
   const noServerTargets = selectedTargets.length === 0;
   const selectedProject = projectGroups.find((group) => group.key === selectedProjectKey);
   const scopedProjectMembers =
     selectedProject?.members
       .map((member) => member.project)
       .filter((project) =>
-        selectedTargets.some((target) => target.environmentId === project.environmentId),
+        selectedTargets.some((target) => target.machineId === project.machineId),
       ) ?? [];
   const projectLabel =
     scopedProjectMembers.length > 0
@@ -191,25 +191,25 @@ function SettingsIndexSections() {
         <SettingsRow
           icon="text.bubble"
           label="New threads"
-          target="SettingsEnvironmentNewThreads"
+          target="SettingsMachineNewThreads"
           disabled={noServerTargets}
         />
         <SettingsRow
           icon="arrow.triangle.branch"
           label="Source control"
-          target="SettingsEnvironmentSourceControl"
+          target="SettingsMachineSourceControl"
           disabled={noServerTargets}
         />
         <SettingsRow
           icon="text.alignleft"
           label="Agent behavior"
-          target="SettingsEnvironmentAgentBehavior"
+          target="SettingsMachineAgentBehavior"
           disabled={noServerTargets}
         />
         <SettingsRow
           icon="arrow.clockwise"
           label="Maintenance"
-          target="SettingsEnvironmentMaintenance"
+          target="SettingsMachineMaintenance"
           disabled={noServerTargets}
         />
       </SettingsSection>

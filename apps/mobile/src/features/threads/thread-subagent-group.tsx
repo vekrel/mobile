@@ -1,10 +1,10 @@
 import { useAtomValue } from "@effect/atom-react";
 import { StackActions, useIsFocused, useNavigation } from "@react-navigation/native";
-import { scopeThreadRef } from "@vekrel/client-runtime/environment";
+import { scopeThreadRef } from "@vekrel/client-runtime/machine";
 import { summarizeSubagentStatuses } from "@vekrel/client-runtime/state/subagent-display";
 import { isActiveSubagentStatus } from "@vekrel/client-runtime/state/subagentRuntime";
 import type {
-  EnvironmentId,
+  MachineId,
   OrchestrationV2Subagent,
   OrchestrationV2TurnItem,
 } from "@vekrel/contracts";
@@ -16,8 +16,8 @@ import { SymbolView } from "../../components/ui/AppSymbol";
 import { ProviderIcon } from "../../components/ProviderIcon";
 import { cn } from "../../lib/cn";
 import type { ThreadFeedActivity } from "../../lib/threadActivity";
-import { serverEnvironment } from "../../state/server";
-import { environmentThreadDetails } from "../../state/threads";
+import { serverMachine } from "../../state/server";
+import { machineThreadDetails } from "../../state/threads";
 import { subagentCardElapsed } from "./subagent-card-presentation";
 import { SubagentRow } from "./SubagentRow";
 import { WorkLogBlock } from "./work-log-layout";
@@ -63,19 +63,19 @@ function SubagentAvatar(props: {
 
 export function ThreadSubagentGroup(props: {
   readonly activities: ReadonlyArray<ThreadFeedActivity>;
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly anchorKey: string;
   readonly expandedRows: Readonly<Record<string, boolean>>;
   readonly iconSubtleColor: ColorValue;
   readonly onToggleRow: (rowId: string, anchorKey: string) => void;
 }) {
-  const config = useAtomValue(serverEnvironment.configValueAtom(props.environmentId));
+  const config = useAtomValue(serverMachine.configValueAtom(props.machineId));
   const navigation = useNavigation();
   const members = props.activities.flatMap(({ projectedItem }) =>
     projectedItem.item.type === "subagent" ? [projectedItem.item] : [],
   );
   const liveAgents = useAtomValue(
-    environmentThreadDetails.threadAtom(scopeThreadRef(props.environmentId, members[0]!.threadId)),
+    machineThreadDetails.threadAtom(scopeThreadRef(props.machineId, members[0]!.threadId)),
     (thread) => thread?.projection.subagents,
   );
   const agents = members.map((item) => {
@@ -163,7 +163,7 @@ export function ThreadSubagentGroup(props: {
                   if (threadId !== null)
                     navigation.dispatch(
                       StackActions.push("Thread", {
-                        environmentId: String(props.environmentId),
+                        machineId: String(props.machineId),
                         threadId: String(threadId),
                       }),
                     );
@@ -171,7 +171,7 @@ export function ThreadSubagentGroup(props: {
                 className="rounded-lg px-3 py-3 active:bg-subtle"
               >
                 <SubagentRow
-                  environmentId={props.environmentId}
+                  machineId={props.machineId}
                   subagent={agent}
                   elapsed={<SubagentElapsed agents={[agent]} />}
                 />

@@ -1,7 +1,7 @@
 import {
   AuthOrchestrationOperateScope,
   AuthProvidersManageScope,
-  EnvironmentId,
+  MachineId,
   type AuthSessionState,
 } from "@vekrel/contracts";
 import * as Cause from "effect/Cause";
@@ -21,8 +21,8 @@ vi.mock("@effect/atom-react", async () => {
 });
 vi.mock("../connection/runtime", () => ({ connectionAtomRuntime: {} }));
 vi.mock("@vekrel/client-runtime/state/session", () => ({
-  createEnvironmentSessionAtoms: () => ({
-    sessionStateAtom: Atom.family((_id: EnvironmentId) =>
+  createMachineSessionAtoms: () => ({
+    sessionStateAtom: Atom.family((_id: MachineId) =>
       Atom.make(AsyncResult.initial<AuthSessionState, Error>()).pipe(Atom.keepAlive),
     ),
   }),
@@ -30,14 +30,14 @@ vi.mock("@vekrel/client-runtime/state/session", () => ({
 
 import { appAtomRegistry } from "./atom-registry";
 import {
-  environmentSession,
-  readEnvironmentScope,
-  useEnvironmentScope,
-  useEnvironmentsWithScope,
+  machineSession,
+  readMachineScope,
+  useMachineScope,
+  useMachinesWithScope,
 } from "./session";
 
-const primary = EnvironmentId.make("primary");
-const secondary = EnvironmentId.make("secondary");
+const primary = MachineId.make("primary");
+const secondary = MachineId.make("secondary");
 const session = (canOperate: boolean): AuthSessionState => ({
   authenticated: true,
   scopes: canOperate ? [AuthOrchestrationOperateScope] : [],
@@ -48,8 +48,8 @@ const session = (canOperate: boolean): AuthSessionState => ({
     sessionCookieName: "session",
   },
 });
-const source = (id: EnvironmentId) =>
-  environmentSession.sessionStateAtom(id) as unknown as Atom.Writable<
+const source = (id: MachineId) =>
+  machineSession.sessionStateAtom(id) as unknown as Atom.Writable<
     AsyncResult.AsyncResult<AuthSessionState, Error>
   >;
 const releases: Array<() => void> = [];
@@ -62,25 +62,25 @@ afterEach(() => {
   releases.splice(0).forEach((release) => release());
 });
 
-it("keeps pending and denied environments out of worker grants while retaining valid cached access", () => {
-  expect(useEnvironmentScope(secondary, AuthOrchestrationOperateScope)).toBe(false);
-  expect(readEnvironmentScope(secondary, AuthOrchestrationOperateScope)).toBe(false);
-  const environments = [{ environmentId: primary }, { environmentId: secondary }];
-  expect(useEnvironmentsWithScope(environments, AuthOrchestrationOperateScope)).toEqual(
+it("keeps pending and denied machines out of worker grants while retaining valid cached access", () => {
+  expect(useMachineScope(secondary, AuthOrchestrationOperateScope)).toBe(false);
+  expect(readMachineScope(secondary, AuthOrchestrationOperateScope)).toBe(false);
+  const machines = [{ machineId: primary }, { machineId: secondary }];
+  expect(useMachinesWithScope(machines, AuthOrchestrationOperateScope)).toEqual(
     new Set([primary]),
   );
   appAtomRegistry.set(source(secondary), AsyncResult.waiting(AsyncResult.success(session(true))));
-  expect(readEnvironmentScope(secondary, AuthOrchestrationOperateScope)).toBe(true);
-  expect(useEnvironmentsWithScope(environments, AuthOrchestrationOperateScope)).toEqual(
+  expect(readMachineScope(secondary, AuthOrchestrationOperateScope)).toBe(true);
+  expect(useMachinesWithScope(machines, AuthOrchestrationOperateScope)).toEqual(
     new Set([primary, secondary]),
   );
   appAtomRegistry.set(source(secondary), AsyncResult.success(session(false)));
-  expect(useEnvironmentScope(secondary, AuthOrchestrationOperateScope)).toBe(false);
+  expect(useMachineScope(secondary, AuthOrchestrationOperateScope)).toBe(false);
 });
 
 it("reacts to grant revocation, failure, and regrant without a connection list change", () => {
-  const environments = [{ environmentId: primary }, { environmentId: secondary }];
-  useEnvironmentsWithScope(environments, AuthOrchestrationOperateScope);
+  const machines = [{ machineId: primary }, { machineId: secondary }];
+  useMachinesWithScope(machines, AuthOrchestrationOperateScope);
   const observed = harness.lastAtom;
   if (!observed) throw new Error("Missing worker grant atom");
   const changes: unknown[] = [];
@@ -101,21 +101,21 @@ it("reacts to grant revocation, failure, and regrant without a connection list c
 
 it("uses exact new-server permissions and keeps old-server grants usable", () => {
   appAtomRegistry.set(source(primary), AsyncResult.success({ ...session(true), permissions: [] }));
-  expect(useEnvironmentScope(primary, AuthOrchestrationOperateScope)).toBe(false);
-  expect(readEnvironmentScope(primary, AuthOrchestrationOperateScope)).toBe(false);
+  expect(useMachineScope(primary, AuthOrchestrationOperateScope)).toBe(false);
+  expect(readMachineScope(primary, AuthOrchestrationOperateScope)).toBe(false);
   appAtomRegistry.set(
     source(primary),
     AsyncResult.success({ ...session(false), permissions: [AuthOrchestrationOperateScope] }),
   );
-  expect(useEnvironmentScope(primary, AuthOrchestrationOperateScope)).toBe(true);
-  expect(readEnvironmentScope(primary, AuthOrchestrationOperateScope)).toBe(true);
+  expect(useMachineScope(primary, AuthOrchestrationOperateScope)).toBe(true);
+  expect(readMachineScope(primary, AuthOrchestrationOperateScope)).toBe(true);
   appAtomRegistry.set(source(primary), AsyncResult.success(session(true)));
-  expect(useEnvironmentScope(primary, AuthOrchestrationOperateScope)).toBe(true);
+  expect(useMachineScope(primary, AuthOrchestrationOperateScope)).toBe(true);
 });
 
-it("limits provider accounts to environments granting provider management", () => {
-  const environments = [{ environmentId: primary }, { environmentId: secondary }];
-  const permitted = () => useEnvironmentsWithScope(environments, AuthProvidersManageScope);
+it("limits provider accounts to machines granting provider management", () => {
+  const machines = [{ machineId: primary }, { machineId: secondary }];
+  const permitted = () => useMachinesWithScope(machines, AuthProvidersManageScope);
   appAtomRegistry.set(
     source(primary),
     AsyncResult.success({ ...session(true), permissions: [AuthOrchestrationOperateScope] }),

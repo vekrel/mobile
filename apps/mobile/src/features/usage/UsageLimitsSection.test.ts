@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import { beforeEach, expect, it, vi } from "vite-plus/test";
 
 const state = vi.hoisted(() => ({
@@ -10,8 +10,8 @@ const state = vi.hoisted(() => ({
   refreshingRef: { current: false },
 }));
 vi.mock("../../state/session", () => ({
-  useEnvironmentScope: () => true,
-  readEnvironmentScope: () => true,
+  useMachineScope: () => true,
+  readMachineScope: () => true,
 }));
 vi.mock("react", () => ({
   useState: (initial: unknown) => {
@@ -39,9 +39,9 @@ vi.mock("../../components/ui/AppText", () => ({ AppText: "span" }));
 vi.mock("../../components/ProviderIcon", () => ({ ProviderIcon: () => null }));
 vi.mock("./usageProviders", () => ({ useProviderColors: () => ({}) }));
 vi.mock("../../state/presentation", () => ({
-  environmentPresentations: { presentationsAtom: null },
+  machinePresentations: { presentationsAtom: null },
 }));
-vi.mock("../../state/server", () => ({ serverEnvironment: { refreshProviders: null } }));
+vi.mock("../../state/server", () => ({ serverMachine: { refreshProviders: null } }));
 vi.mock("../../state/use-atom-command", () => ({ useAtomCommand: () => state.refreshProviders }));
 
 import { useRefreshLimits } from "./UsageLimitsSection";
@@ -54,9 +54,9 @@ beforeEach(() => {
   state.refreshProviders.mockReset();
 });
 
-it("keeps a newer environment failure when an older refresh finishes", async () => {
-  const a = EnvironmentId.make("mobile-limits-a");
-  const b = EnvironmentId.make("mobile-limits-b");
+it("keeps a newer machine failure when an older refresh finishes", async () => {
+  const a = MachineId.make("mobile-limits-a");
+  const b = MachineId.make("mobile-limits-b");
   const pending = Promise.withResolvers<{ _tag: string }>();
   const read = () => {
     state.cursor = 0;
@@ -67,8 +67,8 @@ it("keeps a newer environment failure when an older refresh finishes", async () 
     entry: { target: { label } },
   });
   state.presentations = new Map([[a, presentation("A")]]);
-  state.refreshProviders.mockImplementation(({ environmentId }) =>
-    environmentId === a ? pending.promise : Promise.resolve({ _tag: "Failure" }),
+  state.refreshProviders.mockImplementation(({ machineId }) =>
+    machineId === a ? pending.promise : Promise.resolve({ _tag: "Failure" }),
   );
   const first = read().refresh();
   state.presentations = new Map([
@@ -83,12 +83,12 @@ it("keeps a newer environment failure when an older refresh finishes", async () 
   expect(read().failedLabels).toEqual(["B"]);
 });
 
-it("does not let an older multi-environment batch clear a newer failure for the same environment", async () => {
-  const a = EnvironmentId.make("mobile-limits-race-a");
-  const b = EnvironmentId.make("mobile-limits-race-b");
+it("does not let an older multi-machine batch clear a newer failure for the same machine", async () => {
+  const a = MachineId.make("mobile-limits-race-a");
+  const b = MachineId.make("mobile-limits-race-b");
   const aFirst = Promise.withResolvers<{ _tag: string }>();
   const bFirst = Promise.withResolvers<{ _tag: string }>();
-  const read = (selected: ReadonlySet<EnvironmentId> | null = null) => {
+  const read = (selected: ReadonlySet<MachineId> | null = null) => {
     state.cursor = 0;
     return useRefreshLimits(selected);
   };
@@ -101,8 +101,8 @@ it("does not let an older multi-environment batch clear a newer failure for the 
     [b, presentation("B")],
   ]);
   let aCalls = 0;
-  state.refreshProviders.mockImplementation(({ environmentId }) =>
-    environmentId === b
+  state.refreshProviders.mockImplementation(({ machineId }) =>
+    machineId === b
       ? bFirst.promise
       : ++aCalls === 1
         ? aFirst.promise

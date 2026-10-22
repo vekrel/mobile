@@ -1,5 +1,5 @@
 import { resolveFilesystemReadAccess } from "@vekrel/client-runtime/state/filesystem";
-import { environmentSession } from "../../state/session";
+import { machineSession } from "../../state/session";
 import { useCallback, useEffect, useMemo } from "react";
 import * as DateTime from "effect/DateTime";
 
@@ -7,12 +7,12 @@ import {
   deriveThreadCheckpointSummaries,
   type ThreadCheckpointSummary,
 } from "@vekrel/client-runtime/state/thread-checkpoints";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 
 import { useCheckpointDiff } from "../../state/queries";
-import { useEnvironmentQuery } from "../../state/query";
-import { useEnvironmentPresentation } from "../../state/presentation";
-import { reviewEnvironment } from "../../state/review";
+import { useMachineQuery } from "../../state/query";
+import { useMachinePresentation } from "../../state/presentation";
+import { reviewMachine } from "../../state/review";
 import { useSelectedThreadProjection } from "../../state/use-thread-detail";
 import { useSelectedThreadWorktree } from "../../state/use-selected-thread-worktree";
 import {
@@ -32,29 +32,29 @@ import {
 
 export function useReviewSections(input: {
   readonly enabled?: boolean;
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly threadId?: ThreadId;
   readonly reviewCache: ReviewCacheForThread;
 }) {
-  const { environmentId, reviewCache, threadId } = input;
+  const { machineId, reviewCache, threadId } = input;
   const enabled = input.enabled ?? true;
-  const fileAccessSession = useEnvironmentQuery(
-    environmentId === undefined ? null : environmentSession.sessionStateAtom(environmentId),
+  const fileAccessSession = useMachineQuery(
+    machineId === undefined ? null : machineSession.sessionStateAtom(machineId),
   );
-  const fileEnvironment = useEnvironmentPresentation(environmentId ?? null);
+  const fileMachine = useMachinePresentation(machineId ?? null);
   const fileAccess = resolveFilesystemReadAccess({
-    isCatalogReady: fileEnvironment.isReady,
-    connection: fileEnvironment.presentation?.connection ?? null,
+    isCatalogReady: fileMachine.isReady,
+    connection: fileMachine.presentation?.connection ?? null,
     session: fileAccessSession.data,
     sessionError: fileAccessSession.error,
   });
   const { canReadFiles } = fileAccess;
   const selectedThread = useSelectedThreadProjection();
   const { selectedThreadCwd } = useSelectedThreadWorktree();
-  const diffPreview = useEnvironmentQuery(
-    canReadFiles && enabled && environmentId !== undefined && selectedThreadCwd !== null
-      ? reviewEnvironment.diffPreview({
-          environmentId,
+  const diffPreview = useMachineQuery(
+    canReadFiles && enabled && machineId !== undefined && selectedThreadCwd !== null
+      ? reviewMachine.diffPreview({
+          machineId,
           input: { cwd: selectedThreadCwd },
         })
       : null,
@@ -154,7 +154,7 @@ export function useReviewSections(input: {
     ? getReviewSectionIdForCheckpoint(activeCheckpoint)
     : null;
   const activeTurnDiff = useCheckpointDiff({
-    environmentId: enabled ? (environmentId ?? null) : null,
+    machineId: enabled ? (machineId ?? null) : null,
     threadId: enabled ? (threadId ?? null) : null,
     fromTurnCount:
       enabled && activeCheckpoint ? Math.max(0, activeCheckpoint.checkpointTurnCount - 1) : null,

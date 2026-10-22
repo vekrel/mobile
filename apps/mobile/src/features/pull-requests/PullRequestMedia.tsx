@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState } from "react";
 import { pullRequestMediaSource, pullRequestImageSource } from "./pullRequestMediaSource";
 import { useFilePreviewGallery } from "../../components/FilePreviewGallery";
-import type { AssetResource, EnvironmentId } from "@vekrel/contracts";
+import type { AssetResource, MachineId } from "@vekrel/contracts";
 import { githubMediaFetchUrl } from "@vekrel/shared/githubMedia";
 import { videoMimeType } from "@vekrel/shared/video";
 import { Pressable, View } from "react-native";
@@ -19,7 +19,7 @@ import {
 } from "../../components/FilePreviewModal";
 
 export const PullRequestMediaContext = createContext<{
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly cwd: string;
 } | null>(null);
 
@@ -30,8 +30,8 @@ export function usePullRequestMediaUrl(url: string) {
     () => (context && fetchUrl ? { _tag: "github-media", cwd: context.cwd, url: fetchUrl } : null),
     [context, fetchUrl],
   );
-  const asset = useAssetUrlState(context?.environmentId ?? null, resource);
-  const refresh = useRefreshAssetUrl(context?.environmentId ?? null, resource);
+  const asset = useAssetUrlState(context?.machineId ?? null, resource);
+  const refresh = useRefreshAssetUrl(context?.machineId ?? null, resource);
   return {
     uri: asset._tag === "Success" ? asset.url : resource ? null : url,
     unavailable: resource !== null && asset._tag === "Failure",

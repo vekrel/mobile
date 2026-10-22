@@ -1,4 +1,4 @@
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import { useEffect, useState } from "react";
 
 interface TerminalLocationLike {
@@ -7,7 +7,7 @@ interface TerminalLocationLike {
 }
 
 interface PendingTerminalLaunchTarget {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly terminalId: string;
 }
@@ -22,7 +22,7 @@ export interface PendingTerminalLaunch {
 const pendingTerminalLaunches = new Map<string, PendingTerminalLaunch>();
 
 function pendingTerminalLaunchKey(input: PendingTerminalLaunchTarget): string {
-  return `${input.environmentId}:${input.threadId}:${input.terminalId}`;
+  return `${input.machineId}:${input.threadId}:${input.terminalId}`;
 }
 
 export function stagePendingTerminalLaunch(input: {

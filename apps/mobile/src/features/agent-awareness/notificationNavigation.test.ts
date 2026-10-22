@@ -57,18 +57,18 @@ describe("extractAgentNotificationDeepLink", () => {
       extractAgentNotificationDeepLink(
         responseWithData({
           deepLink: "/threads/env/thread",
-          environmentId: "ignored",
+          machineId: "ignored",
           threadId: "ignored",
         }),
       ),
     ).toBe("/threads/env/thread");
   });
 
-  it("falls back to the thread route from environment and thread ids", () => {
+  it("falls back to the thread route from machine and thread ids", () => {
     expect(
       extractAgentNotificationDeepLink(
         responseWithData({
-          environmentId: "env 1",
+          machineId: "env 1",
           threadId: "thread/2",
         }),
       ),
@@ -80,7 +80,7 @@ describe("extractAgentNotificationDeepLink", () => {
       extractAgentNotificationDeepLink(
         responseWithData({
           deepLink: "/",
-          environmentId: "env",
+          machineId: "env",
           threadId: "thread",
         }),
       ),
@@ -109,7 +109,7 @@ describe("routeAgentNotificationResponseOnce", () => {
     const handledResponseIds = new Set<string>();
     const navigations: Array<string> = [];
     const response = responseWithData({
-      environmentId: "env",
+      machineId: "env",
       threadId: "thread",
     });
 

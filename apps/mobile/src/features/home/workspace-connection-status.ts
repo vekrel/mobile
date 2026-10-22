@@ -7,25 +7,25 @@ export interface WorkspaceConnectionStatusPresentation {
 
 function shouldShowWorkspaceConnectionStatus(state: WorkspaceState): boolean {
   if (state.networkStatus === "offline") return true;
-  if (state.hasReadyEnvironment) return state.hasSyncingConnectedEnvironment;
+  if (state.hasReadyMachine) return state.hasSyncingConnectedMachine;
   return (
     state.connectionError !== null ||
-    state.hasConnectingEnvironment ||
+    state.hasConnectingMachine ||
     state.hasPendingShellSnapshot ||
-    (state.hasLoadedShellSnapshot && !state.hasReadyEnvironment)
+    (state.hasLoadedShellSnapshot && !state.hasReadyMachine)
   );
 }
 
 function workspaceConnectionStatusLabel(state: WorkspaceState): string {
   if (state.networkStatus === "offline") return "You are offline";
-  if (state.hasReadyEnvironment && state.hasSyncingConnectedEnvironment) {
+  if (state.hasReadyMachine && state.hasSyncingConnectedMachine) {
     return state.hasLoadedShellSnapshot ? "Syncing threads..." : "Loading threads...";
   }
-  if (state.connectingEnvironments.length === 1) {
-    return `Reconnecting to ${state.connectingEnvironments[0]!.environmentLabel}`;
+  if (state.connectingMachines.length === 1) {
+    return `Reconnecting to ${state.connectingMachines[0]!.machineLabel}`;
   }
-  if (state.connectingEnvironments.length > 1) {
-    return `Reconnecting ${state.connectingEnvironments.length} environments`;
+  if (state.connectingMachines.length > 1) {
+    return `Reconnecting ${state.connectingMachines.length} machines`;
   }
   if (state.connectionError !== null) return state.connectionError;
   if (state.hasPendingShellSnapshot) {
@@ -42,7 +42,7 @@ export function workspaceConnectionStatusPresentation(
     label: workspaceConnectionStatusLabel(state),
     showsProgress:
       state.networkStatus !== "offline" &&
-      (state.hasReadyEnvironment || state.connectionError === null) &&
-      (state.connectingEnvironments.length > 0 || state.hasPendingShellSnapshot),
+      (state.hasReadyMachine || state.connectionError === null) &&
+      (state.connectingMachines.length > 0 || state.hasPendingShellSnapshot),
   };
 }

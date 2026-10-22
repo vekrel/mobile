@@ -1,11 +1,11 @@
 import { useAtomValue } from "@effect/atom-react";
 import { StackActions, useNavigation, type StaticScreenProps } from "@react-navigation/native";
-import { scopeThreadRef } from "@vekrel/client-runtime/environment";
+import { scopeThreadRef } from "@vekrel/client-runtime/machine";
 import {
   presentPendingBackgroundWork,
   type PendingBackgroundWorkItem,
 } from "@vekrel/client-runtime/state/thread-execution";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import * as Haptics from "expo-haptics";
 import { Platform, Pressable, ScrollView, View } from "react-native";
 import { ScreenStack } from "react-native-screens";
@@ -17,7 +17,7 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { ScreenContent } from "../../components/ui/ScreenContent";
 import { NativeStackScreenOptions, nativeHeaderScrollEdgeEffects } from "../../native/StackHeader";
 import { NativeHeader, NativeScreen } from "../../native/ThemedScreenStack";
-import { environmentThreadShells } from "../../state/threads";
+import { machineThreadShells } from "../../state/threads";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 
 const HEADER_SCROLL_EDGE_EFFECTS = nativeHeaderScrollEdgeEffects(Platform.OS, Platform.Version);
@@ -28,7 +28,7 @@ const KIND_LABELS = {
   background_task: "Background task",
 } as const;
 
-type BackgroundWorkTarget = { readonly environmentId: EnvironmentId; readonly threadId: ThreadId };
+type BackgroundWorkTarget = { readonly machineId: MachineId; readonly threadId: ThreadId };
 
 export function ThreadBackgroundWorkSheet({ route }: StaticScreenProps<BackgroundWorkTarget>) {
   const { layout } = useAdaptiveWorkspaceLayout();
@@ -36,14 +36,14 @@ export function ThreadBackgroundWorkSheet({ route }: StaticScreenProps<Backgroun
   const insets = useSafeAreaInsets();
   const target = route.params;
   const thread = useAtomValue(
-    environmentThreadShells.threadShellAtom(scopeThreadRef(target.environmentId, target.threadId)),
+    machineThreadShells.threadShellAtom(scopeThreadRef(target.machineId, target.threadId)),
   );
   const presentation = presentPendingBackgroundWork(thread?.pendingBackgroundTasks ?? []);
   const openThread = (threadId: ThreadId) => {
     void Haptics.selectionAsync();
     // A thread replaces the leaf sheet so workspace back navigation still works.
     navigation.dispatch(
-      StackActions.replace("Thread", { environmentId: target.environmentId, threadId }),
+      StackActions.replace("Thread", { machineId: target.machineId, threadId }),
     );
   };
   const content = (

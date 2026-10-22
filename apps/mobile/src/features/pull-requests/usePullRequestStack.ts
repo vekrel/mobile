@@ -2,18 +2,18 @@ import { threadPullRequestLinkMode } from "@vekrel/client-runtime/thread-pull-re
 import type { PullRequestDetail } from "@vekrel/contracts";
 import { parseChangeRequestUrl } from "@vekrel/shared/changeRequestUrl";
 import { useMemo } from "react";
-import { useEnvironmentServerConfig, useNavigationThreadShells } from "../../state/entities";
+import { useMachineServerConfig, useNavigationThreadShells } from "../../state/entities";
 import { pullRequestStackAtom } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { savedPullRequestStack } from "./pullRequestStack";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 
 export function usePullRequestStack(params: PullRequestParams, pr: PullRequestDetail | null) {
   const target = pullRequestTarget(params);
-  const config = useEnvironmentServerConfig(target.environmentId);
+  const config = useMachineServerConfig(target.machineId);
   const threads = useNavigationThreadShells();
   const supported =
-    threadPullRequestLinkMode(config?.environment.capabilities) === "multiple" &&
+    threadPullRequestLinkMode(config?.machine.capabilities) === "multiple" &&
     pr?.capabilities.stacks === true;
   const reference = useMemo(
     () => ({
@@ -26,13 +26,13 @@ export function usePullRequestStack(params: PullRequestParams, pr: PullRequestDe
     () =>
       savedPullRequestStack(
         threads
-          .filter((thread) => thread.environmentId === target.environmentId)
+          .filter((thread) => thread.machineId === target.machineId)
           .flatMap((thread) => thread.pullRequests ?? []),
         reference,
       ),
-    [threads, target.environmentId, reference],
+    [threads, target.machineId, reference],
   );
-  const query = useEnvironmentQuery(
+  const query = useMachineQuery(
     supported ? pullRequestStackAtom({ ...target, input: reference }) : null,
   );
   const stack = query.isSuccess ? query.data : (query.data ?? saved);
@@ -43,7 +43,7 @@ export function usePullRequestStack(params: PullRequestParams, pr: PullRequestDe
     supportsStackActions:
       supported &&
       pr?.capabilities.stackActions === true &&
-      config?.environment.capabilities.pullRequestStackActions === true,
+      config?.machine.capabilities.pullRequestStackActions === true,
   };
 }
 

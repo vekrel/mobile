@@ -1,7 +1,7 @@
 import {
   AuthOrchestrationOperateScope,
   CommandId,
-  EnvironmentId,
+  MachineId,
   MessageId,
   ProjectId,
   ProviderInstanceId,
@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import type { QueuedThreadMessage } from "./thread-outbox-model";
 
 const state = vi.hoisted(() => ({
-  grantedEnvironments: new Set<string>(),
+  grantedMachines: new Set<string>(),
   draftText: "Keep this draft separate",
   cleanups: [] as Array<() => void>,
   start: vi.fn(),
@@ -26,7 +26,7 @@ const state = vi.hoisted(() => ({
     typeof import("./thread-outbox-manager").createThreadOutboxManager
   >,
   thread: {
-    environmentId: "secondary",
+    machineId: "secondary",
     id: "thread",
     modelSelection: { instanceId: "codex", model: "gpt-5.4" },
     runtimeMode: "full-access",
@@ -35,7 +35,7 @@ const state = vi.hoisted(() => ({
   },
   config: {
     providers: [{ instanceId: "codex", driver: "codex" }],
-    environment: { capabilities: {} },
+    machine: { capabilities: {} },
   },
 }));
 vi.mock("react", () => ({
@@ -53,9 +53,9 @@ vi.mock("@effect/atom-react", async () => {
   return { useAtomValue: <A>(atom: Atom.Atom<A>) => appAtomRegistry.get(atom) };
 });
 vi.mock("./session", () => ({
-  readEnvironmentScope: (environmentId: string, scope: string) =>
-    scope === AuthOrchestrationOperateScope && state.grantedEnvironments.has(environmentId),
-  useEnvironmentsWithScope: () => state.grantedEnvironments,
+  readMachineScope: (machineId: string, scope: string) =>
+    scope === AuthOrchestrationOperateScope && state.grantedMachines.has(machineId),
+  useMachinesWithScope: () => state.grantedMachines,
 }));
 vi.mock("./entities", () => ({
   useProjects: () => [],
@@ -65,30 +65,30 @@ vi.mock("./entities", () => ({
 vi.mock("./server", async () => {
   const { Atom } = await import("effect/reactivity");
   return {
-    serverEnvironment: { configValueAtom: Atom.family((_id: string) => Atom.make(state.config)) },
+    serverMachine: { configValueAtom: Atom.family((_id: string) => Atom.make(state.config)) },
   };
 });
 vi.mock("./threads", async () => {
   const { Atom } = await import("effect/reactivity");
   return {
-    threadEnvironment: {
+    threadMachine: {
       startTurn: state.start,
       updateMetadata: state.metadata,
       setRuntimeMode: state.runtime,
       setInteractionMode: state.interaction,
     },
-    environmentThreadShells: { threadShellsAtom: Atom.make([state.thread]) },
+    machineThreadShells: { threadShellsAtom: Atom.make([state.thread]) },
   };
 });
 vi.mock("./use-atom-command", () => ({ useAtomCommand: <A>(command: A) => command }));
-vi.mock("./git", () => ({ gitEnvironment: { preparePullRequestThread: state.checkout } }));
+vi.mock("./git", () => ({ gitMachine: { preparePullRequestThread: state.checkout } }));
 vi.mock("../lib/modelOptions", () => ({ isModelSelectionUnavailable: () => false }));
 vi.mock("../lib/uuid", () => ({ uuidv4: () => "uuid", randomHex: () => "abcd" }));
 vi.mock("../lib/attachmentUpload", () => ({ prepareTurnAttachments: state.prepare }));
-vi.mock("./use-remote-environment-registry", () => ({
+vi.mock("./use-remote-machine-registry", () => ({
   setPendingConnectionError: vi.fn(),
   useRemoteConnectionStatus: () => ({
-    connectedEnvironments: [{ environmentId: "secondary", connectionState: "connected" }],
+    connectedMachines: [{ machineId: "secondary", connectionState: "connected" }],
   }),
 }));
 vi.mock("./thread-outbox", async () => {
@@ -149,7 +149,7 @@ import { dispatchingQueuedMessageIdAtom } from "./use-thread-outbox";
 import { useThreadOutboxDrain } from "./use-thread-outbox-drain";
 
 const message = (overrides: Partial<QueuedThreadMessage> = {}): QueuedThreadMessage => ({
-  environmentId: EnvironmentId.make("secondary"),
+  machineId: MachineId.make("secondary"),
   threadId: ThreadId.make("thread"),
   commandId: CommandId.make("command"),
   messageId: MessageId.make("message"),
@@ -171,7 +171,7 @@ function runDrain() {
 }
 
 beforeEach(() => {
-  state.grantedEnvironments = new Set(["primary"]);
+  state.grantedMachines = new Set(["primary"]);
   state.draftText = "Keep this draft separate";
   appAtomRegistry.set(state.manager.queuedMessagesByThreadKeyAtom, {});
   appAtomRegistry.set(dispatchingQueuedMessageIdAtom, null);
@@ -213,7 +213,7 @@ describe("queued PR checkout", () => {
   };
 
   it("waits for the provider's PR checkout and launches in that worktree", async () => {
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     await state.manager.enqueue(queuedPullRequest());
     const started = Promise.withResolvers<void>();
     const checkout =
@@ -226,7 +226,7 @@ describe("queued PR checkout", () => {
     await started.promise;
     expect(state.start).not.toHaveBeenCalled();
     expect(state.checkout).toHaveBeenCalledWith({
-      environmentId: "secondary",
+      machineId: "secondary",
       input: { cwd: "/repo", reference: "https://github.com/acme/repo/pull/123", mode: "worktree" },
     });
     checkout.resolve(AsyncResult.success(preparedCheckout));
@@ -242,7 +242,7 @@ describe("queued PR checkout", () => {
   });
 
   it("keeps the PR source queued on a transport failure without starting the agent", async () => {
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     const queued = queuedPullRequest();
     await state.manager.enqueue(queued);
     state.checkout.mockResolvedValueOnce(
@@ -254,11 +254,11 @@ describe("queued PR checkout", () => {
   });
 
   it("stops launch if operation access is revoked while checking out the PR", async () => {
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     const queued = queuedPullRequest();
     await state.manager.enqueue(queued);
     state.checkout.mockImplementationOnce(async () => {
-      state.grantedEnvironments.delete("secondary");
+      state.grantedMachines.delete("secondary");
       return AsyncResult.success(preparedCheckout);
     });
     await runDrain();
@@ -267,7 +267,7 @@ describe("queued PR checkout", () => {
   });
 
   it("does not launch a stale task edited while the PR checkout was running", async () => {
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     const queued = queuedPullRequest();
     await state.manager.enqueue(queued);
     const edited = { ...queued, text: "Updated instructions" };
@@ -292,14 +292,14 @@ describe("queued task operation access", () => {
     expect(state.start).not.toHaveBeenCalled();
     expect(state.prepare).not.toHaveBeenCalled();
     expect(remaining()).toEqual([queued]);
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     await runDrain();
     expect(state.start).toHaveBeenCalledOnce();
     expect(remaining()).toEqual([]);
   });
 
   it("stops the remaining settings and turn commands when an earlier update loses access", async () => {
-    state.grantedEnvironments.add("secondary");
+    state.grantedMachines.add("secondary");
     const queued = message({
       modelSelection: { instanceId: ProviderInstanceId.make("codex"), model: "different-model" },
       runtimeMode: "approval-required",
@@ -307,7 +307,7 @@ describe("queued task operation access", () => {
     });
     await state.manager.enqueue(queued);
     state.runtime.mockImplementationOnce(async () => {
-      state.grantedEnvironments.delete("secondary");
+      state.grantedMachines.delete("secondary");
       return AsyncResult.success(undefined);
     });
     await runDrain();
@@ -324,7 +324,7 @@ describe("queued task operation access", () => {
   ])(
     "preserves a rejected queue but removes an accepted turn after access loss (new task: $isCreation, accepted: $accepted)",
     async ({ isCreation, accepted }) => {
-      state.grantedEnvironments.add("secondary");
+      state.grantedMachines.add("secondary");
       const queued = message(
         isCreation
           ? {
@@ -349,7 +349,7 @@ describe("queued task operation access", () => {
       });
       const drained = runDrain();
       await started.promise;
-      state.grantedEnvironments.delete("secondary");
+      state.grantedMachines.delete("secondary");
       delivery.resolve(
         accepted
           ? AsyncResult.success(undefined)
@@ -360,7 +360,7 @@ describe("queued task operation access", () => {
       expect(remaining()).toEqual(accepted ? [] : [queued]);
       expect(state.draftText).toBe("Keep this draft separate");
       if (!accepted) {
-        state.grantedEnvironments.add("secondary");
+        state.grantedMachines.add("secondary");
         await runDrain();
         expect(state.start).toHaveBeenCalledTimes(2);
         expect(remaining()).toEqual([]);
@@ -377,7 +377,7 @@ describe("queued task operation access", () => {
   ])(
     "keeps the message queued after upload revocation (new task: $isCreation, upload fails: $uploadFails)",
     async ({ isCreation, uploadFails }) => {
-      state.grantedEnvironments.add("secondary");
+      state.grantedMachines.add("secondary");
       const queued = message(
         isCreation
           ? {
@@ -395,7 +395,7 @@ describe("queued task operation access", () => {
       );
       await state.manager.enqueue(queued);
       state.prepare.mockImplementationOnce(async ({ attachments }) => {
-        state.grantedEnvironments.delete("secondary");
+        state.grantedMachines.delete("secondary");
         if (uploadFails) throw new Error("This connection cannot upload attachments.");
         return {
           status: "ready",

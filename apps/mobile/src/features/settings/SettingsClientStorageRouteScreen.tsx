@@ -2,7 +2,7 @@ import * as Dialog from "../../components/ui/Dialog";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
 import { useAtomSet, useAtomValue } from "@effect/atom-react";
-import { type EnvironmentMachineKind, resolveEnvironmentMachineKind } from "@vekrel/contracts";
+import { type MachineKind, resolveMachineKind } from "@vekrel/contracts";
 import { AsyncResult } from "effect/reactivity";
 import { useMemo } from "react";
 import { View } from "react-native";
@@ -10,14 +10,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
-import { ENVIRONMENT_MACHINE_SYMBOLS } from "../../components/EnvironmentMachineSymbol";
+import { MACHINE_SYMBOLS } from "../../components/MachineSymbol";
 import {
   clearClientCacheAtom,
   clientCacheSummaryAtom,
-  type EnvironmentClientCacheSummary,
+  type MachineClientCacheSummary,
 } from "../../state/client-cache-state";
 import { useServerConfigs } from "../../state/entities";
-import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
+import { useSavedRemoteConnections } from "../../state/use-remote-machine-registry";
 import { SettingsActionRow } from "./components/SettingsActionRow";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsScreen } from "./components/SettingsScreen";
@@ -31,28 +31,28 @@ export function SettingsClientStorageRouteScreen() {
   const serverConfigs = useServerConfigs();
   const isClearing = clearResult.waiting;
   const summary = AsyncResult.isSuccess(summaryResult) ? summaryResult.value : null;
-  const environmentSummaries = useMemo(
+  const machineSummaries = useMemo(
     () =>
-      [...(summary?.environments ?? [])].sort((left, right) => {
-        const leftLabel = savedConnectionsById[left.environmentId]?.environmentLabel ?? "";
-        const rightLabel = savedConnectionsById[right.environmentId]?.environmentLabel ?? "";
+      [...(summary?.machines ?? [])].sort((left, right) => {
+        const leftLabel = savedConnectionsById[left.machineId]?.machineLabel ?? "";
+        const rightLabel = savedConnectionsById[right.machineId]?.machineLabel ?? "";
         return leftLabel.localeCompare(rightLabel);
       }),
-    [savedConnectionsById, summary?.environments],
+    [savedConnectionsById, summary?.machines],
   );
 
-  const confirmClearEnvironment = (environment: EnvironmentClientCacheSummary) => {
+  const confirmClearMachine = (machine: MachineClientCacheSummary) => {
     const label =
-      savedConnectionsById[environment.environmentId]?.environmentLabel ??
-      environment.environmentId;
+      savedConnectionsById[machine.machineId]?.machineLabel ??
+      machine.machineId;
     Dialog.confirm({
       title: `Clear cache for ${label}?`,
       message:
-        "This removes offline threads, server metadata, and cached branches for this environment. The saved connection and credentials stay intact.",
+        "This removes offline threads, server metadata, and cached branches for this machine. The saved connection and credentials stay intact.",
       confirmText: "Clear Cache",
       destructive: true,
       onConfirm: () =>
-        clearCache({ type: "environment", environmentId: environment.environmentId }),
+        clearCache({ type: "machine", machineId: machine.machineId }),
     });
   };
 
@@ -60,7 +60,7 @@ export function SettingsClientStorageRouteScreen() {
     Dialog.confirm({
       title: "Clear all client caches?",
       message:
-        "This removes offline data for every environment. Connections, credentials, account data, and app preferences stay intact.",
+        "This removes offline data for every machine. Connections, credentials, account data, and app preferences stay intact.",
       confirmText: "Clear All Caches",
       destructive: true,
       onConfirm: () => clearCache({ type: "all" }),
@@ -76,7 +76,7 @@ export function SettingsClientStorageRouteScreen() {
         className="flex-1"
         contentContainerClassName="gap-6 px-5 pt-4 pb-[18px]"
       >
-        <SettingsSection title="Environment caches">
+        <SettingsSection title="Machine caches">
           {AsyncResult.isFailure(summaryResult) ? (
             <View className="items-center gap-2 px-6 py-8">
               <SymbolView
@@ -98,21 +98,21 @@ export function SettingsClientStorageRouteScreen() {
                 Inspecting cached data…
               </Text>
             </View>
-          ) : environmentSummaries.length > 0 ? (
-            environmentSummaries.map((environment, index) => (
-              <CacheEnvironmentRow
-                key={environment.environmentId}
-                environment={environment}
-                environmentLabel={
-                  savedConnectionsById[environment.environmentId]?.environmentLabel ??
-                  environment.environmentId
+          ) : machineSummaries.length > 0 ? (
+            machineSummaries.map((machine, index) => (
+              <CacheMachineRow
+                key={machine.machineId}
+                machine={machine}
+                machineLabel={
+                  savedConnectionsById[machine.machineId]?.machineLabel ??
+                  machine.machineId
                 }
-                machine={resolveEnvironmentMachineKind(
-                  serverConfigs.get(environment.environmentId) ?? null,
+                machineKind={resolveMachineKind(
+                  serverConfigs.get(machine.machineId) ?? null,
                 )}
                 disabled={isClearing}
                 first={index === 0}
-                onClear={() => confirmClearEnvironment(environment)}
+                onClear={() => confirmClearMachine(machine)}
               />
             ))
           ) : (
@@ -126,7 +126,7 @@ export function SettingsClientStorageRouteScreen() {
               />
               <Text className="text-center text-base text-foreground">No cached data</Text>
               <Text className="text-center text-sm text-foreground-muted">
-                Offline cache records will appear here after environments are used.
+                Offline cache records will appear here after machines are used.
               </Text>
             </View>
           )}
@@ -144,7 +144,7 @@ export function SettingsClientStorageRouteScreen() {
             />
           </SettingsSection>
           <Text className="px-2 text-sm leading-normal text-foreground-muted">
-            Clearing caches never removes environment connections, credentials, account data, or
+            Clearing caches never removes machine connections, credentials, account data, or
             appearance preferences.
           </Text>
           {AsyncResult.isFailure(summaryResult) || AsyncResult.isFailure(clearResult) ? (
@@ -158,10 +158,10 @@ export function SettingsClientStorageRouteScreen() {
   );
 }
 
-function CacheEnvironmentRow(props: {
-  readonly environment: EnvironmentClientCacheSummary;
-  readonly environmentLabel: string;
-  readonly machine: EnvironmentMachineKind;
+function CacheMachineRow(props: {
+  readonly machine: MachineClientCacheSummary;
+  readonly machineLabel: string;
+  readonly machineKind: MachineKind;
   readonly disabled: boolean;
   readonly first: boolean;
   readonly onClear: () => void;
@@ -169,9 +169,9 @@ function CacheEnvironmentRow(props: {
   return (
     <View className={props.first ? undefined : "border-t border-border"}>
       <SettingsActionRow
-        icon={ENVIRONMENT_MACHINE_SYMBOLS[props.machine]}
-        label={props.environmentLabel}
-        description={`Clear ${formatBytes(props.environment.payloadBytes)} of cached data`}
+        icon={MACHINE_SYMBOLS[props.machineKind]}
+        label={props.machineLabel}
+        description={`Clear ${formatBytes(props.machine.payloadBytes)} of cached data`}
         tone="danger"
         disabled={props.disabled}
         onPress={props.onClear}

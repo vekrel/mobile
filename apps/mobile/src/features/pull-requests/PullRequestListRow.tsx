@@ -20,7 +20,7 @@ import {
   pullRequestLabelColor,
   pullRequestListReviewStatus,
   pullRequestListRowsAreEqual,
-  type EnvironmentPullRequestListEntry,
+  type MachinePullRequestListEntry,
 } from "./pullRequestList";
 import {
   pullRequestChecksStatus,
@@ -31,13 +31,13 @@ import { PullRequestGlyph } from "./pullRequestGlyphs";
 
 export const PullRequestListRow = memo(
   function PullRequestListRow(props: {
-    readonly item: EnvironmentPullRequestListEntry;
-    readonly onSelect: (item: EnvironmentPullRequestListEntry) => void;
+    readonly item: MachinePullRequestListEntry;
+    readonly onSelect: (item: MachinePullRequestListEntry) => void;
     readonly selected: boolean;
     readonly sidebar: boolean;
     readonly busy: boolean;
-    readonly getActions: (item: EnvironmentPullRequestListEntry) => MenuProps["actions"];
-    readonly onAction: (item: EnvironmentPullRequestListEntry, action: string) => void;
+    readonly getActions: (item: MachinePullRequestListEntry) => MenuProps["actions"];
+    readonly onAction: (item: MachinePullRequestListEntry, action: string) => void;
   }) {
     const { item } = props;
     const foreground = props.selected

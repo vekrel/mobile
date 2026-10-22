@@ -27,12 +27,12 @@ export interface IncomingShareDraft {
 }
 
 export interface IncomingShareDestination {
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly projectId: string;
 }
 
 const IncomingShareDestinationSchema = Schema.Struct({
-  environmentId: Schema.String,
+  machineId: Schema.String,
   projectId: Schema.String,
 });
 
@@ -141,7 +141,7 @@ export function selectIncomingShareAttachments(input: {
 export function selectIncomingShareAttachmentsForServer(input: {
   readonly attachments: ReadonlyArray<DraftComposerAttachment>;
   readonly serverConfig: {
-    readonly environment: {
+    readonly machine: {
       readonly capabilities: {
         readonly attachmentUploads?: boolean;
         readonly fileAttachments?: { readonly maxUploadBytes: number };
@@ -159,7 +159,7 @@ export function selectIncomingShareAttachmentsForServer(input: {
   if (hasFiles && input.serverConfig === null) {
     return { status: "pending" };
   }
-  const capabilities = input.serverConfig?.environment.capabilities;
+  const capabilities = input.serverConfig?.machine.capabilities;
   const maxFileAttachmentBytes =
     capabilities?.attachmentUploads === true
       ? (capabilities.fileAttachments?.maxUploadBytes ?? null)

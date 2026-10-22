@@ -21,12 +21,12 @@ vi.mock("../../lib/runtime", () => ({
 }));
 
 vi.mock("../../connection/catalog", () => ({
-  environmentCatalog: {
-    removeRelayEnvironments: {},
+  machineCatalog: {
+    removeRelayMachines: {},
   },
 }));
 
-vi.mock("./cloud-drafts", () => ({ removeCloudEnvironments: {} }));
+vi.mock("./cloud-drafts", () => ({ removeCloudMachines: {} }));
 vi.mock("../../state/use-composer-drafts", () => ({
   getComposerCloudAccountId: vi.fn(async () => null),
   restoreCloudComposerDrafts: vi.fn(async () => undefined),

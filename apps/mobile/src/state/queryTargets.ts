@@ -1,7 +1,7 @@
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 
 export interface CheckpointDiffTarget {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly threadId: ThreadId | null;
   readonly fromTurnCount: number | null;
   readonly toTurnCount: number | null;
@@ -14,7 +14,7 @@ export function normalizeComposerPathSearchQuery(query: string | null): string {
 
 export function buildCheckpointDiffTargets(target: CheckpointDiffTarget) {
   if (
-    target.environmentId === null ||
+    target.machineId === null ||
     target.threadId === null ||
     target.fromTurnCount === null ||
     target.toTurnCount === null
@@ -25,7 +25,7 @@ export function buildCheckpointDiffTargets(target: CheckpointDiffTarget) {
   if (target.fromTurnCount === 0) {
     return {
       fullThread: {
-        environmentId: target.environmentId,
+        machineId: target.machineId,
         input: {
           threadId: target.threadId,
           toTurnCount: target.toTurnCount,
@@ -39,7 +39,7 @@ export function buildCheckpointDiffTargets(target: CheckpointDiffTarget) {
   return {
     fullThread: null,
     turn: {
-      environmentId: target.environmentId,
+      machineId: target.machineId,
       input: {
         threadId: target.threadId,
         fromTurnCount: target.fromTurnCount,

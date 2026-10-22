@@ -4,8 +4,8 @@ import * as Linking from "expo-linking";
 import { useEffect } from "react";
 import { Platform } from "react-native";
 import { useAppearancePreferences } from "../features/settings/appearance/AppearancePreferencesProvider";
-import { environmentCatalog } from "../connection/catalog";
-import { environmentPresentations } from "../state/presentation";
+import { machineCatalog } from "../connection/catalog";
+import { machinePresentations } from "../state/presentation";
 import { publishSubscriptionUsage } from "./publishSubscriptionUsage";
 import { useSubscriptionUsage } from "./useSubscriptionUsage";
 import { buildSubscriptionUsageSnapshot } from "./subscriptionUsageSnapshot";
@@ -14,7 +14,7 @@ import { createWidgetTheme } from "./widgetTheme";
 // Isolate quota changes from the much busier thread/config presentation stream.
 const snapshotAtom = Atom.make((get) =>
   buildSubscriptionUsageSnapshot(
-    get(environmentPresentations.presentationsWithProvidersAtom),
+    get(machinePresentations.presentationsWithProvidersAtom),
     Linking.createURL("settings/usage", { queryParams: { tab: "limits" } }),
     Platform.OS === "android" ? Infinity : 6,
   ),
@@ -27,7 +27,7 @@ export function SubscriptionUsageCoordinator() {
     themeVariablesByAppearance,
     isReady: appearanceReady,
   } = useAppearancePreferences();
-  const catalog = useAtomValue(environmentCatalog.catalogValueAtom);
+  const catalog = useAtomValue(machineCatalog.catalogValueAtom);
   const snapshot = useAtomValue(snapshotAtom);
   useSubscriptionUsage(catalog.isReady);
   const androidAppearance = Platform.OS === "android" ? themeAppearance : null;

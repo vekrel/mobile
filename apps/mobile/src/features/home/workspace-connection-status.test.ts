@@ -9,10 +9,10 @@ function workspaceState(overrides: Partial<WorkspaceState> = {}): WorkspaceState
     hasConnections: true,
     hasLoadedShellSnapshot: true,
     hasPendingShellSnapshot: false,
-    hasSyncingConnectedEnvironment: false,
-    hasReadyEnvironment: true,
-    hasConnectingEnvironment: false,
-    connectingEnvironments: [],
+    hasSyncingConnectedMachine: false,
+    hasReadyMachine: true,
+    hasConnectingMachine: false,
+    connectingMachines: [],
     connectionState: "connected",
     connectionError: null,
     shellSnapshotError: null,
@@ -26,19 +26,19 @@ describe("workspace connection status", () => {
     ["reconnecting", "Could not reach sleeping laptop"],
     ["error", "Could not reach sleeping laptop"],
   ] as const)(
-    "keeps the brand while a secondary environment is %s (%s)",
+    "keeps the brand while a secondary machine is %s (%s)",
     (connectionState, connectionError) => {
       const state = workspaceState({
-        hasConnectingEnvironment: connectionState !== "error",
+        hasConnectingMachine: connectionState !== "error",
         hasPendingShellSnapshot: true,
         connectionError,
-        connectingEnvironments:
+        connectingMachines:
           connectionState === "error"
             ? []
             : [
                 {
-                  environmentId: "environment-2" as never,
-                  environmentLabel: "Sleeping laptop",
+                  machineId: "machine-2" as never,
+                  machineLabel: "Sleeping laptop",
                   displayUrl: "",
                   isRelayManaged: false,
                   isEnabled: true,
@@ -53,16 +53,16 @@ describe("workspace connection status", () => {
     },
   );
 
-  it("shows connected shell catch-up even while a secondary environment is unreachable", () => {
+  it("shows connected shell catch-up even while a secondary machine is unreachable", () => {
     const state = workspaceState({
-      hasSyncingConnectedEnvironment: true,
+      hasSyncingConnectedMachine: true,
       hasPendingShellSnapshot: true,
-      hasConnectingEnvironment: true,
+      hasConnectingMachine: true,
       connectionError: "Could not reach sleeping laptop",
-      connectingEnvironments: [
+      connectingMachines: [
         {
-          environmentId: "environment-2" as never,
-          environmentLabel: "Sleeping laptop",
+          machineId: "machine-2" as never,
+          machineLabel: "Sleeping laptop",
           displayUrl: "",
           isRelayManaged: false,
           isEnabled: true,

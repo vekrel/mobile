@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import type { AtomCommandResult } from "@vekrel/client-runtime/state/runtime";
 import {
   isAtomCommandInterrupted,
@@ -6,7 +6,7 @@ import {
 } from "@vekrel/client-runtime/state/runtime";
 
 type RefreshProvidersTarget = {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly input: { readonly refreshModels: true };
 };
 
@@ -15,9 +15,9 @@ export function createProviderCatalogRefreshRunner<Result>(
 ) {
   let pending: Promise<Result> | null = null;
 
-  return (environmentId: EnvironmentId): Promise<Result> => {
+  return (machineId: MachineId): Promise<Result> => {
     if (pending) return pending;
-    pending = refreshProviders({ environmentId, input: { refreshModels: true } }).finally(() => {
+    pending = refreshProviders({ machineId, input: { refreshModels: true } }).finally(() => {
       pending = null;
     });
     return pending;

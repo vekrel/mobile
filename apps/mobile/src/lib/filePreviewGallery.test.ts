@@ -1,19 +1,19 @@
 import { describe, expect, it } from "vite-plus/test";
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import type { FilePreviewItem } from "../components/FilePreviewModal.types";
 import { filePreviewGallery, filePreviewKey } from "./filePreviewGallery";
 
 describe("image preview groups", () => {
   it("matches remote originals despite metadata and property order differences", () => {
-    const environmentId = EnvironmentId.make("test");
+    const machineId = MachineId.make("test");
     const a: FilePreviewItem = {
       kind: "image",
-      environmentId,
+      machineId,
       resource: { _tag: "attachment", attachmentId: "a", fileName: "old.png" },
     };
     const b: FilePreviewItem = {
       kind: "image",
-      environmentId,
+      machineId,
       resource: {
         attachmentId: "a",
         _tag: "attachment",

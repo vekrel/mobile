@@ -1,15 +1,15 @@
 import * as NodeModule from "node:module";
 import { EMPTY_TERMINAL_BUFFER_STATE } from "@vekrel/client-runtime/state/terminal";
-import { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import { MachineId, ThreadId } from "@vekrel/contracts";
 import { act, createElement, type ReactNode } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 
 import { useTerminalGridSync } from "./useTerminalGridSync";
 
-const access = vi.hoisted(() => ({ environments: new Set<string>() }));
+const access = vi.hoisted(() => ({ machines: new Set<string>() }));
 vi.mock("../../state/session", () => ({
-  readEnvironmentScope: (environmentId: string, scope: string) =>
-    scope === "terminal:operate" && access.environments.has(environmentId),
+  readMachineScope: (machineId: string, scope: string) =>
+    scope === "terminal:operate" && access.machines.has(machineId),
 }));
 
 // Mobile already depends on ReactDOM but does not install its browser type declarations.
@@ -43,7 +43,7 @@ function session({
 
 function input(): Input {
   return {
-    environmentId: EnvironmentId.make("environment"),
+    machineId: MachineId.make("machine"),
     threadId: ThreadId.make("thread"),
     terminalId: "term-1",
     canOperate: true,
@@ -59,8 +59,8 @@ function render(value: Input) {
 
 beforeEach(() => {
   resize.mockClear();
-  access.environments.clear();
-  access.environments.add("environment");
+  access.machines.clear();
+  access.machines.add("machine");
   // The probe renders no DOM, but ReactDOM needs an event target to run real effects.
   const document = {
     nodeType: 9,
@@ -97,7 +97,7 @@ it("replays an unchanged grid after reconnecting with a new attachment generatio
   await render({ ...current, terminal: session({ generation: 2 }) });
   expect(resize).toHaveBeenCalledTimes(2);
   expect(resize).toHaveBeenLastCalledWith({
-    environmentId: "environment",
+    machineId: "machine",
     input: { threadId: "thread", terminalId: "term-1", cols: 120, rows: 40 },
   });
 

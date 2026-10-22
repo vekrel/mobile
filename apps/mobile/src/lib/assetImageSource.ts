@@ -1,4 +1,4 @@
-import type { AssetResource, EnvironmentId } from "@vekrel/contracts";
+import type { AssetResource, MachineId } from "@vekrel/contracts";
 import type { ImageSource } from "expo-image";
 
 /**
@@ -7,14 +7,14 @@ import type { ImageSource } from "expo-image";
  * their id instead.
  */
 export function assetImageSource(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   resource: AssetResource,
   uri: string,
 ): ImageSource {
   return resource._tag === "attachment"
     ? {
         uri,
-        cacheKey: `t3-attachment:${JSON.stringify([environmentId, resource.attachmentId])}`,
+        cacheKey: `t3-attachment:${JSON.stringify([machineId, resource.attachmentId])}`,
       }
     : { uri };
 }

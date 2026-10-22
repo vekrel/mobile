@@ -1,18 +1,18 @@
 import { useAtomValue } from "@effect/atom-react";
 import { StackActions, useNavigation } from "@react-navigation/native";
-import { scopeThreadRef } from "@vekrel/client-runtime/environment";
+import { scopeThreadRef } from "@vekrel/client-runtime/machine";
 import {
   resolveWorkflowOpening,
   workflowOpeningHeadline,
   workflowOpeningParentThreadId,
   type RuntimeSubagent,
 } from "@vekrel/client-runtime/state/subagentRuntime";
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 
 import { AppText as Text } from "../../components/ui/AppText";
-import { environmentThreadDetails } from "../../state/threads";
+import { machineThreadDetails } from "../../state/threads";
 import { useAppearancePreferences } from "../settings/appearance/AppearancePreferencesProvider";
 import { useMarkdownCodeHighlight } from "./markdownCodeHighlightState";
 import { SubagentRow } from "./SubagentRow";
@@ -22,8 +22,8 @@ import { WorkLogBlock } from "./work-log-layout";
 const FOLDED_SCRIPT_LINES = 10;
 
 /** The workflow opening for a thread, or null; the parent's detail loads only for a workflow. */
-export function useWorkflowOpening(environmentId: EnvironmentId, threadId: ThreadId) {
-  const threadAtom = environmentThreadDetails.threadAtom(scopeThreadRef(environmentId, threadId));
+export function useWorkflowOpening(machineId: MachineId, threadId: ThreadId) {
+  const threadAtom = machineThreadDetails.threadAtom(scopeThreadRef(machineId, threadId));
   // Selected as a primitive so an ordinary thread's updates never change the result.
   const parentId = useAtomValue(threadAtom, (thread) =>
     thread === null
@@ -37,7 +37,7 @@ export function useWorkflowOpening(environmentId: EnvironmentId, threadId: Threa
     parentId === null ? null : (thread?.projection ?? null),
   );
   const parentSubagents = useAtomValue(
-    environmentThreadDetails.threadAtom(scopeThreadRef(environmentId, parentId ?? threadId)),
+    machineThreadDetails.threadAtom(scopeThreadRef(machineId, parentId ?? threadId)),
     (parent) => (parentId === null ? null : (parent?.projection.subagents ?? null)),
   );
   return projection === null
@@ -73,7 +73,7 @@ type WorkflowOpeningValue = NonNullable<ReturnType<typeof useWorkflowOpening>>;
 
 /** Replaces a workflow coordinator's script message: the plan, its agents, then the script. */
 export function ThreadWorkflowOpening(props: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly opening: WorkflowOpeningValue;
 }) {
@@ -95,7 +95,7 @@ export function ThreadWorkflowOpening(props: {
           if (threadId !== null)
             navigation.dispatch(
               StackActions.push("Thread", {
-                environmentId: String(props.environmentId),
+                machineId: String(props.machineId),
                 threadId,
               }),
             );
@@ -103,7 +103,7 @@ export function ThreadWorkflowOpening(props: {
         className="rounded-lg px-3 py-3 active:bg-subtle"
       >
         <SubagentRow
-          environmentId={props.environmentId}
+          machineId={props.machineId}
           subagent={memberRowSubagent(member, opening, props.threadId)}
           elapsed={null}
         />

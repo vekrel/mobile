@@ -72,7 +72,7 @@ import { relativeTime } from "../../lib/time";
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { usePullRequestConnected } from "./usePullRequestConnected";
 import { composerPullRequests } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { usePullToRefresh } from "../../state/use-pull-to-refresh";
 import {
   isNativeReviewDiffDrawEvent,
@@ -112,7 +112,7 @@ import {
 import { PullRequestMergeControls } from "./PullRequestMergeControls";
 import { PullRequestStackCard } from "./PullRequestStackCard";
 import { usePullRequestStack, type PullRequestStackState } from "./usePullRequestStack";
-import { usePullRequestEnvironmentFallback } from "./usePullRequestEnvironmentFallback";
+import { usePullRequestMachineFallback } from "./usePullRequestMachineFallback";
 
 const EMPTY_IDS: readonly string[] = [];
 
@@ -133,7 +133,7 @@ function PullRequestTabScrollView(props: ScrollViewProps) {
 
 function usePullRequestActivityRows(params: PullRequestParams, filter: ActivityFilter) {
   const navigation = useNavigation();
-  const result = useEnvironmentQuery(composerPullRequests.activity(requestTarget(params)));
+  const result = useMachineQuery(composerPullRequests.activity(requestTarget(params)));
   const filtered = result.data ? filterPullRequestActivity(result.data, filter) : null;
   const rows = (() => {
     if (!filtered) return [];
@@ -285,8 +285,8 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
   const insets = useSafeAreaInsets();
   const [toolbarHeight, setToolbarHeight] = usePullRequestToolbarHeight(insets.bottom);
   const params = route.params;
-  usePullRequestEnvironmentFallback(params);
-  const connected = usePullRequestConnected(params.environmentId);
+  usePullRequestMachineFallback(params);
+  const connected = usePullRequestConnected(params.machineId);
   const [section, setSection] = useState<"overview" | "activity" | "guide">("overview");
   const requestedSection = useRef(section);
   const [listAnimationsReady, setListAnimationsReady] = useState(false);
@@ -341,7 +341,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
   const pendingDescriptionJump = useRef(false);
   const pendingFilesJump = useRef(false);
   const detailAtom = composerPullRequests.detail(requestTarget(params));
-  const result = useEnvironmentQuery(detailAtom);
+  const result = useMachineQuery(detailAtom);
   const pullRefresh = usePullToRefresh(detailAtom);
   const { refresh: refreshDetail } = result;
   useFocusEffect(() => refreshDetail());
@@ -367,7 +367,7 @@ export function PullRequestRouteScreen({ route }: StaticScreenProps<PullRequestP
       const target = requestTarget(params);
       await composerPullRequests.invalidate
         .run(registry, {
-          environmentId: target.environmentId,
+          machineId: target.machineId,
           input: { reference: target.input },
         })
         .catch(() => undefined);
@@ -776,7 +776,7 @@ export function PullRequestFileRouteScreen({
     result.parsed,
     route.params.focus ? route.params.path : undefined,
   );
-  const detail = useEnvironmentQuery(composerPullRequests.detail(requestTarget(route.params)));
+  const detail = useMachineQuery(composerPullRequests.detail(requestTarget(route.params)));
   const { refresh: refreshDetail } = detail;
   useFocusEffect(() => refreshDetail());
   const { loadMore } = result;
@@ -799,7 +799,7 @@ export function PullRequestFileRouteScreen({
     !detail.isPending &&
     !result.isPending &&
     !result.error;
-  const activity = useEnvironmentQuery(composerPullRequests.activity(requestTarget(route.params)));
+  const activity = useMachineQuery(composerPullRequests.activity(requestTarget(route.params)));
   const baseData = buildNativeReviewDiffData(parsed);
   const data = annotatePullRequestDiff(
     baseData,
@@ -1173,7 +1173,7 @@ export function PullRequestFileRouteScreen({
               contentWidth={NATIVE_REVIEW_DIFF_CONTENT_WIDTH}
               contentInsetTop={Platform.OS === "ios" ? (staleDiff ? 0 : insets.top) : undefined}
               contentInsetBottom={Platform.OS === "android" ? toolbarHeight : insets.bottom}
-              contentResetKey={`pull-request:${route.params.environmentId}:${route.params.repository}:${route.params.number}:${commit ?? "all"}`}
+              contentResetKey={`pull-request:${route.params.machineId}:${route.params.repository}:${route.params.number}:${commit ?? "all"}`}
             />
           </View>
         ) : filter.hiddenCount > 0 &&

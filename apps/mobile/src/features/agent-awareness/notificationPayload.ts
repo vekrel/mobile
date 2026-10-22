@@ -35,13 +35,13 @@ function identifierFromNotificationResponse(response: unknown): string | null {
 }
 
 function encodeThreadDeepLink(input: {
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly threadId: string;
 }): string | null {
-  if (input.environmentId.length === 0 || input.threadId.length === 0) {
+  if (input.machineId.length === 0 || input.threadId.length === 0) {
     return null;
   }
-  return `/threads/${encodeURIComponent(input.environmentId)}/${encodeURIComponent(input.threadId)}`;
+  return `/threads/${encodeURIComponent(input.machineId)}/${encodeURIComponent(input.threadId)}`;
 }
 
 function normalizeThreadDeepLink(value: string): string | null {
@@ -61,7 +61,7 @@ function normalizeThreadDeepLink(value: string): string | null {
 
   try {
     return encodeThreadDeepLink({
-      environmentId: decodeURIComponent(parts[2] ?? ""),
+      machineId: decodeURIComponent(parts[2] ?? ""),
       threadId: decodeURIComponent(parts[3] ?? ""),
     });
   } catch {
@@ -87,10 +87,10 @@ export function extractAgentNotificationDeepLink(response: unknown): string | nu
     }
   }
 
-  const environmentId = data?.environmentId;
+  const machineId = data?.machineId;
   const threadId = data?.threadId;
-  if (typeof environmentId === "string" && typeof threadId === "string") {
-    return encodeThreadDeepLink({ environmentId, threadId });
+  if (typeof machineId === "string" && typeof threadId === "string") {
+    return encodeThreadDeepLink({ machineId, threadId });
   }
   return null;
 }

@@ -7,7 +7,7 @@ export const SHOWCASE_SCENES = [
   "thread",
   "terminal",
   "review",
-  "environments",
+  "machines",
   "agent-activity",
 ] as const;
 export type ShowcaseScene = (typeof SHOWCASE_SCENES)[number];

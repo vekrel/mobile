@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -9,7 +9,7 @@ import {
 } from "./provider-catalog-refresh";
 
 describe("mobile provider catalog refresh", () => {
-  it("requests model discovery for the selected environment and deduplicates pending taps", async () => {
+  it("requests model discovery for the selected machine and deduplicates pending taps", async () => {
     let resolveRefresh: ((value: "refreshed") => void) | undefined;
     const refreshProviders = vi.fn(
       () =>
@@ -18,15 +18,15 @@ describe("mobile provider catalog refresh", () => {
         }),
     );
     const refresh = createProviderCatalogRefreshRunner(refreshProviders);
-    const environmentId = EnvironmentId.make("environment-mobile");
+    const machineId = MachineId.make("machine-mobile");
 
-    const first = refresh(environmentId);
-    const second = refresh(environmentId);
+    const first = refresh(machineId);
+    const second = refresh(machineId);
 
     expect(second).toBe(first);
     expect(refreshProviders).toHaveBeenCalledOnce();
     expect(refreshProviders).toHaveBeenCalledWith({
-      environmentId,
+      machineId,
       input: { refreshModels: true },
     });
 
@@ -40,10 +40,10 @@ describe("mobile provider catalog refresh", () => {
     let callCount = 0;
     const refreshProviders = vi.fn(async () => (callCount++ === 0 ? failure : success));
     const refresh = createProviderCatalogRefreshRunner(refreshProviders);
-    const environmentId = EnvironmentId.make("environment-mobile");
+    const machineId = MachineId.make("machine-mobile");
 
-    expect(providerCatalogRefreshError(await refresh(environmentId))).toBe("discovery failed");
-    expect(providerCatalogRefreshError(await refresh(environmentId))).toBeNull();
+    expect(providerCatalogRefreshError(await refresh(machineId))).toBe("discovery failed");
+    expect(providerCatalogRefreshError(await refresh(machineId))).toBeNull();
     expect(refreshProviders).toHaveBeenCalledTimes(2);
   });
 });

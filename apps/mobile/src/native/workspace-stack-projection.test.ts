@@ -301,13 +301,13 @@ describe("v5 stack handoff", () => {
     expect(screens[2]).toBe(files);
   });
   it("keeps the root and outgoing settings page in place until the JS pop finishes", () => {
-    const environments = { ...files, key: "environments", name: "SettingsEnvironments" };
-    const popped = reconcileStackScreens([settings, environments], [settings]);
-    expect(popped).toEqual([settings, environments]);
+    const machines = { ...files, key: "machines", name: "SettingsMachines" };
+    const popped = reconcileStackScreens([settings, machines], [settings]);
+    expect(popped).toEqual([settings, machines]);
     expect(reconcileStackScreens(popped, [settings])).toEqual(popped);
-    const next = { ...environments, key: "next-environments" };
-    expect(reconcileStackScreens(popped, [settings, next])).toEqual([settings, environments, next]);
-    expect(reconcileStackScreens(popped, [settings], new Set([environments.key]))).toEqual([
+    const next = { ...machines, key: "next-machines" };
+    expect(reconcileStackScreens(popped, [settings, next])).toEqual([settings, machines, next]);
+    expect(reconcileStackScreens(popped, [settings], new Set([machines.key]))).toEqual([
       settings,
     ]);
   });

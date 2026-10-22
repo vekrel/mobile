@@ -4,7 +4,7 @@ import { squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import type { PullRequestDetail } from "@vekrel/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { composerPullRequests } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { pullRequestTarget, type PullRequestParams } from "./usePullRequestDiff";
 import { pullRequestReviewKey } from "./pullRequestReviewDrafts";
@@ -14,11 +14,11 @@ export function usePullRequestFilesViewed(params: PullRequestParams, pr: PullReq
   const scopeKey = pullRequestReviewKey(params);
   const supported = Boolean(pr?.capabilities.viewedFiles);
   const permission = useAtomValue(
-    composerPullRequests.setFilesViewed.permissionAtom(target.environmentId),
+    composerPullRequests.setFilesViewed.permissionAtom(target.machineId),
   );
-  const connected = usePullRequestConnected(params.environmentId);
+  const connected = usePullRequestConnected(params.machineId);
   const allowed = connected && permission;
-  const query = useEnvironmentQuery(supported ? composerPullRequests.filesViewed(target) : null);
+  const query = useMachineQuery(supported ? composerPullRequests.filesViewed(target) : null);
   const refresh = useAtomRefresh(composerPullRequests.filesViewed(target));
   const write = useAtomCommand(composerPullRequests.setFilesViewed, { reportFailure: false });
   const [state, setState] = useState<{

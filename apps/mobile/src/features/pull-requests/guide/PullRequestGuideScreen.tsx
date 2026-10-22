@@ -27,7 +27,7 @@ import { reviewGuideState } from "./reviewGuideState";
 import { GuideNotice } from "./GuideNotice";
 import Animated from "react-native-reanimated";
 import { PR_ROW_ENTER, PR_ROW_EXIT, PR_ROW_LAYOUT } from "../pullRequestAnimations";
-import { useEnvironmentQuery } from "../../../state/query";
+import { useMachineQuery } from "../../../state/query";
 import { composerPullRequests } from "../../../state/pull-requests";
 import { usePullRequestPermissions } from "../usePullRequestPermissions";
 import { pullRequestTarget } from "../usePullRequestDiff";
@@ -94,7 +94,7 @@ export function PullRequestGuideContent({ params }: { readonly params: PullReque
 export function PullRequestGuideStopScreen({ route }: StaticScreenProps<GuideStopParams>) {
   const navigation = useNavigation();
   const state = useReviewGuide(route.params);
-  const detail = useEnvironmentQuery(composerPullRequests.detail(pullRequestTarget(route.params)));
+  const detail = useMachineQuery(composerPullRequests.detail(pullRequestTarget(route.params)));
   const permissions = usePullRequestPermissions(route.params, detail.data);
   const canReview =
     permissions.verdicts.length > 0 && detail.data?.headSha === route.params.guideHeadSha;

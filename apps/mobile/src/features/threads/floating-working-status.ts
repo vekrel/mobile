@@ -1,4 +1,4 @@
-import type { EnvironmentConnectionPhase } from "@vekrel/client-runtime/connection";
+import type { MachineConnectionPhase } from "@vekrel/client-runtime/connection";
 
 export interface FloatingStatusAction {
   readonly label: string;
@@ -42,11 +42,11 @@ export type FloatingWorkingStatus =
 
 export function connectionFloatingStatus(input: {
   readonly connectionError: string | null;
-  readonly connectionState: EnvironmentConnectionPhase;
-  readonly environmentLabel: string | null;
+  readonly connectionState: MachineConnectionPhase;
+  readonly machineLabel: string | null;
   readonly onReconnect: () => void;
 }): FloatingWorkingStatus | null {
-  const environmentLabel = input.environmentLabel ?? "Environment";
+  const machineLabel = input.machineLabel ?? "Machine";
   const unavailable = (label: string): FloatingWorkingStatus => ({
     kind: "connection",
     tone: "unavailable",
@@ -62,8 +62,8 @@ export function connectionFloatingStatus(input: {
         tone: "reconnecting",
         label:
           input.connectionError === null
-            ? `Reconnecting to ${environmentLabel}...`
-            : `Failed to connect. Retrying ${environmentLabel}...`,
+            ? `Reconnecting to ${machineLabel}...`
+            : `Failed to connect. Retrying ${machineLabel}...`,
         onPress: input.onReconnect,
       };
     case "offline":
@@ -73,11 +73,11 @@ export function connectionFloatingStatus(input: {
     case "error":
       return unavailable(
         input.connectionError
-          ? `Failed to connect to ${environmentLabel}: ${input.connectionError}`
-          : `Failed to connect to ${environmentLabel}`,
+          ? `Failed to connect to ${machineLabel}: ${input.connectionError}`
+          : `Failed to connect to ${machineLabel}`,
       );
     case "available":
-      return unavailable(`${environmentLabel} is not connected`);
+      return unavailable(`${machineLabel} is not connected`);
     case "connected":
       return null;
   }

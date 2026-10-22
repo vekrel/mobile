@@ -17,7 +17,7 @@ import { useSelectedThreadGitState } from "../../../state/use-selected-thread-gi
 import { SheetActionButton } from "./gitSheetComponents";
 
 type GitConfirmSheetProps = StaticScreenProps<{
-  readonly environmentId: string;
+  readonly machineId: string;
   readonly threadId: string;
   readonly confirmAction?: string;
   readonly branchName?: string;
@@ -44,7 +44,7 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
     | undefined;
   const branchName = params.branchName ?? "";
   const includesCommit = params.includesCommit === "true";
-  const environmentId = params.environmentId ?? "";
+  const machineId = params.machineId ?? "";
   const threadId = params.threadId ?? "";
 
   const copy = useMemo(
@@ -61,7 +61,7 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
 
   const continuePendingAction = useCallback(async () => {
     if (!canWriteSourceControl || !confirmAction) return;
-    navigation.dispatch(StackActions.replace("Thread", { environmentId, threadId }));
+    navigation.dispatch(StackActions.replace("Thread", { machineId, threadId }));
     await gitActions.onRunSelectedThreadGitAction({
       action: confirmAction,
       ...(params.commitMessage ? { commitMessage: params.commitMessage } : {}),
@@ -70,7 +70,7 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
   }, [
     canWriteSourceControl,
     confirmAction,
-    environmentId,
+    machineId,
     gitActions,
     params,
     navigation,
@@ -79,7 +79,7 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
 
   const movePendingActionToFeatureBranch = useCallback(async () => {
     if (!canChangeThreadBranch || !confirmAction) return;
-    navigation.dispatch(StackActions.replace("Thread", { environmentId, threadId }));
+    navigation.dispatch(StackActions.replace("Thread", { machineId, threadId }));
 
     if (includesCommit) {
       await gitActions.onRunSelectedThreadGitAction({
@@ -111,7 +111,7 @@ export function GitConfirmSheet(props: GitConfirmSheetProps) {
     includesCommit,
     params,
     navigation,
-    environmentId,
+    machineId,
     threadId,
   ]);
 

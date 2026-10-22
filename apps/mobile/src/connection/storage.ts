@@ -54,7 +54,7 @@ export const layer = Layer.effectContext(
         Effect.mapError((error) => targetPersistenceError("list-targets", error)),
       ),
       listDisabled: catalog.read.pipe(
-        Effect.map((document) => document.disabledEnvironmentIds),
+        Effect.map((document) => document.disabledMachineIds),
         Effect.mapError((error) => targetPersistenceError("list-disabled-targets", error)),
       ),
     });
@@ -63,17 +63,17 @@ export const layer = Layer.effectContext(
         catalog
           .update((document) => registerConnectionInCatalog(document, registration, routes))
           .pipe(Effect.mapError((error) => targetPersistenceError("register-connection", error))),
-      setRoutes: (environmentId, routes) =>
+      setRoutes: (machineId, routes) =>
         catalog
-          .update((document) => setRoutesInCatalog(document, environmentId, routes))
+          .update((document) => setRoutesInCatalog(document, machineId, routes))
           .pipe(Effect.mapError((error) => targetPersistenceError("set-connection-routes", error))),
-      remove: (environmentId) =>
+      remove: (machineId) =>
         catalog
-          .update((document) => removeConnectionFromCatalog(document, environmentId))
+          .update((document) => removeConnectionFromCatalog(document, machineId))
           .pipe(Effect.mapError((error) => targetPersistenceError("remove-connection", error))),
-      setEnabled: (environmentId, enabled) =>
+      setEnabled: (machineId, enabled) =>
         catalog
-          .update((document) => setConnectionEnabledInCatalog(document, environmentId, enabled))
+          .update((document) => setConnectionEnabledInCatalog(document, machineId, enabled))
           .pipe(
             Effect.mapError((error) => targetPersistenceError("set-connection-enabled", error)),
           ),
@@ -130,22 +130,22 @@ export const layer = Layer.effectContext(
         })),
     });
     const remoteTokenStore = TokenStore.make({
-      get: (environmentId) =>
+      get: (machineId) =>
         catalog.read.pipe(
           Effect.map((document) =>
             Option.fromUndefinedOr(
-              document.remoteDpopTokens.find((token) => token.environmentId === environmentId),
+              document.remoteDpopTokens.find((token) => token.machineId === machineId),
             ),
           ),
         ),
       put: (token) => catalog.update((document) => putRemoteDpopTokenInCatalog(document, token)),
-      remove: (environmentId) =>
+      remove: (machineId) =>
         catalog.update((document) => ({
           ...document,
           remoteDpopTokens: removeCatalogValue(
             document.remoteDpopTokens,
-            (value) => value.environmentId,
-            environmentId,
+            (value) => value.machineId,
+            machineId,
           ),
         })),
     });

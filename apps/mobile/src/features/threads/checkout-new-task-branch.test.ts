@@ -3,7 +3,7 @@ import * as NodeFSP from "node:fs/promises";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeUtil from "node:util";
-import { EnvironmentId, VcsListRefsInput } from "@vekrel/contracts";
+import { MachineId, VcsListRefsInput } from "@vekrel/contracts";
 import { settlePromise, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import * as Schema from "effect/Schema";
 import { afterEach, beforeEach, describe, expect, it } from "vite-plus/test";
@@ -15,7 +15,7 @@ let directory: string;
 let cwd: string;
 const git = (...args: string[]) => exec("git", ["-C", cwd, ...args]);
 const branch = { name: "feature/a", current: false, isDefault: false, worktreePath: null };
-const environmentId = EnvironmentId.make("branch-test-environment");
+const machineId = MachineId.make("branch-test-machine");
 
 beforeEach(async () => {
   directory = await NodeFSP.realpath(
@@ -44,7 +44,7 @@ const REF_PAGE_SIZE = 2;
 
 const readRefs: CheckoutInput["readRefs"] = (request) =>
   settlePromise(async () => {
-    expect(request.environmentId).toBe(environmentId);
+    expect(request.machineId).toBe(machineId);
     const input = decodeListRefsInput(request.input);
     const { stdout: rootPath } = await exec("git", [
       "-C",
@@ -100,7 +100,7 @@ const refuseSwitch: CheckoutInput["switchRef"] = () => {
 function selectBranch(switchRef: CheckoutInput["switchRef"]) {
   return checkoutNewTaskBranch({
     branch,
-    project: { environmentId, workspaceRoot: cwd },
+    project: { machineId, workspaceRoot: cwd },
     workspaceMode: "local",
     readRefs,
     switchRef,
@@ -109,7 +109,7 @@ function selectBranch(switchRef: CheckoutInput["switchRef"]) {
 
 const switchRef: CheckoutInput["switchRef"] = (request) =>
   settlePromise(async () => {
-    expect(request.environmentId).toBe(environmentId);
+    expect(request.machineId).toBe(machineId);
     await exec("git", ["-C", request.input.cwd, "checkout", request.input.refName]);
     const { stdout } = await exec("git", ["-C", request.input.cwd, "branch", "--show-current"]);
     return { refName: stdout.trim() || null };
@@ -141,7 +141,7 @@ describe("new-task branch checkout", () => {
     await exec("git", ["-C", previousWorktree, "checkout", "-b", "other-branch"]);
     const result = await checkoutNewTaskBranch({
       branch: { ...branch, worktreePath: previousWorktree },
-      project: { environmentId, workspaceRoot: cwd },
+      project: { machineId, workspaceRoot: cwd },
       workspaceMode: "local",
       readRefs,
       switchRef,
@@ -192,7 +192,7 @@ describe("new-task branch checkout", () => {
     await git("worktree", "add", worktreePath, "feature/a");
     const result = await checkoutNewTaskBranch({
       branch: { ...branch, worktreePath },
-      project: { environmentId, workspaceRoot: cwd },
+      project: { machineId, workspaceRoot: cwd },
       workspaceMode: "local",
       readRefs,
       switchRef: () => {
@@ -216,7 +216,7 @@ describe("new-task branch checkout", () => {
 
     const result = await checkoutNewTaskBranch({
       branch: { ...branch, worktreePath },
-      project: { environmentId, workspaceRoot },
+      project: { machineId, workspaceRoot },
       workspaceMode: "local",
       readRefs,
       switchRef: refuseSwitch,
@@ -249,7 +249,7 @@ describe("new-task branch checkout", () => {
 
     const result = await checkoutNewTaskBranch({
       branch: { ...branch, name },
-      project: { environmentId, workspaceRoot: cwd },
+      project: { machineId, workspaceRoot: cwd },
       workspaceMode: "local",
       readRefs,
       switchRef: refuseSwitch,
@@ -275,7 +275,7 @@ describe("new-task branch checkout", () => {
 
     const result = await checkoutNewTaskBranch({
       branch: remoteBranch,
-      project: { environmentId, workspaceRoot: cwd },
+      project: { machineId, workspaceRoot: cwd },
       workspaceMode: "local",
       readRefs,
       switchRef: refuseSwitch,
@@ -306,7 +306,7 @@ describe("new-task branch checkout", () => {
 
     const result = await checkoutNewTaskBranch({
       branch: remoteBranch,
-      project: { environmentId, workspaceRoot: cwd },
+      project: { machineId, workspaceRoot: cwd },
       workspaceMode: "local",
       readRefs,
       switchRef,
@@ -341,7 +341,7 @@ describe("new-task branch checkout", () => {
 
       const result = await checkoutNewTaskBranch({
         branch: { ...branch, worktreePath: source === "picker" ? worktreePath : null },
-        project: { environmentId, workspaceRoot: cwd },
+        project: { machineId, workspaceRoot: cwd },
         workspaceMode: "local",
         readRefs: async (request) => {
           const result = await readRefs(request);

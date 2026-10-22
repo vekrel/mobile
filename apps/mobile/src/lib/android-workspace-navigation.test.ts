@@ -44,12 +44,12 @@ const options = {
 };
 const thread = {
   name: "Thread",
-  params: { environmentId: "environment-a", threadId: "thread-a" },
+  params: { machineId: "machine-a", threadId: "thread-a" },
 } as const;
 const pullRequest = {
   name: "PullRequest",
   params: {
-    environmentId: "environment-a",
+    machineId: "machine-a",
     projectId: "project-a",
     repository: "owner/repository",
     number: 42,
@@ -137,7 +137,7 @@ describe("Android workspace navigation", () => {
     },
   );
 
-  it.each([{ environmentId: "environment-b" }, { repository: "owner/other" }])(
+  it.each([{ machineId: "machine-b" }, { repository: "owner/other" }])(
     "does not reuse another PR's key when its scope differs: %o",
     (change) => {
       const previous = select(router.getInitialState(options), pullRequest);
@@ -184,7 +184,7 @@ describe("Android workspace navigation", () => {
 
     state = apply(
       parent,
-      StackActions.push("Thread", { ...thread.params, environmentId: "environment-b" }),
+      StackActions.push("Thread", { ...thread.params, machineId: "machine-b" }),
     );
     listSelected = false;
     back();
@@ -202,7 +202,7 @@ describe("Android workspace navigation", () => {
     });
   });
 
-  it("recognizes a parent only when its environment and thread are immediately below", () => {
+  it("recognizes a parent only when its machine and thread are immediately below", () => {
     const parent = select(router.getInitialState(options), thread);
     const child = apply(
       parent,
@@ -210,7 +210,7 @@ describe("Android workspace navigation", () => {
     );
 
     expect(parentThreadIsBelow(child, thread.params)).toBe(true);
-    expect(parentThreadIsBelow(child, { ...thread.params, environmentId: "environment-b" })).toBe(
+    expect(parentThreadIsBelow(child, { ...thread.params, machineId: "machine-b" })).toBe(
       false,
     );
     expect(parentThreadIsBelow(child, { ...thread.params, threadId: "other" })).toBe(false);
@@ -227,7 +227,7 @@ describe("Android workspace navigation", () => {
     const root = apply(router.getInitialState(options), StackActions.push("SettingsSheet"));
     const settings = router.getInitialState({
       ...options,
-      routeNames: ["SettingsContent", "SettingsEnvironments"],
+      routeNames: ["SettingsContent", "SettingsMachines"],
     });
     const actions: AndroidWorkspaceResetAction[] = [];
     const rootNavigation = {

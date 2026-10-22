@@ -1,12 +1,12 @@
 import { describe, expect, it } from "@effect/vitest";
-import { EnvironmentNotRegisteredError } from "@vekrel/client-runtime/connection";
+import { MachineNotRegisteredError } from "@vekrel/client-runtime/connection";
 import { isTransportConnectionErrorMessage } from "@vekrel/client-runtime/errors";
-import { EnvironmentRpcUnavailableError } from "@vekrel/client-runtime/rpc";
+import { MachineRpcUnavailableError } from "@vekrel/client-runtime/rpc";
 import {
   CommandId,
   ComposerContextId,
-  EnvironmentAuthorizationError,
-  EnvironmentId,
+  MachineAuthorizationError,
+  MachineId,
   MessageId,
   OrchestrationDispatchCommandError,
   ProjectId,
@@ -95,13 +95,13 @@ import {
 } from "./thread-outbox-storage";
 
 function queuedMessage(input: {
-  readonly environmentId?: string;
+  readonly machineId?: string;
   readonly threadId?: string;
   readonly messageId: string;
   readonly createdAt: string;
 }): QueuedThreadMessage {
   return {
-    environmentId: EnvironmentId.make(input.environmentId ?? "environment-1"),
+    machineId: MachineId.make(input.machineId ?? "machine-1"),
     threadId: ThreadId.make(input.threadId ?? "thread-1"),
     messageId: MessageId.make(input.messageId),
     commandId: CommandId.make(`command-${input.messageId}`),
@@ -146,7 +146,7 @@ describe("thread outbox", () => {
         createdAt: "2026-06-08T10:00:01.000Z",
       });
       const second = queuedMessage({
-        environmentId: "environment-2",
+        machineId: "machine-2",
         messageId: "message-2",
         createdAt: "2026-06-08T10:00:02.000Z",
       });
@@ -175,7 +175,7 @@ describe("thread outbox", () => {
       });
       await expect(manager.load()).resolves.toBe(false);
       const recovered = registry.get(manager.queuedMessagesByThreadKeyAtom)[
-        "environment-1:thread-1"
+        "machine-1:thread-1"
       ]![0]!;
       expect(recovered).toEqual(first);
       await expect(manager.confirmQueued(recovered)).resolves.toBe(true);
@@ -184,8 +184,8 @@ describe("thread outbox", () => {
       const beforeRetry = registry.get(manager.queuedMessagesByThreadKeyAtom);
       await expect(manager.load()).resolves.toBe(false);
       expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toBe(beforeRetry);
-      await expect(manager.clearEnvironment(first.environmentId)).rejects.toMatchObject({
-        operation: "clear-environment-load",
+      await expect(manager.clearMachine(first.machineId)).rejects.toMatchObject({
+        operation: "clear-machine-load",
       });
       expect(outboxFiles.get("message-2.json")).toBe(unreadable);
       expect(outboxFiles.has("message-1.json")).toBe(true);
@@ -196,7 +196,7 @@ describe("thread outbox", () => {
       outboxFiles.set("message-2.json", JSON.stringify(encodeQueuedThreadMessage(second)));
       await expect(manager.load()).resolves.toBe(true);
       expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-        "environment-2:thread-1": [second],
+        "machine-2:thread-1": [second],
       });
       await expect(expoThreadOutboxStorage.load()).resolves.toEqual({
         messages: [second],
@@ -205,7 +205,7 @@ describe("thread outbox", () => {
     },
   );
 
-  it("preserves queued messages when environment cleanup cannot read the outbox", async () => {
+  it("preserves queued messages when machine cleanup cannot read the outbox", async () => {
     const registry = AtomRegistry.make();
     onTestFinished(() => registry.dispose());
     const message = queuedMessage({
@@ -230,12 +230,12 @@ describe("thread outbox", () => {
     });
     await manager.enqueue(message);
 
-    await expect(manager.clearEnvironment(message.environmentId)).rejects.toMatchObject({
-      operation: "clear-environment-load",
+    await expect(manager.clearMachine(message.machineId)).rejects.toMatchObject({
+      operation: "clear-machine-load",
     });
     expect([...stored.values()]).toEqual([message]);
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [message],
+      "machine-1:thread-1": [message],
     });
   });
 
@@ -270,7 +270,7 @@ describe("thread outbox", () => {
       errors: [
         new ThreadOutboxStorageError({
           operation: "read-message",
-          environmentId: null,
+          machineId: null,
           threadId: null,
           messageId: null,
           fileName: "unreadable.json",
@@ -281,7 +281,7 @@ describe("thread outbox", () => {
     await expect(loading).resolves.toBe(false);
     await writing;
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [edited],
+      "machine-1:thread-1": [edited],
     });
     await expect(manager.confirmQueued(edited)).resolves.toBe(true);
 
@@ -307,7 +307,7 @@ describe("thread outbox", () => {
           fileUri: "file:///documents/t3-composer-attachments/photo.png",
           previewUri: "file:///documents/t3-composer-attachments/photo.png",
           uploadedAttachmentId: "pending-photo-png",
-          uploadEnvironmentId: EnvironmentId.make("environment-1"),
+          uploadMachineId: MachineId.make("machine-1"),
         },
       ],
     } satisfies QueuedThreadMessage;
@@ -420,7 +420,7 @@ describe("thread outbox", () => {
 
     const loading = manager.load();
     await Promise.resolve();
-    const clearing = manager.clearEnvironment(message.environmentId);
+    const clearing = manager.clearMachine(message.machineId);
     await Promise.resolve();
     await Promise.resolve();
 
@@ -458,7 +458,7 @@ describe("thread outbox", () => {
         message: "[thread-outbox] failed to load persisted messages",
         error: new ThreadOutboxManagerError({
           operation: "load",
-          environmentId: null,
+          machineId: null,
           threadId: null,
           messageId: null,
           cause: loadCause,
@@ -496,20 +496,20 @@ describe("thread outbox", () => {
 
     await manager.enqueue(message);
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [message],
+      "machine-1:thread-1": [message],
     });
 
     await expect(manager.remove(message)).rejects.toEqual(
       new ThreadOutboxManagerError({
         operation: "remove",
-        environmentId: message.environmentId,
+        machineId: message.machineId,
         threadId: message.threadId,
         messageId: message.messageId,
         cause: removalCause,
       }),
     );
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [message],
+      "machine-1:thread-1": [message],
     });
 
     failRemoval = false;
@@ -539,13 +539,13 @@ describe("thread outbox", () => {
 
     const enqueueing = manager.enqueue(message);
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [message],
+      "machine-1:thread-1": [message],
     });
 
     releaseWrite();
     await enqueueing;
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [message],
+      "machine-1:thread-1": [message],
     });
     registry.dispose();
   });
@@ -571,7 +571,7 @@ describe("thread outbox", () => {
     await expect(manager.enqueue(message)).rejects.toEqual(
       new ThreadOutboxManagerError({
         operation: "enqueue",
-        environmentId: message.environmentId,
+        machineId: message.machineId,
         threadId: message.threadId,
         messageId: message.messageId,
         cause: writeCause,
@@ -640,7 +640,7 @@ describe("thread outbox", () => {
     await second;
 
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [retried],
+      "machine-1:thread-1": [retried],
     });
     await expect(manager.confirmQueued(retried)).resolves.toBe(true);
     await expect(manager.confirmQueued(message)).resolves.toBe(false);
@@ -669,7 +669,7 @@ describe("thread outbox", () => {
     const edited = { ...message, text: "edited" };
     await expect(manager.update(edited)).resolves.toBe(true);
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [edited],
+      "machine-1:thread-1": [edited],
     });
     expect(stored.get(message.messageId)).toEqual(edited);
 
@@ -708,7 +708,7 @@ describe("thread outbox", () => {
     );
     expect(writes).toEqual([original.text, "keep my changes"]);
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [edited],
+      "machine-1:thread-1": [edited],
     });
     registry.dispose();
   });
@@ -757,7 +757,7 @@ describe("thread outbox", () => {
     expect(writes).toEqual([original.text, "stale upload", "newer edit", "newer edit"]);
     await enqueue;
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [replacement],
+      "machine-1:thread-1": [replacement],
     });
     registry.dispose();
   });
@@ -789,7 +789,7 @@ describe("thread outbox", () => {
 
     await expect(manager.remove(original, revision)).resolves.toBe(null);
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [edited],
+      "machine-1:thread-1": [edited],
     });
     expect(stored.get(original.messageId)).toEqual(edited);
 
@@ -848,7 +848,7 @@ describe("thread outbox", () => {
     expect(stored.get(original.messageId)).toEqual(retried);
     await enqueue;
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [retried],
+      "machine-1:thread-1": [retried],
     });
     expect(stored.get(original.messageId)).toEqual(retried);
     registry.dispose();
@@ -887,13 +887,13 @@ describe("thread outbox", () => {
 
     await expect(removal).resolves.toBe(null);
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-1:thread-1": [message],
+      "machine-1:thread-1": [message],
     });
     expect(stored.get(message.messageId)).toEqual(message);
     registry.dispose();
   });
 
-  it("preserves concurrent enqueues while clearing an environment", async () => {
+  it("preserves concurrent enqueues while clearing a machine", async () => {
     const registry = AtomRegistry.make();
     const stored = new Map<MessageId, QueuedThreadMessage>();
     const removeStarted = Promise.withResolvers<void>();
@@ -906,7 +906,7 @@ describe("thread outbox", () => {
           stored.set(message.messageId, message);
         },
         remove: async (message) => {
-          if (message.environmentId === EnvironmentId.make("environment-clear")) {
+          if (message.machineId === MachineId.make("machine-clear")) {
             removeStarted.resolve();
             await removeBarrier.promise;
           }
@@ -915,29 +915,29 @@ describe("thread outbox", () => {
       },
     });
     const replaced = queuedMessage({
-      environmentId: "environment-clear",
+      machineId: "machine-clear",
       messageId: "message-replaced-during-clear",
       createdAt: "2026-06-08T10:00:01.000Z",
     });
     const removed = queuedMessage({
-      environmentId: "environment-clear",
+      machineId: "machine-clear",
       messageId: "message-removed-by-clear",
       createdAt: "2026-06-08T10:00:02.000Z",
     });
     const kept = queuedMessage({
-      environmentId: "environment-keep",
-      messageId: "message-other-environment",
+      machineId: "machine-keep",
+      messageId: "message-other-machine",
       createdAt: "2026-06-08T10:00:03.000Z",
     });
     const replacement = { ...replaced, text: "replacement" };
     const added = queuedMessage({
-      environmentId: "environment-clear",
+      machineId: "machine-clear",
       messageId: "message-added-during-clear",
       createdAt: "2026-06-08T10:00:04.000Z",
     });
 
     await Promise.all([manager.enqueue(replaced), manager.enqueue(removed), manager.enqueue(kept)]);
-    const clearing = manager.clearEnvironment(replaced.environmentId);
+    const clearing = manager.clearMachine(replaced.machineId);
     await removeStarted.promise;
     const replacing = manager.enqueue(replacement);
     const adding = manager.enqueue(added);
@@ -945,8 +945,8 @@ describe("thread outbox", () => {
 
     await expect(clearing).resolves.toEqual([removed]);
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-clear:thread-1": [replacement, added],
-      "environment-keep:thread-1": [kept],
+      "machine-clear:thread-1": [replacement, added],
+      "machine-keep:thread-1": [kept],
     });
     expect(stored.get(replacement.messageId)).toEqual(replacement);
     expect(stored.has(removed.messageId)).toBe(false);
@@ -956,7 +956,7 @@ describe("thread outbox", () => {
     registry.dispose();
   });
 
-  it("does not restore a message removed before a queued environment clear starts", async () => {
+  it("does not restore a message removed before a queued machine clear starts", async () => {
     const registry = AtomRegistry.make();
     const stored = new Map<MessageId, QueuedThreadMessage>();
     const removeStarted = Promise.withResolvers<void>();
@@ -980,7 +980,7 @@ describe("thread outbox", () => {
       },
     });
     const message = queuedMessage({
-      environmentId: "environment-clear",
+      machineId: "machine-clear",
       messageId: "message-removed-before-clear",
       createdAt: "2026-06-08T10:00:01.000Z",
     });
@@ -988,7 +988,7 @@ describe("thread outbox", () => {
     await manager.enqueue(message);
     const removal = manager.remove(message);
     await removeStarted.promise;
-    const clearing = manager.clearEnvironment(message.environmentId);
+    const clearing = manager.clearMachine(message.machineId);
     removeBarrier.resolve();
 
     await expect(removal).resolves.toEqual(message);
@@ -999,7 +999,7 @@ describe("thread outbox", () => {
     registry.dispose();
   });
 
-  it("keeps an enqueue published while an environment clear waits to start", async () => {
+  it("keeps an enqueue published while a machine clear waits to start", async () => {
     const registry = AtomRegistry.make();
     const stored = new Map<MessageId, QueuedThreadMessage>();
     const mutationStarted = Promise.withResolvers<void>();
@@ -1022,9 +1022,9 @@ describe("thread outbox", () => {
       await mutationBarrier.promise;
     });
     await mutationStarted.promise;
-    const clearing = manager.clearEnvironment(EnvironmentId.make("environment-clear"));
+    const clearing = manager.clearMachine(MachineId.make("machine-clear"));
     const added = queuedMessage({
-      environmentId: "environment-clear",
+      machineId: "machine-clear",
       messageId: "message-enqueued-before-clear-start",
       createdAt: "2026-06-08T10:00:01.000Z",
     });
@@ -1035,7 +1035,7 @@ describe("thread outbox", () => {
     await expect(clearing).resolves.toEqual([]);
     expect(removeCalls).toBe(0);
     expect(registry.get(manager.queuedMessagesByThreadKeyAtom)).toEqual({
-      "environment-clear:thread-1": [added],
+      "machine-clear:thread-1": [added],
     });
     await enqueue;
     expect(stored.get(added.messageId)).toEqual(added);
@@ -1100,7 +1100,7 @@ describe("thread outbox", () => {
         isCreation: false,
         threadExists: false,
         shellStatus: "synchronizing",
-        environmentConnected: true,
+        machineConnected: true,
         threadBusy: false,
       }),
     ).toBe("wait");
@@ -1109,7 +1109,7 @@ describe("thread outbox", () => {
         isCreation: false,
         threadExists: false,
         shellStatus: "live",
-        environmentConnected: true,
+        machineConnected: true,
         threadBusy: false,
       }),
     ).toBe("remove");
@@ -1118,7 +1118,7 @@ describe("thread outbox", () => {
         isCreation: false,
         threadExists: true,
         shellStatus: "live",
-        environmentConnected: true,
+        machineConnected: true,
         threadBusy: false,
       }),
     ).toBe("send");
@@ -1130,7 +1130,7 @@ describe("thread outbox", () => {
         isCreation: false,
         threadExists: true,
         shellStatus: "live",
-        environmentConnected: true,
+        machineConnected: true,
         threadBusy: true,
       }),
     ).toBe("send");
@@ -1139,7 +1139,7 @@ describe("thread outbox", () => {
         isCreation: false,
         threadExists: true,
         shellStatus: "live",
-        environmentConnected: false,
+        machineConnected: false,
         threadBusy: true,
       }),
     ).toBe("wait");
@@ -1151,7 +1151,7 @@ describe("thread outbox", () => {
         isCreation: true,
         threadExists: false,
         shellStatus: "cached",
-        environmentConnected: false,
+        machineConnected: false,
         threadBusy: false,
       }),
     ).toBe("wait");
@@ -1160,7 +1160,7 @@ describe("thread outbox", () => {
         isCreation: true,
         threadExists: false,
         shellStatus: "synchronizing",
-        environmentConnected: true,
+        machineConnected: true,
         threadBusy: false,
       }),
     ).toBe("wait");
@@ -1169,7 +1169,7 @@ describe("thread outbox", () => {
         isCreation: true,
         threadExists: false,
         shellStatus: "live",
-        environmentConnected: true,
+        machineConnected: true,
         threadBusy: false,
       }),
     ).toBe("send");
@@ -1178,7 +1178,7 @@ describe("thread outbox", () => {
         isCreation: true,
         threadExists: true,
         shellStatus: "live",
-        environmentConnected: true,
+        machineConnected: true,
         threadBusy: true,
       }),
     ).toBe("remove");
@@ -1240,7 +1240,7 @@ describe("thread outbox", () => {
             fileUri: "file:///documents/t3-composer-attachments/photo.png",
             previewUri: "file:///documents/t3-composer-attachments/photo.png",
             uploadedAttachmentId: "pending-photo-png",
-            uploadEnvironmentId: EnvironmentId.make("environment-1"),
+            uploadMachineId: MachineId.make("machine-1"),
           },
         ],
       }),
@@ -1263,7 +1263,7 @@ describe("thread outbox", () => {
     ).toBe(false);
     expect(
       shouldRetryThreadOutboxDelivery(
-        new EnvironmentAuthorizationError({
+        new MachineAuthorizationError({
           message: "Missing scope",
           requiredScope: "orchestration:operate",
         }),
@@ -1297,15 +1297,15 @@ describe("thread outbox", () => {
     ).toBe(true);
     expect(
       shouldRetryThreadOutboxDelivery(
-        new EnvironmentRpcUnavailableError({
-          environmentId: "environment-1",
+        new MachineRpcUnavailableError({
+          machineId: "machine-1",
           message: "Home is not connected.",
         }),
       ),
     ).toBe(true);
     expect(
       shouldRetryThreadOutboxDelivery(
-        new EnvironmentNotRegisteredError({ environmentId: EnvironmentId.make("environment-1") }),
+        new MachineNotRegisteredError({ machineId: MachineId.make("machine-1") }),
       ),
     ).toBe(true);
   });

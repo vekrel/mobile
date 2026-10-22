@@ -1,6 +1,6 @@
 import * as Dialog from "../../components/ui/Dialog";
 import { useAtomValue } from "@effect/atom-react";
-import { scopeThreadRef } from "@vekrel/client-runtime/environment";
+import { scopeThreadRef } from "@vekrel/client-runtime/machine";
 import { resolveHandoffEndpoints, type HandoffEndpoints } from "@vekrel/client-runtime/handoff";
 import {
   normalizeProviderAccentColor,
@@ -8,7 +8,7 @@ import {
   shouldShowInstanceBadge,
 } from "@vekrel/client-runtime/state/provider-instance-display";
 import type {
-  EnvironmentId,
+  MachineId,
   OrchestrationV2ProjectedTurnItem,
   ProviderInstanceId,
   ServerProvider,
@@ -19,8 +19,8 @@ import { Pressable, View, type ColorValue } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import { ProviderIcon, ProviderInstanceIcon } from "../../components/ProviderIcon";
-import { environmentThreadDetails } from "../../state/threads";
-import { serverEnvironment } from "../../state/server";
+import { machineThreadDetails } from "../../state/threads";
+import { serverMachine } from "../../state/server";
 import { ThreadContextDivider } from "./thread-context-divider";
 
 type HandoffProvider = ServerProvider & {
@@ -29,14 +29,14 @@ type HandoffProvider = ServerProvider & {
 };
 
 function handoffEndpointsAtom(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   { item, sourceThreadId }: OrchestrationV2ProjectedTurnItem,
 ) {
   let previous: ReturnType<typeof resolveHandoffEndpoints> | null = null;
-  const ref = scopeThreadRef(environmentId, sourceThreadId);
+  const ref = scopeThreadRef(machineId, sourceThreadId);
   return Atom.make((get) => {
     if (item.type !== "handoff") return null;
-    const projection = get(environmentThreadDetails.threadAtom(ref))?.projection;
+    const projection = get(machineThreadDetails.threadAtom(ref))?.projection;
     const next = resolveHandoffEndpoints(item, projection?.runs ?? []);
     // Run activity changes frequently; only endpoint changes affect this row.
     if (JSON.stringify(next) !== JSON.stringify(previous)) previous = next;
@@ -45,22 +45,22 @@ function handoffEndpointsAtom(
 }
 
 export function ThreadHandoffRow(props: {
-  environmentId: EnvironmentId;
+  machineId: MachineId;
   projectedItem: OrchestrationV2ProjectedTurnItem;
   iconColor: ColorValue;
   surfaceColor: string;
 }) {
   const { item } = props.projectedItem;
   const endpointsAtom = useMemo(
-    () => handoffEndpointsAtom(props.environmentId, props.projectedItem),
-    [props.environmentId, props.projectedItem],
+    () => handoffEndpointsAtom(props.machineId, props.projectedItem),
+    [props.machineId, props.projectedItem],
   );
   const endpoints = useAtomValue(endpointsAtom);
   if (item.type !== "handoff" || endpoints === null) return null;
   const color = item.status === "failed" ? "#e11d48" : props.iconColor;
   return (
     <ThreadHandoffDivider
-      environmentId={props.environmentId}
+      machineId={props.machineId}
       endpoints={endpoints}
       iconColor={color}
       surfaceColor={props.surfaceColor}
@@ -71,14 +71,14 @@ export function ThreadHandoffRow(props: {
 }
 
 export function ThreadHandoffDivider(props: {
-  environmentId: EnvironmentId;
+  machineId: MachineId;
   endpoints: HandoffEndpoints;
   iconColor: ColorValue;
   surfaceColor: string;
   label: string;
   failed?: boolean;
 }) {
-  const config = useAtomValue(serverEnvironment.configValueAtom(props.environmentId));
+  const config = useAtomValue(serverMachine.configValueAtom(props.machineId));
   const { endpoints } = props;
   const endpointProps = {
     providers: (config?.providers ?? []).map((provider) => {

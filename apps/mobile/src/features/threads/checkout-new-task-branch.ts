@@ -1,4 +1,4 @@
-import type { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
+import type { MachineProject } from "@vekrel/client-runtime/state/shell";
 import type { VcsRef } from "@vekrel/client-runtime/state/vcs";
 import {
   type AtomCommandResult,
@@ -18,14 +18,14 @@ const VCS_REF_QUERY_MAX_LENGTH = 256;
 
 export async function checkoutNewTaskBranch<E>(input: {
   readonly branch: VcsRef;
-  readonly project: Pick<EnvironmentProject, "environmentId" | "workspaceRoot"> | null;
+  readonly project: Pick<MachineProject, "machineId" | "workspaceRoot"> | null;
   readonly workspaceMode: "local" | "worktree";
   readonly readRefs: (request: {
-    readonly environmentId: EnvironmentProject["environmentId"];
+    readonly machineId: MachineProject["machineId"];
     readonly input: VcsListRefsInput;
   }) => Promise<AtomCommandResult<VcsListRefsResult, E>>;
   readonly switchRef: (request: {
-    readonly environmentId: EnvironmentProject["environmentId"];
+    readonly machineId: MachineProject["machineId"];
     readonly input: VcsSwitchRefInput;
   }) => Promise<AtomCommandResult<VcsSwitchRefResult, E>>;
 }): Promise<AtomCommandResult<VcsRef, E | Error>> {
@@ -45,7 +45,7 @@ export async function checkoutNewTaskBranch<E>(input: {
   let cursor: number | undefined;
   for (;;) {
     const refs = await input.readRefs({
-      environmentId: input.project.environmentId,
+      machineId: input.project.machineId,
       input: {
         cwd: input.project.workspaceRoot,
         // Bound the substring query; compare the full name across every page.
@@ -87,7 +87,7 @@ export async function checkoutNewTaskBranch<E>(input: {
   }
 
   const result = await input.switchRef({
-    environmentId: input.project.environmentId,
+    machineId: input.project.machineId,
     input: { cwd: input.project.workspaceRoot, refName: input.branch.name },
   });
   return mapAtomCommandResult(result, (value) => ({

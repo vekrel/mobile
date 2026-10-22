@@ -1,20 +1,20 @@
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { assetImageSource } from "./assetImageSource";
 
-const environmentId = EnvironmentId.make("environment-1");
+const machineId = MachineId.make("machine-1");
 
 describe("assetImageSource", () => {
   it("caches an attachment under one key across re-signed URLs", () => {
     const resource = { _tag: "attachment", attachmentId: "thread-1-photo.jpg" } as const;
     const first = assetImageSource(
-      environmentId,
+      machineId,
       resource,
       "https://host/api/assets/token-a/p.jpg",
     );
     const second = assetImageSource(
-      environmentId,
+      machineId,
       resource,
       "https://host/api/assets/token-b/p.jpg",
     );
@@ -25,7 +25,7 @@ describe("assetImageSource", () => {
       cacheKey: first.cacheKey,
     });
     expect(
-      assetImageSource(EnvironmentId.make("environment-2"), resource, "https://other/p.jpg")
+      assetImageSource(MachineId.make("machine-2"), resource, "https://other/p.jpg")
         .cacheKey,
     ).not.toBe(first.cacheKey);
   });
@@ -33,12 +33,12 @@ describe("assetImageSource", () => {
   it("keeps ids that contain colons from sharing a key", () => {
     const uri = "https://host/api/assets/token/p.jpg";
     const left = assetImageSource(
-      EnvironmentId.make("a"),
+      MachineId.make("a"),
       { _tag: "attachment", attachmentId: "b:c" },
       uri,
     );
     const right = assetImageSource(
-      EnvironmentId.make("a:b"),
+      MachineId.make("a:b"),
       { _tag: "attachment", attachmentId: "c" },
       uri,
     );
@@ -48,7 +48,7 @@ describe("assetImageSource", () => {
 
   it("keeps workspace files keyed by URL because they can change on disk", () => {
     const source = assetImageSource(
-      environmentId,
+      machineId,
       { _tag: "draft-workspace-file", cwd: "/repo", path: "logo.png" },
       "https://host/api/assets/token-a/logo.png",
     );

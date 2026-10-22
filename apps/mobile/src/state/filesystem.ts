@@ -1,5 +1,5 @@
-import { createFilesystemEnvironmentAtoms } from "@vekrel/client-runtime/state/filesystem";
+import { createFilesystemMachineAtoms } from "@vekrel/client-runtime/state/filesystem";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 
-export const filesystemEnvironment = createFilesystemEnvironmentAtoms(connectionAtomRuntime);
+export const filesystemMachine = createFilesystemMachineAtoms(connectionAtomRuntime);

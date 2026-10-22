@@ -1,24 +1,24 @@
 import { describe, expect, it } from "@effect/vitest";
 import {
   PrimaryConnectionTarget,
-  type EnvironmentPresentation,
+  type MachinePresentation,
   type NetworkStatus,
 } from "@vekrel/client-runtime/connection";
-import type { EnvironmentCatalogState } from "@vekrel/client-runtime/state/connections";
-import type { EnvironmentShellSummary } from "@vekrel/client-runtime/state/shell";
-import { EnvironmentId, type ServerConfig } from "@vekrel/contracts";
+import type { MachineCatalogState } from "@vekrel/client-runtime/state/connections";
+import type { MachineShellSummary } from "@vekrel/client-runtime/state/shell";
+import { MachineId, type ServerConfig } from "@vekrel/contracts";
 import * as Option from "effect/Option";
 import { Atom, AtomRegistry } from "effect/reactivity";
 
 import { createWorkspaceConnectionAtoms } from "./workspace-connection-atoms";
-import { projectWorkspaceEnvironment, projectWorkspaceState } from "./workspaceModel";
+import { projectWorkspaceMachine, projectWorkspaceState } from "./workspaceModel";
 
-const ID = EnvironmentId.make("environment-1");
-function presentation(): EnvironmentPresentation {
+const ID = MachineId.make("machine-1");
+function presentation(): MachinePresentation {
   return {
     entry: {
       target: new PrimaryConnectionTarget({
-        environmentId: ID,
+        machineId: ID,
         label: "Mac",
         httpBaseUrl: "https://example.test",
         wsBaseUrl: "wss://example.test",
@@ -31,8 +31,8 @@ function presentation(): EnvironmentPresentation {
   };
 }
 function harness() {
-  const source = Atom.make<EnvironmentPresentation | null>(presentation());
-  const catalog = Atom.make<EnvironmentCatalogState>({
+  const source = Atom.make<MachinePresentation | null>(presentation());
+  const catalog = Atom.make<MachineCatalogState>({
     isReady: true,
     entries: new Map([[ID, presentation().entry]]),
   });
@@ -49,7 +49,7 @@ function harness() {
 describe("workspace connection subscriptions", () => {
   it("keeps connection consumers stable across shell and provider updates", () => {
     const h = harness();
-    const shell = Atom.make<EnvironmentShellSummary>({
+    const shell = Atom.make<MachineShellSummary>({
       hasSnapshot: true,
       hasSynchronizingShell: false,
       hasCachedShell: false,
@@ -60,13 +60,13 @@ describe("workspace connection subscriptions", () => {
       projectWorkspaceState({
         isReady: get(h.catalog).isReady,
         networkStatus: get(h.network),
-        environments: [projectWorkspaceEnvironment(ID, get(h.source)!)],
+        machines: [projectWorkspaceMachine(ID, get(h.source)!)],
         shellSummary: get(shell),
-        hasSyncingConnectedEnvironment: false,
+        hasSyncingConnectedMachine: false,
       }),
     );
     const initial = h.registry.get(h.stateAtom);
-    const initialEnvironments = h.registry.get(h.environmentsAtom);
+    const initialMachines = h.registry.get(h.machinesAtom);
     let broadChanges = 0;
     let connectionChanges = 0;
     const stopBroad = h.registry.subscribe(broadState, () => broadChanges++);
@@ -87,7 +87,7 @@ describe("workspace connection subscriptions", () => {
         h.registry.set(h.source, { ...presentation(), serverConfig: config });
         expect(h.registry.get(h.source)?.serverConfig).toBe(config);
         expect(h.registry.get(h.stateAtom)).toBe(initial);
-        expect(h.registry.get(h.environmentsAtom)).toBe(initialEnvironments);
+        expect(h.registry.get(h.machinesAtom)).toBe(initialMachines);
       }
       expect(connectionChanges).toBe(0);
     } finally {

@@ -1,11 +1,11 @@
-import { EnvironmentId, type ServerConfig } from "@vekrel/contracts";
+import { MachineId, type ServerConfig } from "@vekrel/contracts";
 import { clampFileAttachmentUploadBytes } from "@vekrel/client-runtime/state/attachments";
 
 import { parseLegacyNewTaskDraftKey } from "../state/new-task-draft-key";
 import type { DraftComposerAttachment } from "./composerImages";
 
 export interface ComposerAttachmentUploadRequest {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachment: DraftComposerAttachment;
 }
 
@@ -15,41 +15,41 @@ export type ComposerAttachmentUploadState =
   | { readonly status: "failed"; readonly reason: string };
 
 export function composerAttachmentUploadKey(
-  environmentId: EnvironmentId,
+  machineId: MachineId,
   attachmentId: string,
 ): string {
-  return `${environmentId}:${attachmentId}`;
+  return `${machineId}:${attachmentId}`;
 }
 
-export function composerDraftEnvironmentId(
+export function composerDraftMachineId(
   draftKey: string,
   queuedMessages: ReadonlyArray<{
     readonly messageId: string;
-    readonly environmentId: EnvironmentId;
+    readonly machineId: MachineId;
   }>,
-  draft?: { readonly project?: { readonly environmentId: EnvironmentId } },
-): EnvironmentId | null {
+  draft?: { readonly project?: { readonly machineId: MachineId } },
+): MachineId | null {
   if (draftKey.startsWith("pending-task:")) {
     return (
       queuedMessages.find((message) => `pending-task:${message.messageId}` === draftKey)
-        ?.environmentId ?? null
+        ?.machineId ?? null
     );
   }
   if (draftKey.startsWith("new-task:")) {
     if (draft?.project) {
-      return draft.project.environmentId;
+      return draft.project.machineId;
     }
     const legacy = parseLegacyNewTaskDraftKey(draftKey);
-    return legacy === null ? null : EnvironmentId.make(legacy.environmentId);
+    return legacy === null ? null : MachineId.make(legacy.machineId);
   }
   const separator = draftKey.lastIndexOf(":");
-  return separator > 0 ? EnvironmentId.make(draftKey.slice(0, separator)) : null;
+  return separator > 0 ? MachineId.make(draftKey.slice(0, separator)) : null;
 }
 
 type UploadServerConfig = {
-  readonly environment: {
+  readonly machine: {
     readonly capabilities: Pick<
-      ServerConfig["environment"]["capabilities"],
+      ServerConfig["machine"]["capabilities"],
       "attachmentUploads" | "fileAttachments"
     >;
   };
@@ -59,7 +59,7 @@ export function canUploadComposerAttachment(
   attachment: DraftComposerAttachment,
   config: UploadServerConfig | null | undefined,
 ): boolean {
-  const capabilities = config?.environment.capabilities;
+  const capabilities = config?.machine.capabilities;
   return (
     capabilities?.attachmentUploads === true &&
     (attachment.type === "image" ||
@@ -70,7 +70,7 @@ export function canUploadComposerAttachment(
 }
 
 export function composerAttachmentUploadBlockReason(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachments: ReadonlyArray<DraftComposerAttachment>;
   readonly connected: boolean;
   readonly serverConfig: UploadServerConfig | null;
@@ -79,21 +79,21 @@ export function composerAttachmentUploadBlockReason(input: {
   if (!input.connected) return null;
   for (const attachment of input.attachments) {
     if (!canUploadComposerAttachment(attachment, input.serverConfig)) continue;
-    const state = input.states[composerAttachmentUploadKey(input.environmentId, attachment.id)];
+    const state = input.states[composerAttachmentUploadKey(input.machineId, attachment.id)];
     if (state?.status === "failed") return "Retry or remove the failed attachment";
   }
   return null;
 }
 
 export function composerAttachmentsStillUploading(input: {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly attachments: ReadonlyArray<DraftComposerAttachment>;
   readonly serverConfig: UploadServerConfig | null;
   readonly states: Readonly<Record<string, ComposerAttachmentUploadState>>;
 }): boolean {
   return input.attachments.some((attachment) => {
     if (!canUploadComposerAttachment(attachment, input.serverConfig)) return false;
-    const state = input.states[composerAttachmentUploadKey(input.environmentId, attachment.id)];
+    const state = input.states[composerAttachmentUploadKey(input.machineId, attachment.id)];
     return state?.status !== "ready" && state?.status !== "failed";
   });
 }
@@ -176,7 +176,7 @@ export function createComposerAttachmentUploadQueue(options: {
       if (disposed) return;
       desired = new Map(
         requests.map((request) => [
-          composerAttachmentUploadKey(request.environmentId, request.attachment.id),
+          composerAttachmentUploadKey(request.machineId, request.attachment.id),
           request,
         ]),
       );
@@ -191,8 +191,8 @@ export function createComposerAttachmentUploadQueue(options: {
       }
       pump();
     },
-    retry(environmentId: EnvironmentId, attachmentId: string) {
-      const key = composerAttachmentUploadKey(environmentId, attachmentId);
+    retry(machineId: MachineId, attachmentId: string) {
+      const key = composerAttachmentUploadKey(machineId, attachmentId);
       if (states[key]?.status !== "failed") return;
       setState(key, undefined);
       pump();

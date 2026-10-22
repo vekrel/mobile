@@ -14,7 +14,7 @@ import { PullRequestCardRow } from "./PullRequestControls";
 import { PullRequestAgentRow } from "./PullRequestAgentRow";
 import { PullRequestGlyph } from "./pullRequestGlyphs";
 import { composerPullRequests } from "../../state/pull-requests";
-import { useEnvironmentQuery } from "../../state/query";
+import { useMachineQuery } from "../../state/query";
 import { allowedUpdateMethods, PR_ACTION_ICONS, PR_ACTION_LABELS } from "./pullRequestActions";
 import {
   checkStatus,
@@ -232,16 +232,16 @@ export function PullRequestBranchRow(props: RowProps) {
 export function PullRequestReviewersRow(props: RowProps) {
   const [expanded, setExpanded] = useState(false);
   const navigation = useNavigation();
-  const activity = useEnvironmentQuery(
+  const activity = useMachineQuery(
     composerPullRequests.activity(pullRequestTarget(props.params)),
   );
   const summary = pullRequestReviewSummary(props.pr, activity.data);
   const canWrite = useAtomValue(
     composerPullRequests.requestReviewers.permissionAtom(
-      pullRequestTarget(props.params).environmentId,
+      pullRequestTarget(props.params).machineId,
     ),
   );
-  const connected = usePullRequestConnected(props.params.environmentId);
+  const connected = usePullRequestConnected(props.params.machineId);
   const canRequest =
     connected &&
     canWrite &&

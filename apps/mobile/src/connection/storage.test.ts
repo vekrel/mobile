@@ -70,8 +70,8 @@ describe("mobile connection catalog storage", () => {
         [LEGACY_CONNECTIONS_KEY]: JSON.stringify({
           connections: [
             {
-              environmentId: "legacy-environment",
-              environmentLabel: "Legacy",
+              machineId: "legacy-machine",
+              machineLabel: "Legacy",
               pairingUrl: "https://legacy.example.test/pair",
               displayUrl: "https://legacy.example.test",
               httpBaseUrl: "https://legacy.example.test",

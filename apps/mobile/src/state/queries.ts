@@ -3,11 +3,11 @@ import {
   filterComposerPullRequestMatches,
 } from "@vekrel/shared/composerPullRequestMatches";
 import { resolveFilesystemReadAccess } from "@vekrel/client-runtime/state/filesystem";
-import { environmentSession } from "./session";
-import { useEnvironmentPresentation } from "./presentation";
+import { machineSession } from "./session";
+import { useMachinePresentation } from "./presentation";
 import type { VcsRefTarget } from "@vekrel/client-runtime/state/vcs";
 import type {
-  EnvironmentId,
+  MachineId,
   OrchestrationV2ProjectedTurnItem,
   ProjectId,
   ThreadPullRequestLink,
@@ -17,7 +17,7 @@ import type {
 import {
   createThreadSearchResultsAtomFamily,
   makeThreadSearchKey,
-  type EnvironmentThreadSearchMatch,
+  type MachineThreadSearchMatch,
 } from "@vekrel/client-runtime/state/thread-search";
 import { useAtomValue } from "@effect/atom-react";
 import * as Cause from "effect/Cause";
@@ -27,10 +27,10 @@ import { AsyncResult, Atom } from "effect/reactivity";
 import { useEffect, useState } from "react";
 
 import { appAtomRegistry } from "./atom-registry";
-import { orchestrationEnvironment } from "./orchestration";
-import { projectEnvironment } from "./projects";
-import { useEnvironmentQuery } from "./query";
-import { vcsEnvironment } from "./vcs";
+import { orchestrationMachine } from "./orchestration";
+import { projectMachine } from "./projects";
+import { useMachineQuery } from "./query";
+import { vcsMachine } from "./vcs";
 import { composerPullRequests } from "./pull-requests";
 import {
   buildCheckpointDiffTargets,
@@ -44,23 +44,23 @@ const THREAD_SEARCH_DEBOUNCE_MS = 200;
 const VCS_REF_LIST_LIMIT = 100;
 const EMPTY_REFS: ReadonlyArray<VcsRef> = [];
 const INITIAL_BRANCH_CURSORS = [undefined] as const;
-const EMPTY_THREAD_SEARCH_MATCHES: ReadonlyArray<EnvironmentThreadSearchMatch> = Object.freeze([]);
+const EMPTY_THREAD_SEARCH_MATCHES: ReadonlyArray<MachineThreadSearchMatch> = Object.freeze([]);
 const EMPTY_THREAD_SEARCH_ATOM = Atom.make({
   matches: EMPTY_THREAD_SEARCH_MATCHES,
   isLoading: false,
 }).pipe(Atom.withLabel("mobile:thread-search:empty"));
 
 const threadSearchResultsAtom = createThreadSearchResultsAtomFamily({
-  getSearchAtom: (environmentId, query) =>
-    orchestrationEnvironment.threadSearch({
-      environmentId,
+  getSearchAtom: (machineId, query) =>
+    orchestrationMachine.threadSearch({
+      machineId,
       input: { query },
     }),
   labelPrefix: "mobile:thread-search",
 });
 
 export interface ComposerPathSearchTarget {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly cwd: string | null;
   readonly query: string | null;
 }
@@ -81,7 +81,7 @@ export function useDebouncedValue<A>(value: A, delayMs: number): A {
 }
 
 export function useComposerPullRequestSearch(input: {
-  environmentId: EnvironmentId | null;
+  machineId: MachineId | null;
   projectId: ProjectId | null;
   repository: string | null;
   threadPullRequests?: ReadonlyArray<ThreadPullRequestLink> | undefined;
@@ -95,14 +95,14 @@ export function useComposerPullRequestSearch(input: {
   const ready =
     query === input.query &&
     query !== null &&
-    input.environmentId !== null &&
+    input.machineId !== null &&
     input.projectId !== null &&
     input.repository !== null;
   const numeric = query !== null && /^\d*$/.test(query);
-  const list = useEnvironmentQuery(
+  const list = useMachineQuery(
     ready
       ? composerPullRequests.list({
-          environmentId: input.environmentId!,
+          machineId: input.machineId!,
           input: {
             projectId: input.projectId!,
             state: "all",
@@ -117,10 +117,10 @@ export function useComposerPullRequestSearch(input: {
     (entry) =>
       entry.number === number && entry.repository.toLowerCase() === input.repository?.toLowerCase(),
   );
-  const exact = useEnvironmentQuery(
+  const exact = useMachineQuery(
     ready && number !== null && Number.isSafeInteger(number) && number > 0 && !hasExact
       ? composerPullRequests.detail({
-          environmentId: input.environmentId!,
+          machineId: input.machineId!,
           input: { projectId: input.projectId!, repository: input.repository!, number },
         })
       : null,
@@ -160,18 +160,18 @@ export function useComposerPullRequestSearch(input: {
 }
 
 export function useThreadSearch(
-  environmentIds: ReadonlyArray<EnvironmentId>,
+  machineIds: ReadonlyArray<MachineId>,
   query: string,
 ): {
-  readonly matches: ReadonlyArray<EnvironmentThreadSearchMatch>;
+  readonly matches: ReadonlyArray<MachineThreadSearchMatch>;
   readonly isPending: boolean;
 } {
   const normalizedQuery = query.trim();
   const debouncedQuery = useDebouncedValue(normalizedQuery, THREAD_SEARCH_DEBOUNCE_MS);
-  const canSearch = environmentIds.length > 0 && normalizedQuery.length >= 2;
+  const canSearch = machineIds.length > 0 && normalizedQuery.length >= 2;
   const settledQuery = canSearch && normalizedQuery === debouncedQuery ? debouncedQuery : null;
   const searchKey =
-    settledQuery === null ? null : makeThreadSearchKey(environmentIds, settledQuery);
+    settledQuery === null ? null : makeThreadSearchKey(machineIds, settledQuery);
   const result = useAtomValue(
     searchKey === null ? EMPTY_THREAD_SEARCH_ATOM : threadSearchResultsAtom(searchKey),
   );
@@ -183,15 +183,15 @@ export function useThreadSearch(
 }
 
 export function useBranches(input: {
-  readonly environmentId: EnvironmentId | null;
+  readonly machineId: MachineId | null;
   readonly cwd: string | null;
   readonly query?: string | null;
 }) {
   const query = input.query?.trim() ?? "";
-  return useEnvironmentQuery(
-    input.environmentId !== null && input.cwd !== null
-      ? vcsEnvironment.listRefs({
-          environmentId: input.environmentId,
+  return useMachineQuery(
+    input.machineId !== null && input.cwd !== null
+      ? vcsMachine.listRefs({
+          machineId: input.machineId,
           input: {
             cwd: input.cwd,
             ...(query.length > 0 ? { query } : {}),
@@ -205,8 +205,8 @@ export function useBranches(input: {
 export function usePaginatedBranches(target: VcsRefTarget) {
   const query = target.query?.trim() ?? "";
   const targetKey =
-    target.environmentId !== null && target.cwd !== null
-      ? JSON.stringify([target.environmentId, target.cwd, query])
+    target.machineId !== null && target.cwd !== null
+      ? JSON.stringify([target.machineId, target.cwd, query])
       : null;
   const [pagination, setPagination] = useState<{
     readonly targetKey: string | null;
@@ -217,10 +217,10 @@ export function usePaginatedBranches(target: VcsRefTarget) {
   });
   const cursors = pagination.targetKey === targetKey ? pagination.cursors : INITIAL_BRANCH_CURSORS;
   const pageAtoms =
-    target.environmentId !== null && target.cwd !== null
+    target.machineId !== null && target.cwd !== null
       ? cursors.map((cursor) =>
-          vcsEnvironment.listRefs({
-            environmentId: target.environmentId!,
+          vcsMachine.listRefs({
+            machineId: target.machineId!,
             input: {
               cwd: target.cwd!,
               ...(query.length > 0 ? { query } : {}),
@@ -304,30 +304,30 @@ export function usePaginatedBranches(target: VcsRefTarget) {
 
 export function useComposerPathSearch(target: ComposerPathSearchTarget) {
   const normalizedTarget = {
-    environmentId: target.environmentId,
+    machineId: target.machineId,
     cwd: target.cwd,
     query: normalizeComposerPathSearchQuery(target.query),
   };
   const debouncedTarget = useDebouncedValue(normalizedTarget, COMPOSER_PATH_SEARCH_DEBOUNCE_MS);
-  const fileAccessSession = useEnvironmentQuery(
-    debouncedTarget.environmentId === null
+  const fileAccessSession = useMachineQuery(
+    debouncedTarget.machineId === null
       ? null
-      : environmentSession.sessionStateAtom(debouncedTarget.environmentId),
+      : machineSession.sessionStateAtom(debouncedTarget.machineId),
   );
-  const fileEnvironment = useEnvironmentPresentation(debouncedTarget.environmentId);
+  const fileMachine = useMachinePresentation(debouncedTarget.machineId);
   const fileAccess = resolveFilesystemReadAccess({
-    isCatalogReady: fileEnvironment.isReady,
-    connection: fileEnvironment.presentation?.connection ?? null,
+    isCatalogReady: fileMachine.isReady,
+    connection: fileMachine.presentation?.connection ?? null,
     session: fileAccessSession.data,
     sessionError: fileAccessSession.error,
   });
   const { canReadFiles } = fileAccess;
   const searchTarget =
-    debouncedTarget.environmentId !== null &&
+    debouncedTarget.machineId !== null &&
     debouncedTarget.cwd !== null &&
     debouncedTarget.query.length > 0
       ? {
-          environmentId: debouncedTarget.environmentId,
+          machineId: debouncedTarget.machineId,
           input: {
             cwd: debouncedTarget.cwd,
             query: debouncedTarget.query,
@@ -335,8 +335,8 @@ export function useComposerPathSearch(target: ComposerPathSearchTarget) {
           },
         }
       : null;
-  const result = useEnvironmentQuery(
-    canReadFiles && searchTarget !== null ? projectEnvironment.searchEntries(searchTarget) : null,
+  const result = useMachineQuery(
+    canReadFiles && searchTarget !== null ? projectMachine.searchEntries(searchTarget) : null,
   );
   const hasTarget = searchTarget !== null;
 
@@ -357,28 +357,28 @@ export function useComposerPathSearch(target: ComposerPathSearchTarget) {
 
 export function useCheckpointDiff(target: CheckpointDiffTarget) {
   const targets = buildCheckpointDiffTargets(target);
-  const fullThread = useEnvironmentQuery(
+  const fullThread = useMachineQuery(
     targets.fullThread === null
       ? null
-      : orchestrationEnvironment.fullThreadDiff(targets.fullThread),
+      : orchestrationMachine.fullThreadDiff(targets.fullThread),
   );
-  const turn = useEnvironmentQuery(
-    targets.turn === null ? null : orchestrationEnvironment.turnDiff(targets.turn),
+  const turn = useMachineQuery(
+    targets.turn === null ? null : orchestrationMachine.turnDiff(targets.turn),
   );
   return targets.fullThread === null ? turn : fullThread;
 }
 
 export function useTurnItemDetail(
   target: {
-    readonly environmentId: EnvironmentId;
+    readonly machineId: MachineId;
     readonly row: OrchestrationV2ProjectedTurnItem;
   } | null,
 ) {
-  return useEnvironmentQuery(
+  return useMachineQuery(
     target === null
       ? null
-      : orchestrationEnvironment.turnItem({
-          environmentId: target.environmentId,
+      : orchestrationMachine.turnItem({
+          machineId: target.machineId,
           input: {
             threadId: target.row.sourceThreadId,
             itemId: target.row.sourceItemId,

@@ -108,7 +108,7 @@ export function threadComposerContext(ref: ScopedThreadRef, title: string): Thre
     kind: "thread",
     contextId: toKindScopedComposerContextId("thread", ref.threadId),
     label,
-    environmentId: ref.environmentId,
+    machineId: ref.machineId,
     threadId: ref.threadId,
     title: label,
   };

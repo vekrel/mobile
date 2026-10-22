@@ -11,13 +11,13 @@ import {
   EMPTY_CONNECTION_CATALOG_DOCUMENT,
   registerConnectionInCatalog,
 } from "@vekrel/client-runtime/platform";
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
 const LegacySavedRemoteConnection = Schema.Struct({
-  environmentId: EnvironmentId,
-  environmentLabel: Schema.String,
+  machineId: MachineId,
+  machineLabel: Schema.String,
   pairingUrl: Schema.String,
   displayUrl: Schema.String,
   httpBaseUrl: Schema.String,
@@ -53,8 +53,8 @@ function migrateConnection(
       document,
       new RelayConnectionRegistration({
         target: new RelayConnectionTarget({
-          environmentId: connection.environmentId,
-          label: connection.environmentLabel,
+          machineId: connection.machineId,
+          label: connection.machineLabel,
         }),
       }),
     );
@@ -64,19 +64,19 @@ function migrateConnection(
     return document;
   }
 
-  const connectionId = `bearer:${connection.environmentId}`;
+  const connectionId = `bearer:${connection.machineId}`;
   return registerConnectionInCatalog(
     document,
     new BearerConnectionRegistration({
       target: new BearerConnectionTarget({
-        environmentId: connection.environmentId,
-        label: connection.environmentLabel,
+        machineId: connection.machineId,
+        label: connection.machineLabel,
         connectionId,
       }),
       profile: new BearerConnectionProfile({
         connectionId,
-        environmentId: connection.environmentId,
-        label: connection.environmentLabel,
+        machineId: connection.machineId,
+        label: connection.machineLabel,
         httpBaseUrl: connection.httpBaseUrl,
         wsBaseUrl: connection.wsBaseUrl,
       }),

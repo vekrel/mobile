@@ -1,23 +1,23 @@
 import { Button } from "../../components/ui/Button";
 import { squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import { AsyncResult } from "effect/reactivity";
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineId } from "@vekrel/contracts";
 import * as DateTime from "effect/DateTime";
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { AppText as Text } from "../../components/ui/AppText";
-import { threadEnvironment } from "../../state/threads";
+import { threadMachine } from "../../state/threads";
 import { useAtomCommand } from "../../state/use-atom-command";
 
 export function UsageLimitRecoveryCard({
   thread,
-  environmentId,
+  machineId,
 }: {
-  thread: EnvironmentThreadShell;
-  environmentId: EnvironmentId;
+  thread: MachineThreadShell;
+  machineId: MachineId;
 }) {
-  const updateMetadata = useAtomCommand(threadEnvironment.updateMetadata);
+  const updateMetadata = useAtomCommand(threadMachine.updateMetadata);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const resetAt = thread.runtime?.usageLimitResetAt ?? null;
@@ -69,7 +69,7 @@ export function UsageLimitRecoveryCard({
     setPending(true);
     setError(null);
     const result = await updateMetadata({
-      environmentId,
+      machineId,
       input: {
         threadId: thread.id,
         limitRecovery: {

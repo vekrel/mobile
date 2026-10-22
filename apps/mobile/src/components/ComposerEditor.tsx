@@ -5,7 +5,7 @@ import { AsyncResult } from "effect/reactivity";
 import { settlePromise, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import { useNavigation } from "@react-navigation/native";
 import { useEffect, useRef, useState } from "react";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import { encodeComposerContextFragment } from "@vekrel/shared/composerContextClipboard";
 import { collectComposerContextReferences } from "@vekrel/shared/composerContextReferences";
 import { ComposerEditor as NativeComposerEditor } from "../native/T3ComposerEditor";
@@ -35,7 +35,7 @@ import {
 export type ComposerEditorProps = NativeComposerEditorProps & {
   readonly draftKey?: string | null;
   readonly hidden?: boolean;
-  readonly environmentId?: EnvironmentId;
+  readonly machineId?: MachineId;
   readonly onOpenMention?: (path: string) => void;
   readonly onOpenAttachment?: (attachment: ComposerDocumentAttachment) => void;
   readonly chipsInert?: boolean;
@@ -45,7 +45,7 @@ export type ComposerEditorProps = NativeComposerEditorProps & {
 export function ComposerEditor({
   draftKey,
   hidden,
-  environmentId,
+  machineId,
   onOpenMention,
   onOpenAttachment,
   chipsInert,
@@ -97,7 +97,7 @@ export function ComposerEditor({
         retained.attachments.length,
         controller.signal,
         retained.context?.records.length ?? 0,
-        environmentId,
+        machineId,
       );
       if (!result) {
         insertComposerDraftText(draftKey, clipboard.text, insertion);
@@ -113,7 +113,7 @@ export function ComposerEditor({
       const warnings: string[] = [];
       if (result.failures.length > 0)
         warnings.push(
-          "Some attachments could not be copied. Reconnect to the source environment and copy them again.",
+          "Some attachments could not be copied. Reconnect to the source machine and copy them again.",
         );
       if (result.skippedThreads.length > 0)
         warnings.push(
@@ -137,17 +137,17 @@ export function ComposerEditor({
     }
   };
   const clipboardFragment =
-    environmentId && draft.context
+    machineId && draft.context
       ? encodeComposerContextFragment({
           version: 1,
-          source: { environmentId },
+          source: { machineId },
           records: draft.context.records.map((record) => {
             if (!("attachmentId" in record)) return record;
             const attachment = draft.attachments.find((entry) => entry.id === record.attachmentId);
             return {
               ...record,
               attachmentId:
-                attachment?.uploadEnvironmentId === environmentId
+                attachment?.uploadMachineId === machineId
                   ? (attachment.uploadedAttachmentId ?? record.attachmentId)
                   : record.attachmentId,
             };
@@ -237,11 +237,11 @@ export function ComposerEditor({
           onOpenThread={(thread) => {
             setSelected(null);
             navigation.navigate("Thread", {
-              environmentId: String(thread.environmentId),
+              machineId: String(thread.machineId),
               threadId: String(thread.threadId),
             });
           }}
-          environmentId={environmentId ?? draft.project?.environmentId}
+          machineId={machineId ?? draft.project?.machineId}
           projectId={draft.project?.projectId}
           records={draft.context?.records}
           attachments={draft.attachments}

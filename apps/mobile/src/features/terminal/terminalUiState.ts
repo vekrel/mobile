@@ -1,4 +1,4 @@
-import type { EnvironmentId, ThreadId } from "@vekrel/contracts";
+import type { MachineId, ThreadId } from "@vekrel/contracts";
 
 export interface TerminalGridSize {
   readonly cols: number;
@@ -6,7 +6,7 @@ export interface TerminalGridSize {
 }
 
 export interface TerminalUiStateTarget {
-  readonly environmentId: EnvironmentId;
+  readonly machineId: MachineId;
   readonly threadId: ThreadId;
   readonly terminalId: string;
 }
@@ -14,7 +14,7 @@ export interface TerminalUiStateTarget {
 const terminalGridSizeCache = new Map<string, TerminalGridSize>();
 
 function terminalUiStateKey(target: TerminalUiStateTarget): string {
-  return `${target.environmentId}:${target.threadId}:${target.terminalId}`;
+  return `${target.machineId}:${target.threadId}:${target.terminalId}`;
 }
 
 export function getCachedTerminalGridSize(target: TerminalUiStateTarget): TerminalGridSize | null {

@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@vekrel/contracts";
+import { MachineId } from "@vekrel/contracts";
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const mocks = vi.hoisted(() => {
@@ -103,8 +103,8 @@ import { loadPreferences, saveConnection, savePreferencesPatch } from "../persis
 import { toStableSavedRemoteConnection } from "./connection";
 
 const managedConnection = {
-  environmentId: EnvironmentId.make("environment-1"),
-  environmentLabel: "Desktop",
+  machineId: MachineId.make("machine-1"),
+  machineLabel: "Desktop",
   pairingUrl: "https://desktop.example/",
   displayUrl: "https://desktop.example/",
   httpBaseUrl: "https://desktop.example/",

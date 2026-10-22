@@ -1,4 +1,4 @@
-import { EnvironmentId, MessageId, ThreadId } from "@vekrel/contracts";
+import { MachineId, MessageId, ThreadId } from "@vekrel/contracts";
 import * as Schema from "effect/Schema";
 import { Atom, type AtomRegistry } from "effect/reactivity";
 
@@ -17,17 +17,17 @@ export class ThreadOutboxManagerError extends Schema.TaggedError<ThreadOutboxMan
       "enqueue",
       "update",
       "remove",
-      "clear-environment-load",
-      "clear-environment-remove",
+      "clear-machine-load",
+      "clear-machine-remove",
     ]),
-    environmentId: Schema.NullOr(EnvironmentId),
+    machineId: Schema.NullOr(MachineId),
     threadId: Schema.NullOr(ThreadId),
     messageId: Schema.NullOr(MessageId),
     cause: Schema.Defect(),
   },
 ) {
   override get message(): string {
-    return `Thread outbox operation ${this.operation} failed for environment ${this.environmentId ?? "unknown"}, thread ${this.threadId ?? "unknown"}, message ${this.messageId ?? "unknown"}.`;
+    return `Thread outbox operation ${this.operation} failed for machine ${this.machineId ?? "unknown"}, thread ${this.threadId ?? "unknown"}, message ${this.messageId ?? "unknown"}.`;
   }
 }
 
@@ -93,7 +93,7 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
         "[thread-outbox] failed to load persisted messages",
         new ThreadOutboxManagerError({
           operation: "load",
-          environmentId: null,
+          machineId: null,
           threadId: null,
           messageId: null,
           cause,
@@ -129,7 +129,7 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
         }
         throw new ThreadOutboxManagerError({
           operation: "enqueue",
-          environmentId: message.environmentId,
+          machineId: message.machineId,
           threadId: message.threadId,
           messageId: message.messageId,
           cause,
@@ -161,7 +161,7 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
       } catch (cause) {
         throw new ThreadOutboxManagerError({
           operation: "update",
-          environmentId: message.environmentId,
+          machineId: message.machineId,
           threadId: message.threadId,
           messageId: message.messageId,
           cause,
@@ -208,7 +208,7 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
       } catch (cause) {
         throw new ThreadOutboxManagerError({
           operation: "remove",
-          environmentId: message.environmentId,
+          machineId: message.machineId,
           threadId: message.threadId,
           messageId: message.messageId,
           cause,
@@ -227,7 +227,7 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
           } catch (cause) {
             throw new ThreadOutboxManagerError({
               operation: "remove",
-              environmentId: message.environmentId,
+              machineId: message.machineId,
               threadId: message.threadId,
               messageId: message.messageId,
               cause,
@@ -246,8 +246,8 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
       return removed;
     });
 
-  const clearEnvironment = (
-    environmentId: EnvironmentId,
+  const clearMachine = (
+    machineId: MachineId,
   ): Promise<ReadonlyArray<QueuedThreadMessage>> => {
     // Enqueues publish before their serialized writes. Capture revisions now,
     // but wait for earlier mutations before reading messages: a message that
@@ -264,8 +264,8 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
         })
         .catch((cause) => {
           throw new ThreadOutboxManagerError({
-            operation: "clear-environment-load",
-            environmentId,
+            operation: "clear-machine-load",
+            machineId,
             threadId: null,
             messageId: null,
             cause,
@@ -276,7 +276,7 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
       );
       const candidates = allMessages.filter(
         (message) =>
-          message.environmentId === environmentId &&
+          message.machineId === machineId &&
           (revisions.get(message.messageId) ?? 0) ===
             (revisionsAtRequest.get(message.messageId) ?? 0),
       );
@@ -296,8 +296,8 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
             warn(
               "[thread-outbox] failed to clear persisted message",
               new ThreadOutboxManagerError({
-                operation: "clear-environment-remove",
-                environmentId: message.environmentId,
+                operation: "clear-machine-remove",
+                machineId: message.machineId,
                 threadId: message.threadId,
                 messageId: message.messageId,
                 cause,
@@ -325,10 +325,10 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
             await options.storage.write(retained);
           } catch (cause) {
             warn(
-              "[thread-outbox] failed to restore message retained during environment clear",
+              "[thread-outbox] failed to restore message retained during machine clear",
               new ThreadOutboxManagerError({
-                operation: "clear-environment-remove",
-                environmentId: retained.environmentId,
+                operation: "clear-machine-remove",
+                machineId: retained.machineId,
                 threadId: retained.threadId,
                 messageId: retained.messageId,
                 cause,
@@ -367,6 +367,6 @@ export function createThreadOutboxManager(options: ThreadOutboxManagerOptions) {
     revisionOf: (messageId: MessageId): number => revisions.get(messageId) ?? 0,
     update,
     remove,
-    clearEnvironment,
+    clearMachine,
   };
 }

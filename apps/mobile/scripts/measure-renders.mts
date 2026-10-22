@@ -6,8 +6,8 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import * as NodeSocket from "@effect/platform-node/NodeSocket";
 import {
   CommandId,
-  EnvironmentId,
-  ExecutionEnvironmentDescriptor,
+  MachineId,
+  ExecutionMachineDescriptor,
   ORCHESTRATION_PROTOCOL_HEADER,
   ORCHESTRATION_PROTOCOL_VERSION,
   OrchestrationV2ShellSnapshot,
@@ -132,8 +132,8 @@ const connectServer = Effect.fn("measure.connectServer")(function* (options: Opt
     HttpClient.filterStatusOk,
   );
   const descriptor = yield* http
-    .get(`${options.server}/.well-known/t3/environment`)
-    .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(ExecutionEnvironmentDescriptor)));
+    .get(`${options.server}/.well-known/vekrel/machine`)
+    .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(ExecutionMachineDescriptor)));
   const shell = yield* http
     .get(`${options.server}/api/orchestration/shell`)
     .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(OrchestrationV2ShellSnapshot)));
@@ -173,7 +173,7 @@ const connectServer = Effect.fn("measure.connectServer")(function* (options: Opt
     ),
   );
   const client = yield* RpcClient.make(WsRpcGroup).pipe(Effect.provideContext(protocol));
-  return { client, environmentId: EnvironmentId.make(descriptor.environmentId), projectId };
+  return { client, machineId: MachineId.make(descriptor.machineId), projectId };
 });
 
 // Streaming lands in turn items. Some providers stream reasoning but deliver the
@@ -191,7 +191,7 @@ const measureStreamReply = Effect.fn("measure.streamReply")(function* (
 ) {
   if (Option.isSome(route)) yield* reloadAndOpen(options, route.value);
   const evaluate = yield* connectInspector(options.metro);
-  const { client, environmentId, projectId } = yield* connectServer(options);
+  const { client, machineId, projectId } = yield* connectServer(options);
   const threadId = ThreadId.make(yield* uuid);
   yield* client["orchestration.launchThread"]({
     commandId: CommandId.make(yield* uuid),
@@ -226,7 +226,7 @@ const measureStreamReply = Effect.fn("measure.streamReply")(function* (
   );
   if (Option.isNone(route))
     yield* evaluate(
-      `__t3RenderCounterOpen(${encodeJson(`${options.scheme}://threads/${environmentId}/${threadId}`)})`,
+      `__t3RenderCounterOpen(${encodeJson(`${options.scheme}://threads/${machineId}/${threadId}`)})`,
     );
   const projectionOf = (item: { kind: string; projection?: OrchestrationV2ThreadProjection }) =>
     item.kind === "snapshot" && item.projection

@@ -1,4 +1,4 @@
-import type { AssetResource, EnvironmentId } from "@vekrel/contracts";
+import type { AssetResource, MachineId } from "@vekrel/contracts";
 
 import type { FileBackedComposerAttachment } from "../lib/composerImages";
 import type { MediaActionsSource } from "../lib/mediaActionsSource";
@@ -16,7 +16,7 @@ export type FilePreviewItem = FilePreviewMetadata &
   (
     | { readonly uri: string }
     | { readonly attachment: FileBackedComposerAttachment }
-    | { readonly environmentId: EnvironmentId; readonly resource: AssetResource }
+    | { readonly machineId: MachineId; readonly resource: AssetResource }
   );
 
 export type FilePreviewSource = FilePreviewItem & {

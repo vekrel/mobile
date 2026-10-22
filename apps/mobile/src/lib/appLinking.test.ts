@@ -28,7 +28,7 @@ describe("shouldHandleAppLink", () => {
 
 describe("draft deep links", () => {
   it("opens the old draft URL on the thread screen with its draft identity", () => {
-    const draft = { projectId: "project-1", environmentId: "env-1", draftId: "draft-1" };
+    const draft = { projectId: "project-1", machineId: "env-1", draftId: "draft-1" };
     expect(
       restoreDraftLinkState(
         { routes: [{ name: "Home" }, { name: "Thread", params: draft }] },
@@ -41,14 +41,14 @@ describe("draft deep links", () => {
   });
 
   it.each([
-    ["environment", "NewTaskEnvironment"],
+    ["machine", "NewTaskMachine"],
     ["branch", "NewTaskBranch"],
     ["files", "NewTaskFiles"],
     ["files/src/index.ts", "NewTaskFile"],
     ["attachments/attachment-1", "NewTaskAttachment"],
     ["settings", "NewTaskThreadSettings"],
   ])("restores a draft beneath its %s screen", (path, name) => {
-    const params = { environmentId: "env-1", projectId: "project-1" };
+    const params = { machineId: "env-1", projectId: "project-1" };
     const target = { name, params };
     expect(
       restoreDraftLinkState({ routes: [{ name: "Home" }, target] }, `/new/draft/${path}`),

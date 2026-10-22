@@ -1,4 +1,4 @@
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import {
   CommonActions,
   StackActions,
@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { Platform } from "react-native";
 import { useAndroidWorkspaceSelection } from "../workspace/useAndroidWorkspaceSelection";
 
-type ThreadSelection = Pick<EnvironmentThreadShell, "environmentId" | "id">;
+type ThreadSelection = Pick<MachineThreadShell, "machineId" | "id">;
 
 export function createHomeThreadRouteAction(input: {
   readonly state: Pick<NavigationState, "index" | "routes">;
@@ -24,7 +24,7 @@ export function createHomeThreadRouteAction(input: {
   if (currentRoute?.name === "Thread") {
     return {
       ...CommonActions.setParams({
-        environmentId: undefined,
+        machineId: undefined,
         threadId: undefined,
         draft: undefined,
         ...input.params,
@@ -43,7 +43,7 @@ export function createHomeThreadNavigationAction(input: {
   return createHomeThreadRouteAction({
     ...input,
     params: {
-      environmentId: input.thread.environmentId,
+      machineId: input.thread.machineId,
       threadId: input.thread.id,
     },
   });
@@ -101,7 +101,7 @@ export function useHomeThreadSelection() {
   const selectRoute = useHomeThreadRouteSelection();
   return useCallback(
     (thread: ThreadSelection) =>
-      selectRoute({ environmentId: thread.environmentId, threadId: thread.id }),
+      selectRoute({ machineId: thread.machineId, threadId: thread.id }),
     [selectRoute],
   );
 }

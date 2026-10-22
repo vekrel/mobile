@@ -8,8 +8,8 @@ import {
 } from "../features/threads/threadOrder";
 import { getThreadListV2OrderedSection } from "../features/threads/threadListV2";
 import { appAtomRegistry } from "./atom-registry";
-import { environmentServerConfigsAtom } from "./server";
-import { environmentThreadShells } from "./threads";
+import { machineServerConfigsAtom } from "./server";
+import { machineThreadShells } from "./threads";
 import { queuedThreadKeysAtom } from "./use-thread-outbox";
 
 export const threadArrangementOpenAtom = Atom.make(false).pipe(Atom.keepAlive);
@@ -49,20 +49,20 @@ export function beginPendingThreadOrder(pending: PendingThreadOrder) {
     if (refreshPendingOrder !== refresh) return;
     const current = appAtomRegistry.get(pendingThreadOrderAtom);
     if (current === null) return;
-    const configs = appAtomRegistry.get(environmentServerConfigsAtom);
+    const configs = appAtomRegistry.get(machineServerConfigsAtom);
     const ordered = getThreadListV2OrderedSection({
-      threads: appAtomRegistry.get(environmentThreadShells.threadShellsAtom),
+      threads: appAtomRegistry.get(machineThreadShells.threadShellsAtom),
       section: current.section,
       now: new Date().toISOString(),
       queuedThreadKeys: appAtomRegistry.get(queuedThreadKeysAtom),
-      settlementEnvironmentIds: new Set(
+      settlementMachineIds: new Set(
         [...configs].flatMap(([id, config]) =>
-          config.environment.capabilities.threadSettlement === true ? [id] : [],
+          config.machine.capabilities.threadSettlement === true ? [id] : [],
         ),
       ),
-      snoozeEnvironmentIds: new Set(
+      snoozeMachineIds: new Set(
         [...configs].flatMap(([id, config]) =>
-          config.environment.capabilities.threadSnooze === true ? [id] : [],
+          config.machine.capabilities.threadSnooze === true ? [id] : [],
         ),
       ),
     });
@@ -73,8 +73,8 @@ export function beginPendingThreadOrder(pending: PendingThreadOrder) {
   refreshPendingOrder = refresh;
   appAtomRegistry.set(pendingThreadOrderAtom, pending);
   unsubscribers.push(
-    appAtomRegistry.subscribe(environmentThreadShells.threadShellsAtom, refresh),
-    appAtomRegistry.subscribe(environmentServerConfigsAtom, refresh),
+    appAtomRegistry.subscribe(machineThreadShells.threadShellsAtom, refresh),
+    appAtomRegistry.subscribe(machineServerConfigsAtom, refresh),
     appAtomRegistry.subscribe(queuedThreadKeysAtom, refresh),
   );
   return {

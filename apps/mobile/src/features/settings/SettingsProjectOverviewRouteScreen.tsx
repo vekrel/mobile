@@ -10,13 +10,13 @@ import {
   squashAtomCommandFailure,
 } from "@vekrel/client-runtime/state/runtime";
 import { deriveProjectGroupLabel } from "@vekrel/client-runtime/state/project-grouping";
-import type { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
+import type { MachineProject } from "@vekrel/client-runtime/state/shell";
 import { useNavigation } from "@react-navigation/native";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { projectEnvironment } from "../../state/projects";
+import { projectMachine } from "../../state/projects";
 import { useThreadShells } from "../../state/entities";
 import { appAtomRegistry } from "../../state/atom-registry";
 import {
@@ -26,19 +26,19 @@ import {
   waitForComposerDraftsLoaded,
 } from "../../state/use-composer-drafts";
 import {
-  readEnvironmentScope,
-  useEnvironmentScope,
-  useEnvironmentsWithScope,
+  readMachineScope,
+  useMachineScope,
+  useMachinesWithScope,
 } from "../../state/session";
 import { useAtomCommand } from "../../state/use-atom-command";
 import { SettingsScreen } from "./components/SettingsScreen";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsActionRow } from "./components/SettingsActionRow";
 import {
-  AndroidSettingsEnvironmentFilter,
-  SettingsEnvironmentFilterHeader,
-} from "./components/SettingsEnvironmentFilterHeader";
-import { useSettingsEnvironmentFilter, type SettingsTarget } from "./settings-environment-filter";
+  AndroidSettingsMachineFilter,
+  SettingsMachineFilterHeader,
+} from "./components/SettingsMachineFilterHeader";
+import { useSettingsMachineFilter, type SettingsTarget } from "./settings-machine-filter";
 
 export function SettingsProjectOverviewRouteScreen() {
   const insets = useSafeAreaInsets();
@@ -55,7 +55,7 @@ export function SettingsProjectOverviewRouteScreen() {
   };
   const navigation = useNavigation();
   const { selectedTargets, projectGroups, selectedProjectKey, selectProject } =
-    useSettingsEnvironmentFilter();
+    useSettingsMachineFilter();
   const latestProjectKey = useRef(selectedProjectKey);
   useEffect(() => {
     latestProjectKey.current = selectedProjectKey;
@@ -68,16 +68,16 @@ export function SettingsProjectOverviewRouteScreen() {
     selectProject(null);
   };
   const group = projectGroups.find((entry) => entry.key === selectedProjectKey);
-  const selectedEnvironmentIds = new Set(selectedTargets.map((entry) => entry.environmentId));
+  const selectedMachineIds = new Set(selectedTargets.map((entry) => entry.machineId));
   const members =
     group?.members
       .map((entry) => entry.project)
-      .filter((project) => selectedEnvironmentIds.has(project.environmentId)) ?? [];
+      .filter((project) => selectedMachineIds.has(project.machineId)) ?? [];
 
   return (
     <>
-      <SettingsEnvironmentFilterHeader />
-      <SettingsScreen title="Project overview" trailing={<AndroidSettingsEnvironmentFilter />}>
+      <SettingsMachineFilterHeader />
+      <SettingsScreen title="Project overview" trailing={<AndroidSettingsMachineFilter />}>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
@@ -87,14 +87,14 @@ export function SettingsProjectOverviewRouteScreen() {
         >
           {members.length === 0 ? (
             <Text className="px-2 text-base text-foreground-muted">
-              This project has no checkout on the selected connected environments. Change the filter
+              This project has no checkout on the selected connected machines. Change the filter
               above.
             </Text>
           ) : (
             <ProjectOverviewContent
               key={`${selectedProjectKey}:${members.map((member) => member.id).join(",")}`}
               members={members}
-              environments={selectedTargets}
+              machines={selectedTargets}
               hasOtherMembers={members.length < (group?.members.length ?? 0)}
               isRemoving={isRemoving}
               setIsRemoving={setIsRemoving}
@@ -111,8 +111,8 @@ export function SettingsProjectOverviewRouteScreen() {
 }
 
 function ProjectOverviewContent(props: {
-  readonly members: readonly EnvironmentProject[];
-  readonly environments: readonly SettingsTarget[];
+  readonly members: readonly MachineProject[];
+  readonly machines: readonly SettingsTarget[];
   readonly hasOtherMembers: boolean;
   readonly isRemoving: boolean;
   readonly setIsRemoving: (isRemoving: boolean) => void;
@@ -127,44 +127,44 @@ function ProjectOverviewContent(props: {
   const [draftName, setDraftName] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const threads = useThreadShells();
-  const removableEnvironments = useEnvironmentsWithScope(
+  const removableMachines = useMachinesWithScope(
     props.members,
     AuthOrchestrationOperateScope,
   );
   const canRemoveGroup = props.members.every((member) =>
-    removableEnvironments.has(member.environmentId),
+    removableMachines.has(member.machineId),
   );
-  const deleteProject = useAtomCommand(projectEnvironment.delete, { reportFailure: false });
-  const updateProject = useAtomCommand(projectEnvironment.update, {
+  const deleteProject = useAtomCommand(projectMachine.delete, { reportFailure: false });
+  const updateProject = useAtomCommand(projectMachine.update, {
     label: "project name update",
     reportFailure: true,
   });
   const nextName = (draftName ?? displayName).trim();
   const canSave = !isSaving && nextName.length > 0 && nextName !== displayName;
 
-  const checkRemovalAccess = (members: readonly EnvironmentProject[]) => {
+  const checkRemovalAccess = (members: readonly MachineProject[]) => {
     const denied = members.find(
-      (member) => !readEnvironmentScope(member.environmentId, AuthOrchestrationOperateScope),
+      (member) => !readMachineScope(member.machineId, AuthOrchestrationOperateScope),
     );
     if (!denied) return true;
-    const environment = props.environments.find(
-      (entry) => entry.environmentId === denied.environmentId,
+    const machine = props.machines.find(
+      (entry) => entry.machineId === denied.machineId,
     );
     Dialog.alert(
       "Failed to remove project",
-      `This connection cannot change projects in ${environment?.label ?? "this environment"}.`,
+      `This connection cannot change projects in ${machine?.label ?? "this machine"}.`,
     );
     return false;
   };
 
-  const removeMembers = (members: readonly EnvironmentProject[]) => {
+  const removeMembers = (members: readonly MachineProject[]) => {
     if (!checkRemovalAccess(members) || !startRemoval()) return;
     const projectKey = props.projectKey;
     const plan = planProjectRemoval({
       members: members.map((member) => ({
         ...member,
-        environmentLabel: props.environments.find(
-          (entry) => entry.environmentId === member.environmentId,
+        machineLabel: props.machines.find(
+          (entry) => entry.machineId === member.machineId,
         )?.label,
       })),
       groupMemberCount: props.members.length,
@@ -185,7 +185,7 @@ function ProjectOverviewContent(props: {
           for (const member of members) {
             if (!checkRemovalAccess([member])) return;
             const result = await deleteProject({
-              environmentId: member.environmentId,
+              machineId: member.machineId,
               input: { projectId: member.id, force: true },
             });
             if (result._tag === "Failure") {
@@ -203,7 +203,7 @@ function ProjectOverviewContent(props: {
                 for (const draftKey of findNewTaskDraftKeys(
                   appAtomRegistry.get(composerDraftsAtom),
                   {
-                    environmentId: member.environmentId,
+                    machineId: member.machineId,
                     projectId: member.id,
                   },
                 )) {
@@ -228,7 +228,7 @@ function ProjectOverviewContent(props: {
       const results = await Promise.all(
         props.members.map((member) =>
           updateProject({
-            environmentId: member.environmentId,
+            machineId: member.machineId,
             input: { projectId: member.id, title: nextName },
           }),
         ),
@@ -242,7 +242,7 @@ function ProjectOverviewContent(props: {
     <>
       <View className="flex-row items-center gap-4 px-2">
         <ProjectFavicon
-          environmentId={representative.environmentId}
+          machineId={representative.machineId}
           projectTitle={representative.title}
           workspaceRoot={representative.workspaceRoot}
           faviconPath={representative.faviconPath}
@@ -286,12 +286,12 @@ function ProjectOverviewContent(props: {
 
       <SettingsSection title="Checkouts">
         {props.members.map((member, index) => {
-          const environment = props.environments.find(
-            (entry) => entry.environmentId === member.environmentId,
+          const machine = props.machines.find(
+            (entry) => entry.machineId === member.machineId,
           );
           return (
             <View
-              key={`${member.environmentId}:${member.id}`}
+              key={`${member.machineId}:${member.id}`}
               className={index === 0 ? "gap-1 p-4" : "gap-1 border-t border-border-subtle p-4"}
             >
               <Text
@@ -301,11 +301,11 @@ function ProjectOverviewContent(props: {
                     : "text-lg text-foreground"
                 }
               >
-                {environment?.label ?? "Environment"}
+                {machine?.label ?? "Machine"}
               </Text>
-              {environment?.displayUrl ? (
+              {machine?.displayUrl ? (
                 <Text className="text-sm leading-normal text-foreground-muted">
-                  {environment.displayUrl}
+                  {machine.displayUrl}
                 </Text>
               ) : null}
               <Text className="text-sm leading-normal text-foreground-muted" selectable>
@@ -350,11 +350,11 @@ function ProjectOverviewContent(props: {
 }
 
 function RemoveCheckoutAction(props: {
-  readonly member: EnvironmentProject;
+  readonly member: MachineProject;
   readonly disabled: boolean;
   readonly onPress: () => void;
 }) {
-  const canRemove = useEnvironmentScope(props.member.environmentId, AuthOrchestrationOperateScope);
+  const canRemove = useMachineScope(props.member.machineId, AuthOrchestrationOperateScope);
   return (
     <Pressable
       accessibilityRole="button"

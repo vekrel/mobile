@@ -12,7 +12,7 @@ describe("mobile Markdown draft media", () => {
           imageEmbed: true,
         }),
       ).toMatchObject({
-        access: "environment",
+        access: "machine",
         resource: {
           _tag: "draft-workspace-file",
           cwd: "/project/docs",

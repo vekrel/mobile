@@ -3,7 +3,7 @@ import {
   createAtomCommandScheduler,
   createRuntimeCommand,
 } from "@vekrel/client-runtime/state/runtime";
-import type { EnvironmentId } from "@vekrel/contracts";
+import type { MachineId } from "@vekrel/contracts";
 import * as Effect from "effect/Effect";
 
 import { connectionAtomRuntime } from "./runtime";
@@ -17,12 +17,12 @@ export const connectPairingUrl = createRuntimeCommand(connectionAtomRuntime, {
     mode: "singleFlight",
     // Adding a route to a different machine with the same link is its own
     // operation: it must check its own expected machine.
-    key: (input: { readonly pairingUrl: string; readonly expectedEnvironmentId?: EnvironmentId }) =>
-      JSON.stringify([input.pairingUrl, input.expectedEnvironmentId ?? null]),
+    key: (input: { readonly pairingUrl: string; readonly expectedMachineId?: MachineId }) =>
+      JSON.stringify([input.pairingUrl, input.expectedMachineId ?? null]),
   },
   execute: (input: {
     readonly pairingUrl: string;
-    readonly expectedEnvironmentId?: EnvironmentId;
+    readonly expectedMachineId?: MachineId;
   }) =>
     ConnectionOnboarding.ConnectionOnboarding.pipe(
       Effect.flatMap((onboarding) => onboarding.registerPairing(input)),
@@ -34,10 +34,10 @@ export const updateBearerConnection = createRuntimeCommand(connectionAtomRuntime
   scheduler: onboardingScheduler,
   concurrency: {
     mode: "serial",
-    key: (input: { readonly environmentId: EnvironmentId }) => input.environmentId,
+    key: (input: { readonly machineId: MachineId }) => input.machineId,
   },
   execute: (input: {
-    readonly environmentId: EnvironmentId;
+    readonly machineId: MachineId;
     readonly label: string;
     readonly httpBaseUrl: string;
   }) =>

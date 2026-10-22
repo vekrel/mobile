@@ -101,7 +101,7 @@ export function useThreadHeaderOptions(props: {
     unstable_headerSubtitle: props.usesNativeHeaderGlass ? props.subtitle : undefined,
     contentStyle: undefined,
   };
-  const { environmentId, threadId, gitStatus } = props.gitControls;
+  const { machineId, threadId, gitStatus } = props.gitControls;
   return {
     options,
     // Header item factories are stabilized, so the native header only re-reads them when
@@ -113,7 +113,7 @@ export function useThreadHeaderOptions(props: {
       threadCenterHeaderItems,
       compactRightHeaderItems,
       usesDuoHeader,
-      environmentId,
+      machineId,
       threadId,
       gitStatus?.isDefaultRef,
       gitStatus?.refName,

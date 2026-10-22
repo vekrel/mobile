@@ -9,15 +9,15 @@ import { useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Platform, useWindowDimensions } from "react-native";
 
-import type { EnvironmentThreadShell } from "@vekrel/client-runtime/state/shell";
+import type { MachineThreadShell } from "@vekrel/client-runtime/state/shell";
 import { resolveScratchProjectScopeKey } from "@vekrel/client-runtime/state/project-grouping";
 
 import { NativeStackScreenOptions } from "../../native/StackHeader";
 import { useProjects } from "../../state/entities";
-import { environmentThreadShells } from "../../state/threads";
+import { machineThreadShells } from "../../state/threads";
 import { usePendingNewTasks } from "../../state/use-pending-new-tasks";
 import { useWorkspaceState } from "../../state/workspace";
-import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
+import { useSavedRemoteConnections } from "../../state/use-remote-machine-registry";
 import { useAdaptiveWorkspaceLayout } from "../layout/AdaptiveWorkspaceLayout";
 import { useDeviceType, useNativeColumnLayoutMetrics } from "../../native/native-layout-metrics";
 import { WorkspaceEmptyDetail } from "../layout/WorkspaceEmptyDetail";
@@ -48,10 +48,10 @@ export function HomeRouteScreen() {
   // covers Home, rebuilding this list is invisible work.
   const visible = useHomeRouteVisible();
   const threads = useAtomValueWhileVisible(
-    environmentThreadShells.navigationThreadShellsAtom,
+    machineThreadShells.navigationThreadShellsAtom,
     visible,
   );
-  const { environments: workspaceEnvironments, state: catalogState } = useWorkspaceState();
+  const { machines: workspaceMachines, state: catalogState } = useWorkspaceState();
   const { savedConnectionsById } = useSavedRemoteConnections();
   const navigation = useNavigation();
   const workspace = useWorkspaceTabs();
@@ -68,11 +68,11 @@ export function HomeRouteScreen() {
   const handleSelectThread = useHomeThreadSelection();
   const selectThreadRoute = useHomeThreadRouteSelection();
   const handleNewThreadOnBranch = useCallback(
-    (thread: EnvironmentThreadShell) => {
+    (thread: MachineThreadShell) => {
       selectThreadRoute({
         draft: {
           requestId: uuidv4(),
-          environmentId: String(thread.environmentId),
+          machineId: String(thread.machineId),
           projectId: String(thread.projectId),
           branch: thread.branch,
           worktreePath: thread.worktreePath,
@@ -103,32 +103,32 @@ export function HomeRouteScreen() {
   } = useThreadListActions();
   const pendingTasks = usePendingNewTasks();
   const { openPendingTask, confirmDeletePendingTask } = usePendingTaskListActions();
-  const environments = useMemo(() => {
-    const connectionStateByEnvironmentId = new Map(
-      workspaceEnvironments.map(
-        (environment) => [environment.environmentId, environment.connectionState] as const,
+  const machines = useMemo(() => {
+    const connectionStateByMachineId = new Map(
+      workspaceMachines.map(
+        (machine) => [machine.machineId, machine.connectionState] as const,
       ),
     );
     return Arr.sort(
       Object.values(savedConnectionsById).map((connection) => ({
-        environmentId: connection.environmentId,
-        label: connection.environmentLabel,
+        machineId: connection.machineId,
+        label: connection.machineLabel,
         connectionState:
-          connectionStateByEnvironmentId.get(connection.environmentId) ?? "available",
+          connectionStateByMachineId.get(connection.machineId) ?? "available",
       })),
-      Order.mapInput(Order.String, (environment: { readonly label: string }) => environment.label),
+      Order.mapInput(Order.String, (machine: { readonly label: string }) => machine.label),
     );
-  }, [savedConnectionsById, workspaceEnvironments]);
-  const availableEnvironmentIds = useMemo(
-    () => new Set(environments.map((environment) => environment.environmentId)),
-    [environments],
+  }, [savedConnectionsById, workspaceMachines]);
+  const availableMachineIds = useMemo(
+    () => new Set(machines.map((machine) => machine.machineId)),
+    [machines],
   );
   const {
     options: listOptions,
-    setSelectedEnvironmentId,
+    setSelectedMachineId,
     setSelectedProjectKey,
-  } = useHomeListOptions(availableEnvironmentIds);
-  const selectedEnvironmentId = listOptions.selectedEnvironmentId;
+  } = useHomeListOptions(availableMachineIds);
+  const selectedMachineId = listOptions.selectedMachineId;
   const projectScopeKey = listOptions.selectedProjectKey;
   const resolvedProjectKey = resolveScratchProjectScopeKey(projectScopeKey, projects, {
     sidebarProjectGroupingMode: listOptions.projectGroupingMode,
@@ -143,13 +143,13 @@ export function HomeRouteScreen() {
     () =>
       buildHomeProjectScopes({
         projects,
-        environmentId: selectedEnvironmentId,
+        machineId: selectedMachineId,
         projectGroupingMode: listOptions.projectGroupingMode,
       }).map((scope) => ({
         key: scope.key,
         label: scope.title,
       })),
-    [listOptions.projectGroupingMode, projects, selectedEnvironmentId],
+    [listOptions.projectGroupingMode, projects, selectedMachineId],
   );
   const selectedProjectKey = projectFilterOptions.some(
     (project) => project.key === resolvedProjectKey,
@@ -190,7 +190,7 @@ export function HomeRouteScreen() {
               ? () =>
                   navigation.navigate("SettingsSheet", {
                     screen: "SettingsContent",
-                    params: { screen: "SettingsEnvironmentNew" },
+                    params: { screen: "SettingsMachineNew" },
                   })
               : undefined
           }
@@ -217,10 +217,10 @@ export function HomeRouteScreen() {
               ...getConnectionAwareBrandHeaderOptions({
                 headerWidth,
                 trailingItemCount: nativePrimaryColumn && deviceType === "pad" ? 2 : 1,
-                onOpenEnvironments: () =>
+                onOpenMachines: () =>
                   navigation.navigate("SettingsSheet", {
                     screen: "SettingsContent",
-                    params: { screen: "SettingsEnvironments" },
+                    params: { screen: "SettingsMachines" },
                   }),
               }),
               headerShown: Platform.OS !== "android",
@@ -228,17 +228,17 @@ export function HomeRouteScreen() {
           />
         )}
         <HomeHeader
-          environments={environments}
+          machines={machines}
           projects={projectFilterOptions}
           searchQuery={searchQuery}
-          selectedEnvironmentId={selectedEnvironmentId}
+          selectedMachineId={selectedMachineId}
           selectedProjectKey={selectedProjectKey}
-          onEnvironmentChange={setSelectedEnvironmentId}
+          onMachineChange={setSelectedMachineId}
           onProjectChange={setSelectedProjectKey}
-          onOpenEnvironments={() =>
+          onOpenMachines={() =>
             navigation.navigate("SettingsSheet", {
               screen: "SettingsContent",
-              params: { screen: "SettingsEnvironments" },
+              params: { screen: "SettingsMachines" },
             })
           }
           onOpenSettings={() =>
@@ -253,11 +253,11 @@ export function HomeRouteScreen() {
 
         <HomeScreen
           catalogState={catalogState}
-          environments={environments}
+          machines={machines}
           onAddConnection={() =>
             navigation.navigate("SettingsSheet", {
               screen: "SettingsContent",
-              params: { screen: "SettingsEnvironmentNew" },
+              params: { screen: "SettingsMachineNew" },
             })
           }
           onArchiveThread={archiveThread}
@@ -272,7 +272,7 @@ export function HomeRouteScreen() {
           onMoveThread={moveThread}
           onRenameThread={renameThread}
           onRegenerateThreadTitle={regenerateThreadTitle}
-          onEnvironmentChange={setSelectedEnvironmentId}
+          onMachineChange={setSelectedMachineId}
           onProjectChange={setSelectedProjectKey}
           onOpenSettings={() =>
             navigation.navigate("SettingsSheet", {
@@ -289,7 +289,7 @@ export function HomeRouteScreen() {
             selectThreadRoute({
               draft: {
                 requestId: uuidv4(),
-                environmentId: String(project.environmentId),
+                machineId: String(project.machineId),
                 projectId: String(project.id),
                 title: project.title,
               },
@@ -302,7 +302,7 @@ export function HomeRouteScreen() {
           projectSortOrder={listOptions.projectSortOrder}
           savedConnectionsById={savedConnectionsById}
           searchQuery={searchQuery}
-          selectedEnvironmentId={selectedEnvironmentId}
+          selectedMachineId={selectedMachineId}
           selectedProjectKey={selectedProjectKey}
           threads={threads}
         />
