@@ -1,5 +1,5 @@
 # Vekrel-Mobile
-The iOS and Android app for Vekrel; derived from T3 Code (MIT, see NOTICE).
+The iOS and Android app for Vekrel. Highly inspired by T3 Code (MIT, see NOTICE).
 
 `packages/` is a git subtree of Vekrel-Shared's `packages/` (split with `git subtree split --prefix=packages`; see Vekrel-Engine's README for the pull commands).
 
