@@ -171,11 +171,11 @@ export function useRemoteConnections() {
       if (machine.isRelayManaged) {
         Dialog.alert(
           "Remove from this device?",
-          `Forget ${machine.machineLabel} and its cached threads on this device.\n\nIt stays on your Vekrel Connect account and keeps its host space. Deregister it under T3 Account → Vekrel Connect to free it.`,
+          `Forget ${machine.machineLabel} and its cached threads on this device.\n\nIt stays on your Vekrel Connect account and keeps its host space. Deregister it under Vekrel Account → Vekrel Connect to free it.`,
           [
             { text: "Cancel", style: "cancel" },
             {
-              text: "Open T3 Account",
+              text: "Open Vekrel Account",
               onPress: () => navigation.navigate("SettingsSheet", { screen: "SettingsAuth" }),
             },
             remove,
