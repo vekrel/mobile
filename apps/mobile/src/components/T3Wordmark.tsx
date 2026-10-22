@@ -29,8 +29,30 @@ export function T3Wordmark(props: {
   );
 }
 
-// Vekrel tile mark (geometry from brand/mark.svg); fixed brand colors, not tintable.
-export function VekrelMark(props: { readonly height: number }) {
+// Vekrel tile mark (geometry from brand/mark.svg). With color/colorClassName it renders
+// the single-colour box+phone silhouette (same as the widget asset) instead of the tile.
+export function VekrelMark(props: {
+  readonly height: number;
+  readonly color?: ColorValue;
+  readonly colorClassName?: string;
+}) {
+  if (props.color !== undefined || props.colorClassName) {
+    return (
+      <Svg
+        accessibilityLabel="Vekrel"
+        height={props.height}
+        width={props.height * (79 / 66)}
+        viewBox="10 22 79 66"
+      >
+        <ThemedPath
+          d="M19 24H63A6 6 0 0 1 69 30V64A6 6 0 0 1 63 70H19A6 6 0 0 1 13 64V30A6 6 0 0 1 19 24ZM62 40H79A7 7 0 0 1 86 47V79A7 7 0 0 1 79 86H62A7 7 0 0 1 55 79V47A7 7 0 0 1 62 40Z"
+          color={props.color}
+          colorClassName={props.colorClassName}
+          fill="currentColor"
+        />
+      </Svg>
+    );
+  }
   return (
     <Svg
       accessibilityLabel="Vekrel"

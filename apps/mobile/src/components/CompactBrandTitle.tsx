@@ -52,13 +52,6 @@ export function CompactBrandTitle(
       ]}
     >
       <T3Wordmark colorClassName="accent-icon" height={Math.round(15 * scale)} />
-      <Text
-        allowFontScaling={props.allowFontScaling}
-        className="font-t3-medium text-foreground-muted"
-        style={{ fontSize: 21 * scale, letterSpacing: -0.5 * scale }}
-      >
-        Code
-      </Text>
       {showStage ? (
         <View
           className="rounded-full bg-subtle px-1.5 py-0.5"

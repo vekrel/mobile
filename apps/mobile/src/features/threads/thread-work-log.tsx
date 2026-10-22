@@ -131,7 +131,7 @@ function WorkLogIcon(props: {
   const colorClassName = props.highlighted ? "accent-foreground" : props.colorClassName;
   if (props.icon === "vekrel") {
     return (
-      <VekrelMark height={12} />
+      <VekrelMark height={12} {...(colorClassName ? { colorClassName } : { color: props.color })} />
     );
   }
   if (props.icon === "computer") {
