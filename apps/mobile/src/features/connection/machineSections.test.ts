@@ -36,7 +36,7 @@ function cloudMachine(machineId: string): RelayClientMachineRecord {
 }
 
 describe("mobile machine settings sections", () => {
-  it("keeps saved relay-managed connections under T3 Connect", () => {
+  it("keeps saved relay-managed connections under Vekrel Connect", () => {
     const local = connectedMachine({
       machineId: "machine-local",
       isRelayManaged: false,

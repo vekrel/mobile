@@ -210,7 +210,7 @@ export function ConnectionMachineRow(props: {
           ) : null}
           {props.machine.isRelayManaged ? (
             <Text className="text-sm text-foreground-muted">
-              Managed by T3 Connect. Tunnel details update automatically.
+              Managed by Vekrel Connect. Tunnel details update automatically.
             </Text>
           ) : (
             <>
