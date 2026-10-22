@@ -6,7 +6,7 @@ import {
   gitHubRoutingConnectionKey,
   gitHubRoutingPermissionFor,
   type GitHubRoutingPermission,
-} from "@t3tools/client-runtime/connection";
+} from "@vekrel/client-runtime/connection";
 import { useState } from "react";
 import { Pressable, View } from "react-native";
 

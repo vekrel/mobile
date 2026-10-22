@@ -1,8 +1,8 @@
 import * as Dialog from "../components/ui/Dialog";
 import { useLayoutEffect, useRef } from "react";
-import { PROVIDER_SEND_TURN_MAX_ATTACHMENTS, type ServerConfig } from "@t3tools/contracts";
-import { clampFileAttachmentUploadBytes } from "@t3tools/client-runtime/state/attachments";
-import { nextPastedTextFileName } from "@t3tools/client-runtime/text-paste";
+import { PROVIDER_SEND_TURN_MAX_ATTACHMENTS, type ServerConfig } from "@vekrel/contracts";
+import { clampFileAttachmentUploadBytes } from "@vekrel/client-runtime/state/attachments";
+import { nextPastedTextFileName } from "@vekrel/client-runtime/text-paste";
 import type { ComposerTextPaste } from "../components/ComposerEditor";
 import {
   convertPastedImagesToAttachments,

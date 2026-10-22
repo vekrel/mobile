@@ -1,7 +1,7 @@
-import { isProviderSkillUserInvocable } from "@t3tools/client-runtime/providerSkills";
-import { serializeLegacyContextMessage } from "@t3tools/shared/composerContextLegacySend";
-import { filePreviewKind } from "@t3tools/shared/filePreview";
-import { videoMimeType } from "@t3tools/shared/video";
+import { isProviderSkillUserInvocable } from "@vekrel/client-runtime/providerSkills";
+import { serializeLegacyContextMessage } from "@vekrel/shared/composerContextLegacySend";
+import { filePreviewKind } from "@vekrel/shared/filePreview";
+import { videoMimeType } from "@vekrel/shared/video";
 import {
   COMPOSER_CONTEXT_MAX_RECORDS,
   COMPOSER_CONTEXT_REVIEW_TEXT_MAX_CHARS,
@@ -13,7 +13,7 @@ import {
   type ScopedThreadRef,
   type ServerProviderSkill,
   type ThreadContextRecord,
-} from "@t3tools/contracts";
+} from "@vekrel/contracts";
 import * as Schema from "effect/Schema";
 import {
   ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
@@ -23,11 +23,11 @@ import {
   replaceComposerContextReferences,
   sanitizeComposerContextLabel,
   toKindScopedComposerContextId,
-} from "@t3tools/shared/composerContextReferences";
+} from "@vekrel/shared/composerContextReferences";
 import {
   collectComposerInlineTokens,
   type ComposerInlineToken,
-} from "@t3tools/shared/composerInlineTokens";
+} from "@vekrel/shared/composerInlineTokens";
 
 const isMessageContext = Schema.is(OrchestrationMessageContext);
 const decodeMessageContext = Schema.decodeUnknownOption(OrchestrationMessageContext);

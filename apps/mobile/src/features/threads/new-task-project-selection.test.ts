@@ -1,7 +1,7 @@
-import { EnvironmentId, ProjectId } from "@t3tools/contracts";
+import { EnvironmentId, ProjectId } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
-import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
+import type { EnvironmentProject } from "@vekrel/client-runtime/state/shell";
 import type { HomeProjectScope } from "../home/homeThreadList";
 import {
   newTaskDestination,
@@ -43,7 +43,7 @@ function makeProject(
 function makeScope(projects: ReadonlyArray<EnvironmentProject>): HomeProjectScope {
   return {
     key: "github.com/t3tools/t3code",
-    title: "T3 Code",
+    title: "Vekrel",
     representative: projects[0]!,
     projects,
     projectRefs: projects.map((project) => ({
@@ -55,16 +55,16 @@ function makeScope(projects: ReadonlyArray<EnvironmentProject>): HomeProjectScop
 
 describe("resolveEnvironmentProjectMatch", () => {
   it("follows the same repository onto the target machine", () => {
-    const selected = makeProject("t3code", "mac", { repositoryKey: "github.com/t3tools/t3code" });
+    const selected = makeProject("vekrel", "mac", { repositoryKey: "github.com/t3tools/t3code" });
     const target = [
       makeProject("other", "server", { repositoryKey: "github.com/t3tools/other" }),
-      makeProject("t3code-clone", "server", { repositoryKey: "github.com/t3tools/t3code" }),
+      makeProject("vekrel-clone", "server", { repositoryKey: "github.com/t3tools/t3code" }),
     ];
     expect(resolveEnvironmentProjectMatch(target, selected)).toBe(target[1]);
   });
 
   it("falls back to workspace basename, then title, for unindexed projects", () => {
-    const selected = makeProject("t3code", "mac", { workspaceRoot: "/Users/me/t3code" });
+    const selected = makeProject("vekrel", "mac", { workspaceRoot: "/Users/me/t3code" });
     const byBasename = [
       makeProject("other", "server"),
       makeProject("srv", "server", { workspaceRoot: "/home/me/t3code" }),
@@ -73,19 +73,19 @@ describe("resolveEnvironmentProjectMatch", () => {
 
     const byTitle = [
       makeProject("other", "server"),
-      makeProject("srv", "server", { title: "t3code" }),
+      makeProject("srv", "server", { title: "vekrel" }),
     ];
     expect(resolveEnvironmentProjectMatch(byTitle, selected)).toBe(byTitle[1]);
   });
 
   it("does not treat a known different repository as a basename or title match", () => {
-    const selected = makeProject("t3code", "mac", {
+    const selected = makeProject("vekrel", "mac", {
       repositoryKey: "github.com/t3tools/t3code",
       workspaceRoot: "/Users/me/t3code",
     });
     const fork = makeProject("fork", "server", {
       repositoryKey: "github.com/someone/t3code",
-      title: "t3code",
+      title: "vekrel",
       workspaceRoot: "/home/me/t3code",
     });
     const unindexed = makeProject("unindexed", "server", { workspaceRoot: "/srv/t3code" });
@@ -96,7 +96,7 @@ describe("resolveEnvironmentProjectMatch", () => {
 
 describe("resolveDraftProjectSelection", () => {
   it("selects one logical project even when it has multiple physical workspaces", () => {
-    const projects = [makeProject("t3code"), makeProject("t3code-2"), makeProject("t3code-3")];
+    const projects = [makeProject("vekrel"), makeProject("vekrel-2"), makeProject("vekrel-3")];
     expect(resolveDraftProjectSelection(null, projects, [makeScope(projects)])).toEqual({
       kind: "select",
       project: projects[0],
@@ -104,7 +104,7 @@ describe("resolveDraftProjectSelection", () => {
   });
 
   it("does not preserve a project key that is missing from the catalog", () => {
-    const project = makeProject("t3code");
+    const project = makeProject("vekrel");
     expect(
       resolveDraftProjectSelection("environment:removed", [project], [makeScope([project])]),
     ).toEqual({

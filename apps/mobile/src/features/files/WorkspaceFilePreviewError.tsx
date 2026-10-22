@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@vekrel/contracts";
 import { useCallback } from "react";
 import { View } from "react-native";
 

@@ -6,13 +6,13 @@ import { SymbolView } from "../../components/ui/AppSymbol";
 import {
   hasSavedBearerRoute,
   type EnvironmentConnectionPhase,
-} from "@t3tools/client-runtime/connection";
+} from "@vekrel/client-runtime/connection";
 import {
   type EnvironmentId,
   type EnvironmentMachineKind,
   type ExecutionEnvironmentDescriptor,
   resolveEnvironmentMachineKind,
-} from "@t3tools/contracts";
+} from "@vekrel/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useCallback, useState } from "react";
 import { Pressable, type TextLayoutEvent, View } from "react-native";

@@ -1,4 +1,4 @@
-import type { EnvironmentId } from "@t3tools/contracts";
+import type { EnvironmentId } from "@vekrel/contracts";
 
 export function resolveAutoSettleReferenceEnvironmentId(
   environments: ReadonlyArray<{

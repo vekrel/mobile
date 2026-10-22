@@ -1,8 +1,8 @@
 import {
   getPromptControlledTraits,
   getTraitSelectChange,
-} from "@t3tools/client-runtime/model-traits";
-import type { ProviderOptionDescriptor } from "@t3tools/contracts";
+} from "@vekrel/client-runtime/model-traits";
+import type { ProviderOptionDescriptor } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { selectableChoices } from "./thread-settings-options";

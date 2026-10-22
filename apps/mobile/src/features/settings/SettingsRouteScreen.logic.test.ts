@@ -1,4 +1,4 @@
-import { EnvironmentId } from "@t3tools/contracts";
+import { EnvironmentId } from "@vekrel/contracts";
 import { describe, expect, it } from "vite-plus/test";
 
 import { resolveAutoSettleReferenceEnvironmentId } from "./SettingsRouteScreen.logic";

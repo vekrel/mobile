@@ -1,12 +1,12 @@
 import { useAtomValue } from "@effect/atom-react";
-import type { ThreadTurnSubagents } from "@t3tools/client-runtime/state/thread-subagents";
+import type { ThreadTurnSubagents } from "@vekrel/client-runtime/state/thread-subagents";
 import {
   isOrchestrationV2WorkActive,
   type EnvironmentId,
   type OrchestrationV2Subagent,
   type ThreadId,
-} from "@t3tools/contracts";
-import { deriveSubagentElapsedMs, formatDuration } from "@t3tools/shared/orchestrationTiming";
+} from "@vekrel/contracts";
+import { deriveSubagentElapsedMs, formatDuration } from "@vekrel/shared/orchestrationTiming";
 import { StackActions, useNavigation, type StaticScreenProps } from "@react-navigation/native";
 import * as DateTime from "effect/DateTime";
 import { Atom } from "effect/reactivity";

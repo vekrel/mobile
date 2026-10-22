@@ -1,10 +1,10 @@
 import { AsyncResult } from "effect/reactivity";
-import { settlePromise, squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
+import { settlePromise, squashAtomCommandFailure } from "@vekrel/client-runtime/state/runtime";
 import * as Dialog from "../components/ui/Dialog";
-import { filePreviewDelimiter, parseDelimitedPreview } from "@t3tools/shared/delimitedPreview";
-import type { EnvironmentId } from "@t3tools/contracts";
-import { readFilePreviewResponse } from "@t3tools/client-runtime/file-preview";
-import { filePreviewKind, FILE_TEXT_PREVIEW_MAX_BYTES } from "@t3tools/shared/filePreview";
+import { filePreviewDelimiter, parseDelimitedPreview } from "@vekrel/shared/delimitedPreview";
+import type { EnvironmentId } from "@vekrel/contracts";
+import { readFilePreviewResponse } from "@vekrel/client-runtime/file-preview";
+import { filePreviewKind, FILE_TEXT_PREVIEW_MAX_BYTES } from "@vekrel/shared/filePreview";
 import { fetch } from "expo/fetch";
 import { File } from "expo-file-system";
 import { useEffect, useRef, useState } from "react";
