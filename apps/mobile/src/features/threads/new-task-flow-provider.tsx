@@ -282,9 +282,7 @@ export function NewTaskFlowProvider(
     projectSortOrder: "updated_at",
   });
 
-  const [selectedMachineIdOverride, setSelectedMachineId] = useState<MachineId | null>(
-    null,
-  );
+  const [selectedMachineIdOverride, setSelectedMachineId] = useState<MachineId | null>(null);
   const selectedMachineId =
     selectedMachineIdOverride !== null &&
     projects.some((project) => project.machineId === selectedMachineIdOverride)
@@ -357,9 +355,7 @@ export function NewTaskFlowProvider(
       ? editingPendingProject
       : (projectsForMachine[0] ?? null));
 
-  const selectedMachineServerConfig = useMachineServerConfig(
-    selectedProject?.machineId ?? null,
-  );
+  const selectedMachineServerConfig = useMachineServerConfig(selectedProject?.machineId ?? null);
   const isScratchDraft =
     selectedProject !== null &&
     isScratchProject(selectedProject, selectedMachineServerConfig?.scratchWorkspaceRoot);
@@ -526,8 +522,7 @@ export function NewTaskFlowProvider(
     selectedProject !== null &&
     threads.some(
       (thread) =>
-        thread.machineId === selectedProject.machineId &&
-        thread.projectId === selectedProject.id,
+        thread.machineId === selectedProject.machineId && thread.projectId === selectedProject.id,
     );
   const defaultWorkspaceMode: WorkspaceMode = canChooseWorkspace
     ? resolveNewThreadEnvMode({
@@ -765,9 +760,7 @@ export function NewTaskFlowProvider(
   };
 
   const openScratch = useAtomCommand(projectMachine.openScratch, { reportFailure: false });
-  const [switchingToMachineId, setSwitchingToMachineId] = useState<MachineId | null>(
-    null,
-  );
+  const [switchingToMachineId, setSwitchingToMachineId] = useState<MachineId | null>(null);
   const latestSwitchRef = useRef<object | null>(null);
   const switchMachine = async (machineId: MachineId): Promise<boolean> => {
     if (machineId === selectedMachineId) {
