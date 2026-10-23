@@ -14,9 +14,7 @@ export function applyShowcaseLocalMachineDisplayUrls(
 ): ReadonlyArray<ConnectedMachineSummary> {
   return machines.map((machine) => ({
     ...machine,
-    displayUrl:
-      SHOWCASE_LOCAL_MACHINE_DISPLAY_URLS[machine.machineLabel] ??
-      machine.displayUrl,
+    displayUrl: SHOWCASE_LOCAL_MACHINE_DISPLAY_URLS[machine.machineLabel] ?? machine.displayUrl,
   }));
 }
 
@@ -34,7 +32,7 @@ const pocketPiId = MachineId.make("showcase-pocket-pi");
 const pocketPiEndpoint = {
   httpBaseUrl: "https://pocket-pi.t3.sh",
   wsBaseUrl: "wss://pocket-pi.t3.sh",
-  providerKind: "t3_relay" as const,
+  providerKind: "vekrel_relay" as const,
 };
 
 export const SHOWCASE_CONNECTED_CLOUD_MACHINES: ReadonlyArray<ConnectedMachineSummary> = [
