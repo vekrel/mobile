@@ -206,7 +206,7 @@ private final class ComposerTextView: UITextView {
     }
     let pasteboard = UIPasteboard.general
     let context = T3ComposerClipboard.read()
-    if !context["fragment", default: ""].isEmpty || context["html", default: ""].contains("data-t3-context-fragment=") {
+    if !context["fragment", default: ""].isEmpty || context["html", default: ""].contains("data-vekrel-context-fragment=") {
       onPasteContext?(context)
       return
     }

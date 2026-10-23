@@ -255,7 +255,7 @@ export function MobileEnrichedMarkdownText(props: SelectableMarkdownTextProps) {
     return {
       linkTextByUrl,
       htmlAttributes: {
-        "data-t3-context-fragment": encodeURIComponent(props.contextClipboardFragment!),
+        "data-vekrel-context-fragment": encodeURIComponent(props.contextClipboardFragment!),
       },
       mimeTypes: { "app.t3.context-fragment": props.contextClipboardFragment! },
     };

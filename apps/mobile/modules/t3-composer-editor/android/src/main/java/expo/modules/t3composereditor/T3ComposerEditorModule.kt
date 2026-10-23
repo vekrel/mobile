@@ -43,7 +43,7 @@ internal object T3ComposerClipboard {
         ClipData.newHtmlText(
           "Vekrel",
           text,
-          "<pre data-t3-context-fragment=\"$encoded\">$escaped</pre>"
+          "<pre data-vekrel-context-fragment=\"$encoded\">$escaped</pre>"
         )
       }
     )

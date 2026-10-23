@@ -355,10 +355,7 @@ export interface ThreadFeedProps {
   readonly onUseArtifactTemplate?: (template: CodexArtifactTemplate) => void;
 }
 
-async function waitForThreadShell(
-  machineId: MachineId,
-  threadId: ThreadId,
-): Promise<boolean> {
+async function waitForThreadShell(machineId: MachineId, threadId: ThreadId): Promise<boolean> {
   const atom = machineThreadShells.threadShellAtom(scopeThreadRef(machineId, threadId));
   return waitForThreadShellReady({
     read: () => appAtomRegistry.get(atom) !== null,
@@ -660,8 +657,7 @@ function MessageAttachmentFile(props: {
         sourceIdentifier={sourceIdentifier}
         thumbnailSource={thumbnailUrl}
         actionsSource={
-          attachmentVideoPreviewSource(props.machineId, attachment, sourceIdentifier)
-            .actionsSource
+          attachmentVideoPreviewSource(props.machineId, attachment, sourceIdentifier).actionsSource
         }
         disabled={opening || httpBaseUrl === null}
         onPress={(sourceIdentifier) => props.onPressVideo(attachment, sourceIdentifier)}
@@ -1701,7 +1697,7 @@ function UserMessageContent(props: UserMessageContentProps) {
   const liveText = useLiveThreadLinkLabels(props.text, props.machineId);
   const text = replaceComposerContextReferences(liveText, (ref) => {
     const available = props.context?.records.some((record) => record.contextId === ref.contextId);
-    return `[${ref.label}${available ? "" : " (unavailable)"}](t3-context://v1/${ref.kind}/${ref.contextId})`;
+    return `[${ref.label}${available ? "" : " (unavailable)"}](vekrel-context://v1/${ref.kind}/${ref.contextId})`;
   });
   const onLinkPress = (href: string) => {
     const reference = parseComposerContextHref(href);

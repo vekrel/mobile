@@ -146,7 +146,7 @@ class ComposerPasteTest {
       ClipData.newHtmlText(
         "test",
         "plain text",
-        "<pre data-t3-context-fragment=\"x\">plain text</pre>"
+        "<pre data-vekrel-context-fragment=\"x\">plain text</pre>"
       )
     )
     editor.setSelection(0)

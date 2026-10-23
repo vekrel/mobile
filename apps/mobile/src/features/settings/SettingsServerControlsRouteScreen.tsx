@@ -71,7 +71,7 @@ const SUBMODULE_CHOICES: ReadonlyArray<{
   {
     mode: null,
     label: "Inherit",
-    description: "Use the repository's t3.json, or initialize recursively.",
+    description: "Use the repository's vekrel.json, or initialize recursively.",
   },
   { mode: "recursive", label: "Recursive", description: "Initialize nested submodules too." },
   {
@@ -90,7 +90,7 @@ const WORKSPACE_CHOICES: ReadonlyArray<{
   {
     mode: null,
     label: "Inherit",
-    description: "Use the repository's t3.json, or the current checkout.",
+    description: "Use the repository's vekrel.json, or the current checkout.",
   },
   {
     mode: "local",
@@ -160,8 +160,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
     readonly ScopedMobileSettingsTarget[] | null
   >(null);
   const canWriteSettings =
-    targets.length > 0 &&
-    targets.every((target) => writableMachines.has(target.machine.machineId));
+    targets.length > 0 && targets.every((target) => writableMachines.has(target.machine.machineId));
   const displayTargets = pendingWrites > 0 && pendingTargets !== null ? pendingTargets : targets;
   const hasConnectedSelection = targets.length > 0;
   const reference = displayTargets[0] ?? null;
@@ -183,9 +182,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
     }
     if (
       !hasConnectedSelection ||
-      !targets.every((target) =>
-        readMachineScope(target.machine.machineId, AuthSettingsWriteScope),
-      )
+      !targets.every((target) => readMachineScope(target.machine.machineId, AuthSettingsWriteScope))
     )
       return;
     const writes = planMobileScopedSettingsPatch(targets, projectSelected, patch);
@@ -207,9 +204,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
   const clearProjectOverrides = () => {
     if (
       writeInFlight.current ||
-      !targets.every((target) =>
-        readMachineScope(target.machine.machineId, AuthSettingsWriteScope),
-      )
+      !targets.every((target) => readMachineScope(target.machine.machineId, AuthSettingsWriteScope))
     )
       return;
     const writes = planMobileScopedSettingsClear(targets, PAGE_PROJECT_KEYS[props.page]);
@@ -226,8 +221,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
     });
   };
   const supportsProjectOverrides = targets.every(
-    (target) =>
-      target.machine.serverConfig.machine.capabilities.projectSettingsOverrides === true,
+    (target) => target.machine.serverConfig.machine.capabilities.projectSettingsOverrides === true,
   );
   const disabled =
     !canWriteSettings ||
@@ -235,8 +229,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
     !hasConnectedSelection ||
     (projectSelected && !supportsProjectOverrides);
   const supportsContinuation = targets.every(
-    (target) =>
-      target.machine.serverConfig.machine.capabilities.threadRestartContinuation === true,
+    (target) => target.machine.serverConfig.machine.capabilities.threadRestartContinuation === true,
   );
   const disabledFor = (key: string) =>
     disabled ||
@@ -248,10 +241,7 @@ function ServerSettingsDetail(props: { readonly page: SettingsPage }) {
   return (
     <>
       <SettingsMachineFilterHeader />
-      <SettingsScreen
-        title={PAGE_TITLES[props.page]}
-        trailing={<AndroidSettingsMachineFilter />}
-      >
+      <SettingsScreen title={PAGE_TITLES[props.page]} trailing={<AndroidSettingsMachineFilter />}>
         <ScrollView
           contentInsetAdjustmentBehavior="automatic"
           showsVerticalScrollIndicator={false}
