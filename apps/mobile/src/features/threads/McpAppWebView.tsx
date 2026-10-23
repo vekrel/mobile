@@ -211,9 +211,7 @@ export function ThreadMcpApp(props: {
   const [toolDefinition, setToolDefinition] = useState<unknown>(undefined);
   // Read by the host on every message, so it always sees current values
   // without being rebuilt (which would drop the app's session).
-  const conversation = useThreadShell(
-    scopeThreadRef(props.machineId, props.conversationThreadId),
-  );
+  const conversation = useThreadShell(scopeThreadRef(props.machineId, props.conversationThreadId));
   const awaitingUser =
     conversation?.hasPendingApprovals === true || conversation?.hasPendingUserInput === true;
   const live = {
@@ -275,7 +273,7 @@ export function ThreadMcpApp(props: {
         platform: "mobile",
         locale: Intl.DateTimeFormat().resolvedOptions().locale,
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        userAgent: `t3-code/${Constants.expoConfig?.version ?? "0.0.0"}`,
+        userAgent: `vekrel/${Constants.expoConfig?.version ?? "0.0.0"}`,
         deviceCapabilities: { touch: true, hover: false },
         safeAreaInsets: isFullscreen
           ? { top: 0, right: current.insets.right, bottom: 0, left: current.insets.left }
