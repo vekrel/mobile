@@ -21,7 +21,7 @@ import {
   DEFAULT_SERVER_SETTINGS,
   MessageId,
   repositoryGroupingKeyOf,
-  T3_PROJECT_FILE_NAME,
+  VEKREL_PROJECT_FILE_NAME,
   ThreadId,
 } from "@vekrel/contracts";
 import { sanitizeNewRefName } from "@vekrel/shared/git";
@@ -504,7 +504,7 @@ export function NewTaskFlowProvider(
           machineId: selectedProject.machineId,
           input: {
             cwd: selectedProject.workspaceRoot,
-            relativePath: T3_PROJECT_FILE_NAME,
+            relativePath: VEKREL_PROJECT_FILE_NAME,
             allowMissing: true,
           },
         })
