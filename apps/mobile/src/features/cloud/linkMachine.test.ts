@@ -166,7 +166,7 @@ describe("mobile cloud link machine client", () => {
 
         const error = yield* withCloudServices(
           linkMachineToCloudWithPreference({
-            clerkToken: "clerk-token",
+            accountToken: "account-token",
             connection: savedConnection,
             liveActivitiesEnabled: true,
           }),
@@ -202,7 +202,7 @@ describe("mobile cloud link machine client", () => {
 
       const error = yield* withCloudServices(
         linkMachineToCloudWithPreference({
-          clerkToken: "clerk-token",
+          accountToken: "account-token",
           connection: savedConnection,
           liveActivitiesEnabled: true,
         }),
@@ -239,7 +239,7 @@ describe("mobile cloud link machine client", () => {
 
       yield* withCloudServices(
         linkMachineToCloudWithPreference({
-          clerkToken: "clerk-token",
+          accountToken: "account-token",
           connection: savedConnection,
           liveActivitiesEnabled: false,
         }),

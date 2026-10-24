@@ -15,10 +15,8 @@ import * as Dialog from "../../components/ui/Dialog";
 import { Menu } from "../../components/ui/Menu";
 import { copyTextWithHaptic } from "../../lib/copyTextWithHaptic";
 import { useAtomCommand } from "../../state/use-atom-command";
-import {
-  deregisterManagedRelayMachineCommand,
-  useManagedRelayMachines,
-} from "./managedRelayState";
+import { useCloudAuth } from "./CloudAuthProvider";
+import { deregisterManagedRelayMachineCommand, useManagedRelayMachines } from "./managedRelayState";
 
 const linkedAtFormatter = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
 
@@ -41,13 +39,57 @@ function confirmDeregister(machine: RelayClientMachineRecord, onConfirm: () => v
   Dialog.confirm({ title, message, confirmText: "Deregister", destructive: true, onConfirm });
 }
 
+function reportAuthFailure(title: string, cause: unknown) {
+  const message = cause instanceof Error ? cause.message : "Please try again.";
+  console.error(`[vekrel-connect] ${title}`, { message, cause });
+  Dialog.alert(title, message);
+}
+
+/** Signed out: the relay sign-in page opens in the system browser. */
+export function T3ConnectSignInPage() {
+  const { signIn } = useCloudAuth();
+  const [pending, setPending] = useState(false);
+
+  const handleSignIn = () => {
+    if (pending) return;
+    setPending(true);
+    void signIn()
+      .catch((cause: unknown) => reportAuthFailure("Could not sign in", cause))
+      .then(() => setPending(false));
+  };
+
+  return (
+    <ScrollView className="flex-1 bg-account-page" contentInsetAdjustmentBehavior="automatic">
+      <AccountSectionHeader>Vekrel Connect</AccountSectionHeader>
+      <AccountRow
+        title="Sign in to Vekrel"
+        subtitle="Reach your machines from anywhere and get notified when a turn ends."
+        accessory={
+          pending ? (
+            <AppActivityIndicator colorClassName={"accent-account-foreground-muted"} size="small" />
+          ) : undefined
+        }
+      />
+      <AccountButtonRow label="Continue in browser" onPress={handleSignIn} />
+    </ScrollView>
+  );
+}
+
 export function T3ConnectProfilePage() {
+  const { email, signOut } = useCloudAuth();
+  const [signingOut, setSigningOut] = useState(false);
+  const handleSignOut = () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    void signOut()
+      .catch((cause: unknown) => reportAuthFailure("Could not sign out", cause))
+      .then(() => setSigningOut(false));
+  };
   const machinesState = useManagedRelayMachines();
   const deregisterMachine = useAtomCommand(deregisterManagedRelayMachineCommand, {
     reportFailure: false,
   });
-  const [deregisteringMachineId, setDeregisteringMachineId] =
-    useState<MachineId | null>(null);
+  const [deregisteringMachineId, setDeregisteringMachineId] = useState<MachineId | null>(null);
   const mutationPendingRef = useRef(false);
   // Deregistered rows stay in the cached list until the refresh lands, so hide
   // them by the linkedAt they had. A re-link produces a new linkedAt and shows again.
@@ -109,8 +151,7 @@ export function T3ConnectProfilePage() {
       ? removedMachines.linkedAtById
       : new Map<MachineId, string>();
   const machines = (machinesState.data ?? []).filter(
-    (machine) =>
-      removedMachineLinkedAt.get(machine.machineId) !== machine.linkedAt,
+    (machine) => removedMachineLinkedAt.get(machine.machineId) !== machine.linkedAt,
   );
   const isInitialLoad =
     !machinesState.accountId || (machinesState.data === null && !machinesState.error);
@@ -118,7 +159,7 @@ export function T3ConnectProfilePage() {
 
   return (
     <ScrollView
-      className="flex-1 bg-clerk-page"
+      className="flex-1 bg-account-page"
       contentContainerClassName="pb-8"
       contentInsetAdjustmentBehavior="automatic"
       refreshControl={
@@ -128,16 +169,20 @@ export function T3ConnectProfilePage() {
         />
       }
     >
-      <ClerkSectionHeader>Registered servers</ClerkSectionHeader>
+      <AccountSectionHeader>Account</AccountSectionHeader>
+      <AccountRow title={email ?? "Signed in"} subtitle="Vekrel account" />
+      <AccountButtonRow label={signingOut ? "Signing out" : "Sign out"} onPress={handleSignOut} />
+
+      <AccountSectionHeader>Registered servers</AccountSectionHeader>
 
       {machinesState.error ? (
         <>
-          <ClerkRow
+          <AccountRow
             title="Could not load Vekrel Connect machines"
             subtitle={machinesState.error}
           />
           {errorTraceId ? (
-            <ClerkButtonRow
+            <AccountButtonRow
               label="Copy trace ID"
               onPress={() => {
                 copyTextWithHaptic(errorTraceId, { target: "connection-trace-id" });
@@ -147,19 +192,19 @@ export function T3ConnectProfilePage() {
         </>
       ) : isInitialLoad ? (
         <View className="flex-row items-center gap-3 px-6 py-4">
-          <AppActivityIndicator colorClassName={"accent-clerk-foreground-muted"} size="small" />
-          <Text className="text-base text-clerk-foreground-muted">Loading machines</Text>
+          <AppActivityIndicator colorClassName={"accent-account-foreground-muted"} size="small" />
+          <Text className="text-base text-account-foreground-muted">Loading machines</Text>
         </View>
       ) : machines.length > 0 ? (
         machines.map((machine) => (
-          <ClerkRow
+          <AccountRow
             key={machine.machineId}
             title={machine.label}
             subtitle={`${linkedAtLabel(machine.linkedAt)} · ${endpointLabel(machine)}`}
             accessory={
               deregisteringMachineId === machine.machineId ? (
                 <AppActivityIndicator
-                  colorClassName={"accent-clerk-foreground-muted"}
+                  colorClassName={"accent-account-foreground-muted"}
                   size="small"
                 />
               ) : (
@@ -180,7 +225,7 @@ export function T3ConnectProfilePage() {
                       <SymbolView
                         name="ellipsis"
                         size={18}
-                        tintColorClassName={"accent-clerk-foreground-muted"}
+                        tintColorClassName={"accent-account-foreground-muted"}
                         type="monochrome"
                       />
                     </View>
@@ -191,13 +236,13 @@ export function T3ConnectProfilePage() {
           />
         ))
       ) : (
-        <ClerkRow
+        <AccountRow
           title="No servers registered"
           subtitle="Link a server from its local Settings to reach it through Vekrel Connect."
         />
       )}
 
-      <Text className="px-6 pt-6 text-xs leading-normal text-clerk-foreground-muted">
+      <Text className="px-6 pt-6 text-xs leading-normal text-account-foreground-muted">
         Connections on this device are managed in Settings.
       </Text>
     </ScrollView>
@@ -208,15 +253,15 @@ const MACHINE_MENU_ACTIONS = [
   { id: "deregister", title: "Deregister", image: "trash", attributes: { destructive: true } },
 ] satisfies MenuAction[];
 
-function ClerkSectionHeader(props: { readonly children: string }) {
+function AccountSectionHeader(props: { readonly children: string }) {
   return (
-    <Text className="min-h-4 border-b border-clerk-border px-6 pt-8 pb-4 text-xs font-medium tracking-[0.3px] text-clerk-foreground-muted uppercase">
+    <Text className="min-h-4 border-b border-account-border px-6 pt-8 pb-4 text-xs font-medium tracking-[0.3px] text-account-foreground-muted uppercase">
       {props.children}
     </Text>
   );
 }
 
-function ClerkRow(props: {
+function AccountRow(props: {
   readonly title: string;
   readonly subtitle: string;
   readonly accessory?: ReactNode;
@@ -224,13 +269,13 @@ function ClerkRow(props: {
   return (
     <View
       collapsable={false}
-      className="flex-row items-center gap-3 border-b border-clerk-border px-6 py-4"
+      className="flex-row items-center gap-3 border-b border-account-border px-6 py-4"
     >
       <View className="min-w-0 flex-1 gap-0.5">
-        <Text className="min-h-[22px] text-base text-clerk-foreground" numberOfLines={1}>
+        <Text className="min-h-[22px] text-base text-account-foreground" numberOfLines={1}>
           {props.title}
         </Text>
-        <Text className="min-h-5 text-sm text-clerk-foreground-muted" numberOfLines={2}>
+        <Text className="min-h-5 text-sm text-account-foreground-muted" numberOfLines={2}>
           {props.subtitle}
         </Text>
       </View>
@@ -239,14 +284,14 @@ function ClerkRow(props: {
   );
 }
 
-function ClerkButtonRow(props: { readonly label: string; readonly onPress: () => void }) {
+function AccountButtonRow(props: { readonly label: string; readonly onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
       onPress={props.onPress}
-      className="border-b border-clerk-border px-6 py-4 active:opacity-60"
+      className="border-b border-account-border px-6 py-4 active:opacity-60"
     >
-      <Text className="text-base font-semibold text-clerk-foreground">{props.label}</Text>
+      <Text className="text-base font-semibold text-account-foreground">{props.label}</Text>
     </Pressable>
   );
 }

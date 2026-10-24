@@ -145,7 +145,7 @@ function ensureLinkedMachineMatches(input: {
 
 interface LinkMachineToCloudInput {
   readonly connection: SavedRemoteConnection;
-  readonly clerkToken: string;
+  readonly accountToken: string;
 }
 
 type LinkMachineToCloudRequirements =
@@ -173,7 +173,7 @@ export const linkMachineToCloudWithPreference = Effect.fn(
   const liveActivitiesEnabled = input.liveActivitiesEnabled;
   const challenge = yield* relayClient
     .createMachineLinkChallenge({
-      clerkToken: input.clerkToken,
+      accountToken: input.accountToken,
       payload: {
         notificationsEnabled: true,
         liveActivitiesEnabled,
@@ -203,7 +203,7 @@ export const linkMachineToCloudWithPreference = Effect.fn(
     .pipe(Effect.mapError(cloudMachineLinkError("Could not obtain machine link proof.")));
   const link = yield* relayClient
     .linkMachine({
-      clerkToken: input.clerkToken,
+      accountToken: input.accountToken,
       payload: {
         deviceId,
         proof,
@@ -212,9 +212,7 @@ export const linkMachineToCloudWithPreference = Effect.fn(
         managedTunnelsEnabled: true,
       },
     })
-    .pipe(
-      Effect.mapError(decodedRelayClientError(`${relayUrl}/v1/client/machine-links failed`)),
-    );
+    .pipe(Effect.mapError(decodedRelayClientError(`${relayUrl}/v1/client/machine-links failed`)));
   yield* ensureLinkedMachineMatches({
     expectedMachineId: input.connection.machineId,
     expectedProviderKind: MANAGED_ENDPOINT_PROVIDER_KIND,
@@ -233,7 +231,5 @@ export const linkMachineToCloudWithPreference = Effect.fn(
         endpointRuntime: link.endpointRuntime,
       },
     })
-    .pipe(
-      Effect.mapError(cloudMachineLinkError("Could not configure machine relay access.")),
-    );
+    .pipe(Effect.mapError(cloudMachineLinkError("Could not configure machine relay access.")));
 });

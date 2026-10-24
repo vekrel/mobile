@@ -1,6 +1,6 @@
+import { useCloudAuth } from "../cloud/CloudAuthProvider";
 import { Toolbar } from "../../components/ui/Toolbar";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
-import { useAuth, useUser } from "@clerk/expo";
 import { useNavigation } from "@react-navigation/native";
 import { Platform, View } from "react-native";
 import { deriveProjectGroupLabel } from "@vekrel/client-runtime/state/project-grouping";
@@ -59,14 +59,9 @@ export function SettingsRouteScreen() {
 function ConfiguredSettingsRouteScreen() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
-  const { user } = useUser();
+  const { isLoaded, isSignedIn, email } = useCloudAuth();
   const { savedConnectionsById } = useSavedRemoteConnections();
-  const accountLabel = !isLoaded
-    ? "Checking"
-    : !isSignedIn
-      ? "Sign in"
-      : (user?.primaryEmailAddress?.emailAddress ?? "Signed in");
+  const accountLabel = !isLoaded ? "Checking" : !isSignedIn ? "Sign in" : (email ?? "Signed in");
 
   return (
     <View collapsable={false} className="flex-1 bg-sheet">

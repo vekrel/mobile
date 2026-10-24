@@ -1,7 +1,7 @@
+import { useCloudAuth } from "../cloud/CloudAuthProvider";
 import { Button } from "../../components/ui/Button";
 import { AppActivityIndicator } from "../../components/ui/AppActivityIndicator";
 import { ConnectionTraceId } from "./ConnectionTraceId";
-import { useAuth } from "@clerk/expo";
 import { SymbolView } from "../../components/ui/AppSymbol";
 import {
   hasSavedBearerRoute,
@@ -43,13 +43,12 @@ interface CloudMachineRowsProps {
 }
 
 export function CloudMachineRows(props: CloudMachineRowsProps) {
-  // Showcase captures run without a Clerk publishable key, so `ClerkProvider`
-  // is never mounted and any `useAuth` call throws — the fixture states whether
-  // the rows are signed in instead of asking Clerk.
+  // Showcase captures run without cloud config, so no account provider is
+  // mounted — the fixture states whether the rows are signed in instead.
   if (props.showcaseSignedIn !== undefined) {
     return props.showcaseSignedIn ? <CloudMachineRowsContent {...props} /> : null;
   }
-  // No cloud config means no `ClerkProvider` either, so `useAuth` would throw.
+  // No cloud config means no account provider, so nobody can be signed in.
   if (!hasCloudPublicConfig()) {
     return <ConnectedOnlyCloudMachineRows {...props} />;
   }
@@ -57,7 +56,7 @@ export function CloudMachineRows(props: CloudMachineRowsProps) {
 }
 
 function SignedInCloudMachineRows(props: CloudMachineRowsProps) {
-  const { isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const { isSignedIn } = useCloudAuth();
   if (!isSignedIn) return <ConnectedOnlyCloudMachineRows {...props} />;
   return <CloudMachineRowsContent {...props} />;
 }
@@ -76,8 +75,7 @@ function CloudMachineRowsContent(
     ? (props.showcaseAvailableMachines ?? controller.availableRelayMachines)
     : [];
   const [expandedErrorId, setExpandedErrorId] = useState<string | null>(null);
-  const hasCloudRows =
-    props.connectedCloudMachines.length > 0 || availableCloudMachines.length > 0;
+  const hasCloudRows = props.connectedCloudMachines.length > 0 || availableCloudMachines.length > 0;
 
   const handleConnectCloudMachine = useCallback(
     (entry: RelayMachineView) => controller.connectRelayMachine(entry.machine),
@@ -102,7 +100,9 @@ function CloudMachineRowsContent(
     <View collapsable={false} className={cn("gap-3", showHeader && "mt-5")}>
       {showHeader ? (
         <View className="px-1">
-          <Text className="text-sm font-t3-bold uppercase text-foreground-muted">Vekrel Connect</Text>
+          <Text className="text-sm font-t3-bold uppercase text-foreground-muted">
+            Vekrel Connect
+          </Text>
         </View>
       ) : null}
 
@@ -113,14 +113,10 @@ function CloudMachineRowsContent(
               key={machine.machineId}
               machine={machine}
               descriptor={discoveredDescriptors.get(machine.machineId)}
-              onSetEnabled={(enabled) =>
-                props.onSetMachineEnabled(machine.machineId, enabled)
-              }
+              onSetEnabled={(enabled) => props.onSetMachineEnabled(machine.machineId, enabled)}
               onRemove={() => props.onRemoveMachine(machine.machineId)}
               onOpen={
-                props.onOpenMachine
-                  ? () => props.onOpenMachine?.(machine.machineId)
-                  : undefined
+                props.onOpenMachine ? () => props.onOpenMachine?.(machine.machineId) : undefined
               }
               errorExpanded={expandedErrorId === machine.machineId}
               onToggleError={() => handleToggleCloudError(machine.machineId)}
@@ -185,13 +181,9 @@ function ConnectedCloudMachineRow(props: {
   readonly onOpen?: (() => void) | undefined;
   readonly onToggleError: () => void;
 }) {
-  const serverConfig = useAtomValue(
-    serverMachine.configValueAtom(props.machine.machineId),
-  );
+  const serverConfig = useAtomValue(serverMachine.configValueAtom(props.machine.machineId));
   const unsupported = props.machine.connectionState === "unsupported";
-  const presentation = useAtomValue(
-    machinePresentations.presentationAtom(props.machine.machineId),
-  );
+  const presentation = useAtomValue(machinePresentations.presentationAtom(props.machine.machineId));
   const canRetry = presentation !== null && hasSavedBearerRoute(presentation.entry);
   const enabled = props.machine.isEnabled && !unsupported;
   const { diagnosis } = useConnectionDiagnosis(props.machine.machineId, presentation);

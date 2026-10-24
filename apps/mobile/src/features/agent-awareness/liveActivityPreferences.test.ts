@@ -8,10 +8,7 @@ import { HttpClient } from "effect/http";
 
 import type { SavedRemoteConnection } from "../../lib/connection";
 import * as MobileStorage from "../../persistence/mobile-storage";
-import {
-  CloudMachineLinkError,
-  linkMachineToCloudWithPreference,
-} from "../cloud/linkMachine";
+import { CloudMachineLinkError, linkMachineToCloudWithPreference } from "../cloud/linkMachine";
 import { setLiveActivityUpdatesEnabled } from "./liveActivityPreferences";
 import { updateAgentAwarenessRegistrationPreferences } from "./remoteRegistration";
 
@@ -88,7 +85,7 @@ describe("liveActivityPreferences", () => {
         setLiveActivityUpdatesEnabled({
           enabled: false,
           previousEnabled: true,
-          clerkToken: "clerk-token",
+          accountToken: "account-token",
           connections: [connection],
           canConfigureMachine: () => true,
         }),
@@ -102,12 +99,12 @@ describe("liveActivityPreferences", () => {
         liveActivitiesEnabled: true,
       });
       expect(linkMachineToCloudWithPreference).toHaveBeenNthCalledWith(1, {
-        clerkToken: "clerk-token",
+        accountToken: "account-token",
         connection,
         liveActivitiesEnabled: false,
       });
       expect(linkMachineToCloudWithPreference).toHaveBeenNthCalledWith(2, {
-        clerkToken: "clerk-token",
+        accountToken: "account-token",
         connection,
         liveActivitiesEnabled: true,
       });
@@ -124,7 +121,7 @@ describe("liveActivityPreferences", () => {
       yield* setLiveActivityUpdatesEnabled({
         enabled: true,
         previousEnabled: false,
-        clerkToken: "clerk-token",
+        accountToken: "account-token",
         connections: [readOnlyConnection, connection],
         canConfigureMachine: (machineId) => machineId === connection.machineId,
       });
@@ -133,7 +130,7 @@ describe("liveActivityPreferences", () => {
         liveActivitiesEnabled: true,
       });
       expect(linkMachineToCloudWithPreference).toHaveBeenCalledExactlyOnceWith({
-        clerkToken: "clerk-token",
+        accountToken: "account-token",
         connection,
         liveActivitiesEnabled: true,
       });
@@ -152,7 +149,7 @@ describe("liveActivityPreferences", () => {
       yield* setLiveActivityUpdatesEnabled({
         enabled: false,
         previousEnabled: true,
-        clerkToken: "clerk-token",
+        accountToken: "account-token",
         connections: [connection],
         canConfigureMachine: () => canConfigureMachine,
       });

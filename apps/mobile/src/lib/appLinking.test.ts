@@ -14,16 +14,19 @@ describe("shouldHandleAppLink", () => {
     "vekrel://threads/env-1/thread-1",
     "vekrel://pair?pairingUrl=x",
     "vekrel-dev://settings/usage?tab=limits",
+    "vekrel://auth",
   ])("handles path-bearing URL %s", (url) => {
     expect(shouldHandleAppLink(url)).toBe(true);
   });
 
-  it.each(["vekrel://expo-development-client/?url=x", "vekrel://expo-sharing/anything"])(
-    "ignores lifecycle URL %s",
-    (url) => {
-      expect(shouldHandleAppLink(url)).toBe(false);
-    },
-  );
+  it.each([
+    "vekrel://expo-development-client/?url=x",
+    "vekrel://expo-sharing/anything",
+    "vekrel://auth/callback?code=c&state=s",
+    "vekrel-dev://auth/callback?error=access_denied&state=s",
+  ])("ignores lifecycle URL %s", (url) => {
+    expect(shouldHandleAppLink(url)).toBe(false);
+  });
 });
 
 describe("draft deep links", () => {

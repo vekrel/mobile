@@ -1,7 +1,7 @@
+import { useCloudAuth } from "../cloud/CloudAuthProvider";
 import { ListRow } from "../../components/ui/ListRow";
 import * as Dialog from "../../components/ui/Dialog";
 import { ScreenScrollView as ScrollView } from "../../components/ui/ScreenScrollView";
-import { useAuth } from "@clerk/expo";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Haptics from "expo-haptics";
 import {
@@ -364,10 +364,9 @@ function PairingScanCard(props: {
 }
 
 function T3ConnectSection() {
-  const { isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const { isLoaded, isSignedIn } = useCloudAuth();
   const navigation = useNavigation();
-  const { connectedMachines, onSetMachineEnabled, onRemoveMachinePress } =
-    useRemoteConnections();
+  const { connectedMachines, onSetMachineEnabled, onRemoveMachinePress } = useRemoteConnections();
   const { connectedCloudMachines } = splitMachineSections({
     connectedMachines,
     cloudMachines: null,

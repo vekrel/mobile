@@ -1,5 +1,4 @@
-import { ClerkProvider, useAuth } from "@clerk/expo";
-import { tokenCache } from "@clerk/expo/token-cache";
+import { AccountClientId, createAccountSession } from "@vekrel/client-runtime/account-auth";
 import { ManagedRelay, setManagedRelaySession } from "@vekrel/client-runtime/relay";
 import {
   reportAtomCommandResult,
@@ -8,7 +7,15 @@ import {
   squashAtomCommandFailure,
 } from "@vekrel/client-runtime/state/runtime";
 import * as Effect from "effect/Effect";
-import { type ReactNode, useEffect, useRef } from "react";
+import {
+  createContext,
+  type ReactNode,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { runtime } from "../../lib/runtime";
 import { appAtomRegistry } from "../../state/atom-registry";
@@ -23,8 +30,42 @@ import {
   unregisterAgentAwarenessDeviceForCurrentUser,
 } from "../agent-awareness/remoteRegistration";
 import { clearConnectOnboardingRequest, requestConnectOnboarding } from "./connectOnboarding";
-import { resolveCloudPublicConfig, resolveRelayClerkTokenOptions } from "./publicConfig";
+import { resolveCloudPublicConfig } from "./publicConfig";
 import { removeCloudMachines } from "./cloud-drafts";
+import {
+  type CloudAccount,
+  clearStoredAccount,
+  readStoredAccount,
+  refreshTokenStore,
+  signInWithBrowser,
+} from "./accountSession";
+
+export interface CloudAuthState {
+  readonly isLoaded: boolean;
+  readonly isSignedIn: boolean;
+  readonly userId: string | null;
+  readonly email: string | null;
+  /** A relay access token for the signed-in account; `null` when signed out. */
+  readonly getToken: () => Promise<string | null>;
+  /** Opens the relay sign-in page in the system browser. */
+  readonly signIn: () => Promise<void>;
+  readonly signOut: () => Promise<void>;
+}
+
+// Without cloud config no provider is mounted: signed out, never loaded.
+const CloudAuthContext = createContext<CloudAuthState>({
+  isLoaded: false,
+  isSignedIn: false,
+  userId: null,
+  email: null,
+  getToken: async () => null,
+  signIn: async () => {},
+  signOut: async () => {},
+});
+
+export function useCloudAuth(): CloudAuthState {
+  return useContext(CloudAuthContext);
+}
 
 function resetManagedRelayTokenCache() {
   return settleAsyncResult(() =>
@@ -46,12 +87,12 @@ export function activateCloudRelayAccount(
   setAgentAwarenessRelayTokenProvider(tokenProvider, accountId);
   setManagedRelaySession(appAtomRegistry, {
     accountId,
-    readClerkToken: tokenProvider,
+    readToken: tokenProvider,
   });
 }
 
 function CloudAuthBridge(props: { readonly children: ReactNode }) {
-  const { getToken, isLoaded, isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
+  const { getToken, isLoaded, isSignedIn, userId } = useCloudAuth();
   const removeRelayMachines = useAtomCommand(removeCloudMachines, {
     reportFailure: false,
     reportDefect: false,
@@ -129,7 +170,7 @@ function CloudAuthBridge(props: { readonly children: ReactNode }) {
     }
 
     const previous = previousTokenProviderRef.current;
-    const tokenProvider = () => getToken(resolveRelayClerkTokenOptions());
+    const tokenProvider = getToken;
     const activateSession = () => {
       if (cancelled) {
         return;
@@ -189,24 +230,79 @@ function CloudAuthBridge(props: { readonly children: ReactNode }) {
   return props.children;
 }
 
-export function CloudAuthProvider(props: { readonly children: ReactNode }) {
-  const config = resolveCloudPublicConfig();
-  const publishableKey = config.clerk.publishableKey;
-  const relayUrl = config.relay.url;
+function AccountSessionProvider(props: {
+  readonly relayUrl: string;
+  readonly children: ReactNode;
+}) {
+  const { relayUrl } = props;
+  // `undefined` until the stored account is read.
+  const [account, setAccount] = useState<CloudAccount | null | undefined>(undefined);
+  const session = useMemo(
+    () =>
+      createAccountSession({
+        relayUrl,
+        clientId: AccountClientId.mobile,
+        store: refreshTokenStore,
+        // The relay refused the refresh token (revoked, reused, account disabled).
+        onSignedOut: () => {
+          setAccount(null);
+          void clearStoredAccount().catch(() => {});
+        },
+      }),
+    [relayUrl],
+  );
 
   useEffect(() => {
-    if (!publishableKey || !relayUrl) {
+    let cancelled = false;
+    void readStoredAccount()
+      .catch(() => null)
+      .then((stored) => {
+        if (!cancelled) setAccount((current) => (current === undefined ? stored : current));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const value = useMemo<CloudAuthState>(
+    () => ({
+      isLoaded: account !== undefined,
+      isSignedIn: Boolean(account),
+      userId: account?.userId ?? null,
+      email: account?.email ?? null,
+      getToken: session.getAccessToken,
+      signIn: async () => {
+        const next = await signInWithBrowser(session, relayUrl);
+        if (next) setAccount(next);
+      },
+      signOut: () =>
+        session.signOut().finally(() => {
+          setAccount(null);
+          return clearStoredAccount();
+        }),
+    }),
+    [account, relayUrl, session],
+  );
+
+  return <CloudAuthContext.Provider value={value}>{props.children}</CloudAuthContext.Provider>;
+}
+
+export function CloudAuthProvider(props: { readonly children: ReactNode }) {
+  const relayUrl = resolveCloudPublicConfig().relay.url;
+
+  useEffect(() => {
+    if (!relayUrl) {
       deactivateCloudRelayAccount();
     }
-  }, [publishableKey, relayUrl]);
+  }, [relayUrl]);
 
-  if (!publishableKey || !relayUrl) {
+  if (!relayUrl) {
     return props.children;
   }
 
   return (
-    <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+    <AccountSessionProvider relayUrl={relayUrl}>
       <CloudAuthBridge>{props.children}</CloudAuthBridge>
-    </ClerkProvider>
+    </AccountSessionProvider>
   );
 }

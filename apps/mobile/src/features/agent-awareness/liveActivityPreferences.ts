@@ -9,7 +9,7 @@ export const setLiveActivityUpdatesEnabled = Effect.fn("setLiveActivityUpdatesEn
   function* (input: {
     readonly enabled: boolean;
     readonly previousEnabled: boolean;
-    readonly clerkToken: string | null;
+    readonly accountToken: string | null;
     readonly connections: ReadonlyArray<SavedRemoteConnection>;
     readonly canConfigureMachine: (machineId: MachineId) => boolean;
   }) {
@@ -20,12 +20,12 @@ export const setLiveActivityUpdatesEnabled = Effect.fn("setLiveActivityUpdatesEn
     const updateMachinePreference = Effect.fn("updateMachinePreference")(function* (
       connection: SavedRemoteConnection,
       enabled: boolean,
-      clerkToken: string,
+      accountToken: string,
     ) {
       if (!input.canConfigureMachine(connection.machineId)) return;
 
       yield* linkMachineToCloudWithPreference({
-        clerkToken,
+        accountToken,
         connection,
         liveActivitiesEnabled: enabled,
       });
@@ -36,12 +36,12 @@ export const setLiveActivityUpdatesEnabled = Effect.fn("setLiveActivityUpdatesEn
         liveActivitiesEnabled: enabled,
       });
 
-      const clerkToken = input.clerkToken;
-      if (!clerkToken) return;
+      const accountToken = input.accountToken;
+      if (!accountToken) return;
 
       yield* Effect.forEach(
         linkedConnections,
-        (connection) => updateMachinePreference(connection, enabled, clerkToken),
+        (connection) => updateMachinePreference(connection, enabled, accountToken),
         { concurrency: "unbounded" },
       );
     });
@@ -55,13 +55,13 @@ export const setLiveActivityUpdatesEnabled = Effect.fn("setLiveActivityUpdatesEn
         ),
       );
 
-      const clerkToken = input.clerkToken;
-      if (!clerkToken) return;
+      const accountToken = input.accountToken;
+      if (!accountToken) return;
 
       yield* Effect.forEach(
         linkedConnections,
         (connection) =>
-          updateMachinePreference(connection, input.previousEnabled, clerkToken).pipe(
+          updateMachinePreference(connection, input.previousEnabled, accountToken).pipe(
             Effect.catchCause((cause) =>
               Effect.logWarning(
                 `Could not restore Live Activity preference for machine ${connection.machineId}.`,
