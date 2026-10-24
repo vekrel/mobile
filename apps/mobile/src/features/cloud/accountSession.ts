@@ -77,3 +77,21 @@ export async function signInWithBrowser(
   await accountStore.write(JSON.stringify(account));
   return account;
 }
+
+/**
+ * Unregisters this device (and with it the account's Live Activities on the relay) while the
+ * session can still authenticate, then revokes. A failed unregister still signs out.
+ * Deviation from upstream: its unregister ran after sign-out with no token and was skipped,
+ * so a signed-out phone kept getting the old account's pushes.
+ */
+export async function signOutAccount(
+  session: AccountSession,
+  unregisterDevice: (tokenProvider: () => Promise<string | null>) => Promise<unknown>,
+): Promise<void> {
+  try {
+    await unregisterDevice(session.getAccessToken);
+  } catch (cause) {
+    console.warn("[vekrel-connect] Device unregistration before sign-out failed", cause);
+  }
+  await session.signOut();
+}

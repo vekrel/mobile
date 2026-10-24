@@ -8,6 +8,7 @@ import {
   readStoredAccount,
   refreshTokenStore,
   signInWithBrowser,
+  signOutAccount,
 } from "./accountSession";
 
 const secureStore = new Map<string, string>();
@@ -136,5 +137,45 @@ describe("readStoredAccount", () => {
     secureStore.clear();
     secureStore.set("vekrel.cloud.account", JSON.stringify({ userId: "usr_1", email: null }));
     await expect(readStoredAccount()).resolves.toBeNull();
+  });
+});
+
+describe("signOutAccount", () => {
+  async function signedIn() {
+    const relay = fakeRelay();
+    browserReturns();
+    await signInWithBrowser(relay.session, RELAY_URL);
+    return relay;
+  }
+  const revoked = (fetch: ReturnType<typeof fakeRelay>["fetch"]) =>
+    fetch.mock.calls.filter(([url]) => url.endsWith("/oauth/revoke")).length;
+
+  it("unregisters the device with a live token before revoking", async () => {
+    const { fetch, session } = await signedIn();
+    const order: string[] = [];
+    fetch.mockImplementation(async (url) => {
+      order.push(url.endsWith("/oauth/revoke") ? "revoke" : "token");
+      return new Response(null, { status: 200 });
+    });
+
+    await signOutAccount(session, async (tokenProvider) => {
+      order.push(`unregister:${await tokenProvider()}`);
+    });
+
+    expect(order).toEqual([`unregister:${accessToken}`, "revoke"]);
+    expect(await refreshTokenStore.read()).toBeNull();
+  });
+
+  it("still revokes and clears the session when unregistering fails", async () => {
+    const { fetch, session } = await signedIn();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await signOutAccount(session, async () => {
+      throw new Error("relay down");
+    });
+
+    expect(revoked(fetch)).toBe(1);
+    expect(await refreshTokenStore.read()).toBeNull();
+    await expect(session.getAccessToken()).resolves.toBeNull();
   });
 });

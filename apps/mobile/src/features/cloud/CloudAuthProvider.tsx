@@ -38,6 +38,7 @@ import {
   readStoredAccount,
   refreshTokenStore,
   signInWithBrowser,
+  signOutAccount,
 } from "./accountSession";
 
 export interface CloudAuthState {
@@ -276,7 +277,9 @@ function AccountSessionProvider(props: {
         if (next) setAccount(next);
       },
       signOut: () =>
-        session.signOut().finally(() => {
+        signOutAccount(session, (tokenProvider) =>
+          runtime.runPromise(unregisterAgentAwarenessDeviceForCurrentUser(tokenProvider)),
+        ).finally(() => {
           setAccount(null);
           return clearStoredAccount();
         }),
