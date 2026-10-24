@@ -71,16 +71,25 @@ export async function signInWithBrowser(
   const result = await WebBrowser.openAuthSessionAsync(url, redirectUri);
   if (result.type !== "success") return null;
   await session.completeSignIn(result.url, pending);
-  const accessToken = await session.getAccessToken();
-  if (!accessToken) return null;
-  const account = readAccountFromToken(accessToken);
-  await accountStore.write(JSON.stringify(account));
-  return account;
+  try {
+    const accessToken = await session.getAccessToken();
+    if (!accessToken) return null;
+    const account = readAccountFromToken(accessToken);
+    await accountStore.write(JSON.stringify(account));
+    return account;
+  } catch (cause) {
+    // A refresh token without its account would be orphaned: revoke it and clear the store.
+    await session.signOut().catch(() => {});
+    throw cause;
+  }
 }
+
+const SIGN_OUT_UNREGISTER_TIMEOUT_MS = 5_000;
 
 /**
  * Unregisters this device (and with it the account's Live Activities on the relay) while the
- * session can still authenticate, then revokes. A failed unregister still signs out.
+ * session can still authenticate, then revokes. A failed or hung (over 5 s) unregister still
+ * signs out.
  * Deviation from upstream: its unregister ran after sign-out with no token and was skipped,
  * so a signed-out phone kept getting the old account's pushes.
  */
@@ -88,10 +97,21 @@ export async function signOutAccount(
   session: AccountSession,
   unregisterDevice: (tokenProvider: () => Promise<string | null>) => Promise<unknown>,
 ): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    await unregisterDevice(session.getAccessToken);
+    await Promise.race([
+      unregisterDevice(session.getAccessToken),
+      new Promise((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error("Device unregistration timed out.")),
+          SIGN_OUT_UNREGISTER_TIMEOUT_MS,
+        );
+      }),
+    ]);
   } catch (cause) {
     console.warn("[vekrel-connect] Device unregistration before sign-out failed", cause);
+  } finally {
+    clearTimeout(timer);
   }
   await session.signOut();
 }

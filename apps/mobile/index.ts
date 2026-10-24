@@ -1,5 +1,7 @@
 // Must stay first: the render counter wraps the DevTools hook before any React commit.
 import "./src/features/development/render-counter-entry";
+// Before the app: account sign-in needs crypto.getRandomValues (Hermes may lack it).
+import "./src/lib/cryptoShim";
 import { registerRootComponent } from "expo";
 import "react-native-gesture-handler";
 import { LogBox } from "react-native";

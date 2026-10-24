@@ -1,6 +1,6 @@
 import { AccountClientId, createAccountSession } from "@vekrel/client-runtime/account-auth";
 import * as WebBrowser from "expo-web-browser";
-import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, onTestFinished, vi } from "vite-plus/test";
 
 import {
   accountRedirectUri,
@@ -114,6 +114,26 @@ describe("signInWithBrowser", () => {
     expect(secureStore.size).toBe(0);
   });
 
+  it("revokes and clears the refresh token when the account cannot be stored", async () => {
+    const { fetch, session } = fakeRelay();
+    browserReturns();
+    const SecureStore = await import("expo-secure-store");
+    const realSetItem = vi.mocked(SecureStore.setItemAsync).getMockImplementation()!;
+    vi.mocked(SecureStore.setItemAsync).mockImplementation(async (key, value) => {
+      if (key === "vekrel.cloud.account") throw new Error("keychain full");
+      return realSetItem(key, value);
+    });
+    onTestFinished(() => {
+      vi.mocked(SecureStore.setItemAsync).mockImplementation(realSetItem);
+    });
+
+    await expect(signInWithBrowser(session, RELAY_URL)).rejects.toThrow("keychain full");
+    expect(secureStore.size).toBe(0);
+    const revoke = fetch.mock.calls.find(([url]) => url.endsWith("/oauth/revoke"));
+    expect(String(revoke?.[1].body)).toContain("token=refresh-1");
+    await expect(session.getAccessToken()).resolves.toBeNull();
+  });
+
   it("returns null when the user closes the browser", async () => {
     const { fetch, session } = fakeRelay();
     vi.mocked(WebBrowser.openAuthSessionAsync).mockResolvedValue({
@@ -164,6 +184,27 @@ describe("signOutAccount", () => {
 
     expect(order).toEqual([`unregister:${accessToken}`, "revoke"]);
     expect(await refreshTokenStore.read()).toBeNull();
+  });
+
+  it("gives up on a hung unregister after 5 s, then revokes", async () => {
+    const { fetch, session } = await signedIn();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.useFakeTimers();
+    try {
+      let done = false;
+      const signingOut = signOutAccount(session, () => new Promise(() => {})).then(() => {
+        done = true;
+      });
+      await vi.advanceTimersByTimeAsync(4_999);
+      expect(done).toBe(false);
+      expect(revoked(fetch)).toBe(0);
+      await vi.advanceTimersByTimeAsync(1);
+      await signingOut;
+      expect(revoked(fetch)).toBe(1);
+      expect(await refreshTokenStore.read()).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("still revokes and clears the session when unregistering fails", async () => {
