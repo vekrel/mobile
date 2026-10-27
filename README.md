@@ -13,7 +13,7 @@ The iOS and Android app for Vekrel. Highly inspired by T3 Code (MIT, see NOTICE)
 
 - Root package name is `@vekrel/mobile-root`; app package is `@vekrel/mobile`. The npm scope, env prefix and product name are replaced by `@vekrel/`, `VEKREL_` and `Vekrel` (app name, About/Settings strings, permission strings, widget and notification titles).
 - App identity (`apps/mobile/app.config.ts`): names `Vekrel Dev`/`Vekrel Preview`/`Vekrel`; schemes `vekrel-dev`/`vekrel-preview`/`vekrel`; iOS bundle id and Android package `dev.vekrel.mobile` with `.dev`/`.preview` suffixes (also in `scripts/mobile-showcase.ts` and `measure-renders.mts`). Deep-link, storage-key and tracing-service strings that began `t3code` now begin `vekrel`.
-- Kept on purpose: `ThreadFeed.tsx` compares `attribution === "t3code"`, a value defined by `packages/client-runtime` (Vekrel-Shared). The Apple team pin, the Expo `updates.url`/project id, `https://t3.codes` marketing URL, native module directory and class names (`t3-*`, `T3*`), `oxlint-plugin-t3code` and test fixtures naming the upstream GitHub repo are unchanged. They need Vekrel-owned accounts or a wider rename.
+- Kept on purpose: `ThreadFeed.tsx` compares `attribution === "t3code"`, a value defined by `packages/client-runtime` (Vekrel-Shared). The Apple team pin, the Expo `updates.url`/project id, native module directory and class names (`t3-*`, `T3*`), `oxlint-plugin-t3code` and test fixtures naming the upstream GitHub repo are unchanged. They need Vekrel-owned accounts or a wider rename.
 - Icons are generated, not exported with `scripts/export-android-icons.ts` / `export-brand-icons.ts` (those need macOS Icon Composer `.icon` sources under `assets/`, which are not copied). `sharp` renders the Vekrel brand `org-avatar.svg` and `mark.svg` geometry: iOS 1024 icons (`assets/{dev,nightly,prod}/*-ios-1024.png`, full-bleed on `#FF6A2B`), a minimal Icon Composer project `assets/*/app-icon.icon` (mark layer on `#FF6A2B`), Android adaptive foreground (transparent), backgrounds (`#FF6A2B`), monochrome mark, notification icon, splash images, and `apps/mobile/assets/widget/T3Mark.svg` (template-tinted mark). All three variants share one icon. `androidAdaptiveBackgroundColor` is `#FF6A2B` for all variants.
 - `pnpm-lock.yaml` is upstream's with the scope renamed, then reconciled by `pnpm install` (a fresh resolve was not tried; Vekrel-Web found it drifts).
 - `scripts` and `infra/*` are not workspace members (scripts' typecheck references apps/server and `.github`); `scripts/` kept on disk. `pnpm typecheck` passes for the remaining 26 projects.
@@ -36,5 +36,4 @@ Still upstream values; replace before a real build or release:
 
 - Expo `updates.url` and EAS project id (`u.expo.dev/d763fcb8-...`)
 - Apple development team pin in `app.config.ts`
-- `https://t3.codes` marketing/legal URL (`legal-document-url.ts`)
 - `VEKREL_RELAY_URL` EAS environment value
